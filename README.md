@@ -7,6 +7,18 @@
 3. 社群、新聞、官方資料、市場資料與聚合器的能力邊界是否不同？
 4. 失敗能否被正確分為封鎖、需認證、限流、TLS、逾時、robots 或內容不足，而不是誤報成功？
 
+## 2026-08-10 雲端實接驗證
+
+- GitHub public repo：[`ai-cooperation/finance-crawler-validation`](https://github.com/ai-cooperation/finance-crawler-validation)
+- 單次手動 Actions：[run 31369726174](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31369726174)，耗時 1 分 52 秒，沒有建立 schedule 或重複 run。
+- 15 個唯一來源中 14 個成功：RSS 5/5、Public API 7/7、Browser 2/3；Bogleheads 仍被 Cloudflare challenge 阻擋。
+- GitHub OIDC 已成功通過 Ingest Worker 寫入 38 筆 raw items，並發布 1 個含 3 個議題的 partial current snapshot。
+- D1：`finance-crawler-validation-core`，database ID `476bd84f-e924-4b9b-a9d9-dfca9ea29a1a`。
+- Private R2：`finance-crawler-validation-raw`；已直接讀回 topic object 與 raw object，topic SHA-256 與 D1 索引一致。
+- Ingest Worker：`finance-crawler-validation-ingest`，只接受固定 repository、owner、workflow、`main` ref、event、run ID 與 commit SHA 的 GitHub OIDC。
+
+這次證明手動垂直切片可行，不代表長期穩定性驗收已完成。正式排程、外部失敗通知、staleness watchdog、遠端重放去重與故障注入仍保持關閉或待驗證。
+
 ## 驗收契約
 
 - 每個啟用來源必須產生一筆結果，不可靜默遺失。

@@ -20,4 +20,4 @@ npm run deploy:dry
 4. GitHub workflow 只在手動垂直切片 job 開啟 `id-token: write`，取得指定 audience 的 OIDC token後呼叫 `/v1/ingest/items` 與 `/v1/ingest/publish`。
 5. 接上外部失敗通知與 staleness watchdog 後才啟用 schedule。
 
-目前 `wrangler.jsonc` 中的 repository／owner ID 保持 `TBD`，因此本 repository 尚未部署可寫的遠端入口。
+隔離驗證環境已將 repository ID `1329574278`、owner ID `258149792` 與 `topic-radar.yml@refs/heads/main` 固定在 `wrangler.jsonc`。[Actions run 31369726174](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31369726174) 已完成一次 OIDC staging→publish，遠端 D1 和 R2 的讀回驗證也已通過。schedule 仍未啟用。

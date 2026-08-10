@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
 更新日期：2026-08-10  
-狀態：資料契約、Ingest Worker 本機版與 15 來源議題雷達垂直切片已驗證；Cloudflare 遠端資源、GitHub OIDC 實接與正式排程尚未部署。
+狀態：資料契約、Ingest Worker、D1／R2 與 15 來源議題雷達已在隔離驗證帳號完成單次 GitHub OIDC 垂直切片；正式排程、長期穩定性、外部告警與故障恢復尚未驗收。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -138,9 +138,9 @@ OAuth scope 預計分為：
 |---|---|---|
 | 0. 來源與路由 POC | 部分完成 | 已完成來源矩陣、120 品牌單一 GitHub executor 擴大樣本與 15 來源垂直切片；跨時間 observation state 與同 URL 多 executor A/B 待辦 |
 | 1. 資料契約 | 本機完成 | 七份 version 1 JSON Schema、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
-| 2. CF system of record | 本機完成、遠端待辦 | D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain 與 Ingest Worker 已通過 Miniflare 整合測試及 Wrangler dry-run；尚未建立／遷移遠端資源 |
-| 3. GH 批次管線 | 部分完成 | ingest envelope、commit SHA／workflow run 綁定、checkpoint 與重放去重已完成；GitHub OIDC 實接、catch-up 與外部告警待辦 |
-| 4. 議題雷達與研究 | 垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
+| 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain 與 Ingest Worker 已部署；run `31369726174` 寫入 38 items 與 1 個 current snapshot，並直讀 R2 object 驗證 hash |
+| 3. GH 批次管線 | 手動 OIDC 實接完成 | ingest envelope、immutable repo／owner／workflow／ref claims、commit SHA／workflow run 綁定、checkpoint 與單次 staging→publish 已實辦；遠端重放、catch-up、真正外部告警與 staleness 待辦 |
+| 4. 議題雷達與研究 | 遠端垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
 | 5. OAuth MCP | 待辦 | scope、查詢 tools、freshness／partial 揭露、公開與私有權限測試 |
 | 6. 穩定性驗收 | 待辦 | 故障注入、額度觀測、連續一週正常排程與補跑紀錄 |
 
@@ -159,7 +159,17 @@ OAuth scope 預計分為：
 
 當次前三名為 equities／earnings（社群領先）、AI／semiconductors（新聞領先）與 personal finance（社群領先）。這只是該次資料的可重現規則式雷達結果，不是投資結論，也不外推為長期來源成功率。完整 raw 與 ingest payload 僅保存在本機暫存目錄，未提交 public repo；程式內 fixture 都明確標為 synthetic。
 
-進入 OpenBB 前仍須完成：建立遠端 D1／R2、套用 migration、填入 immutable repository／owner ID、讓手動 workflow 取得 GitHub OIDC 並完成一次 staging→publish 實接、注入失敗確認 last-good 與外部通知。正式 schedule 仍保持關閉。
+### 2026-08-10 GitHub OIDC → Cloudflare 遠端實接
+
+[Actions run 31369726174](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31369726174) 從 commit `64d78dfbda9eae9876a266085d64853ba6e510a7` 執行一次手動垂直切片，耗時 1 分 52 秒。GitHub-hosted runner 實際取得 OIDC，通過 `finance-crawler-validation-ingest` 寫入 APAC D1 `476bd84f-e924-4b9b-a9d9-dfca9ea29a1a` 與 private R2 `finance-crawler-validation-raw`。
+
+- 來源：14/15 成功，RSS 5/5、Public API 7/7、Browser 2/3。
+- 產物：38 個 raw items、3 個 topics、snapshot `radar_20260810t082255z`，因 Bogleheads Browser 失敗而 `partial=true`。
+- D1：`runs.status=published`，`raw_items=38`，`run_items=38`，`topic_snapshots=1`，`current_snapshot` 指向當次 snapshot；`raw_collected` 與 `published` audit events 各 1 筆。
+- R2：直接讀回 topic JSON（4,085 bytes）與一個 raw JSON（66,104 bytes）；topic SHA-256 `4aff9ea563bf190ab4bee9bd9e187b92b9cbbd7f5a118c138d0f358978fc7093` 與 D1 完全一致。R2 bucket usage 彙總當時仍顯示 0，因此驗收以直接 object get 為準，不以延遲的彙總指標推定。
+- 公開 artifact 只有 source-health `run-report.json`；raw items 與 topic snapshot 沒有上傳為 GitHub artifact。
+
+進入 OpenBB 前仍須完成：遠端重放去重、故障注入確認 last-good、catch-up 視窗、外部失敗通知與 staleness watchdog。正式 schedule 仍保持關閉。
 
 ## 九、驗收條件
 
