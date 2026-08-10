@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "experiment": "cloudflare-browser-run-fixed-eight-pilot",
+  "started_at": "2026-08-09T00:03:39.498Z",
+  "completed_at": "2026-08-09T00:06:08.146Z",
+  "baseline": {
+    "engine": "Crawl4AI on GitHub Actions",
+    "denominator": 8,
+    "successes": 0,
+    "failure_class": "anti_bot_or_cdn_blocked"
+  },
+  "treatment": {
+    "engine": "Cloudflare Browser Run Quick Action markdown networkidle2 wait5s",
+    "interval_ms": 11000,
+    "source_ids": [
+      "bogleheads_personal_investments",
+      "quant_stackexchange_hot",
+      "hotcopper_home",
+      "advfn_uk_share_chat",
+      "financial_wisdom_forum",
+      "investing_analysis",
+      "mr_money_mustache_forum",
+      "white_coat_investor_forum"
+    ],
+    "eligible_source_ids": [
+      "bogleheads_personal_investments",
+      "hotcopper_home",
+      "advfn_uk_share_chat",
+      "financial_wisdom_forum",
+      "investing_analysis",
+      "mr_money_mustache_forum",
+      "white_coat_investor_forum"
+    ]
+  },
+  "results": [
+    {
+      "source_id": "bogleheads_personal_investments",
+      "source_url": "https://www.bogleheads.org/forum/viewforum.php?f=1",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 8073.037841796875,
+      "content_length": 564,
+      "content_sha256": "44a99a864f66ae5de9a810a1cf28cccbf54896d0697c8093849b6867cec644db",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "just a moment"
+    },
+    {
+      "source_id": "quant_stackexchange_hot",
+      "source_url": "https://quant.stackexchange.com/questions?tab=Hot",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 403,
+      "browser_ms": 0,
+      "content_length": 0,
+      "content_sha256": "",
+      "success": false,
+      "excluded": true,
+      "failure_category": "robots_denied",
+      "error": "robots_disallow_all_2026-08-09"
+    },
+    {
+      "source_id": "hotcopper_home",
+      "source_url": "https://hotcopper.com.au/",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 8155.292236328125,
+      "content_length": 556,
+      "content_sha256": "33ba86e5a8987ac7076396ed1f83e96a46b2e8e309915b636d856c6c99b260ce",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "just a moment"
+    },
+    {
+      "source_id": "advfn_uk_share_chat",
+      "source_url": "https://uk.advfn.com/stock-market/london/share-chat",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 7056.3671875,
+      "content_length": 540,
+      "content_sha256": "327de549e0b45bd284298064e3940ff8ef215d75a5c2bf25fbf143815468e1a8",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "just a moment"
+    },
+    {
+      "source_id": "financial_wisdom_forum",
+      "source_url": "https://www.financialwisdomforum.org/forum/",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 7870.067138671875,
+      "content_length": 208,
+      "content_sha256": "462ca9ec7e935241378fcb4316c45df1760182b18051748832b421967d08be3b",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "403 forbidden"
+    },
+    {
+      "source_id": "investing_analysis",
+      "source_url": "https://www.investing.com/analysis/",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 23022.182861328125,
+      "content_length": 62881,
+      "content_sha256": "a8b8c7575d670e08196ffdaf4a388e63ce208c35db399af00565c521738134a2",
+      "success": true
+    },
+    {
+      "source_id": "mr_money_mustache_forum",
+      "source_url": "https://forum.mrmoneymustache.com/",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 7893.806396484375,
+      "content_length": 592,
+      "content_sha256": "505406c673d3cf13a44a42d0ef80169588b9ebc34d40b27905b412b155d5bb03",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "just a moment"
+    },
+    {
+      "source_id": "white_coat_investor_forum",
+      "source_url": "https://forum.whitecoatinvestor.com/",
+      "route": "cloudflare_browser_run_markdown",
+      "worker_status_code": 200,
+      "browser_ms": 7133.281005859375,
+      "content_length": 600,
+      "content_sha256": "d50c849a7e0e9bd3b0efd84be98cdf1b05a5e08a31a069a43ec767a1b437ed96",
+      "success": false,
+      "ok": false,
+      "failure_category": "anti_bot_blocked",
+      "marker": "just a moment"
+    }
+  ],
+  "summary": {
+    "cohort_denominator": 8,
+    "eligible_denominator": 7,
+    "excluded": 1,
+    "recovered": 1,
+    "failed": 6,
+    "recovery_rate": 14.29,
+    "total_browser_ms": 69204.03466796875
+  }
+}

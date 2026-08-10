@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/source-record.schema.json",
+  "title": "Finance crawler source record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_id",
+    "name",
+    "kind",
+    "layer",
+    "transport",
+    "canonical_url",
+    "freshness_sla_minutes",
+    "rights"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "source_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "kind": {
+      "enum": [
+        "aggregator",
+        "community",
+        "developer_community",
+        "market_data",
+        "news",
+        "official_data",
+        "official_news"
+      ]
+    },
+    "layer": { "enum": ["market", "news", "official", "social"] },
+    "transport": { "enum": ["browser", "json_api", "rss", "static_html"] },
+    "canonical_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "maxLength": 4096
+    },
+    "freshness_sla_minutes": { "type": "integer", "minimum": 5, "maximum": 10080 },
+    "rights": { "$ref": "#/$defs/rights" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "rights": {
+            "properties": { "redistribution": { "const": "metadata_only" } },
+            "required": ["redistribution"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rights": {
+            "properties": { "public_excerpt_chars": { "const": 0 } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redistribution", "retention_days", "public_excerpt_chars"],
+      "properties": {
+        "redistribution": { "enum": ["metadata_only", "excerpt", "full"] },
+        "retention_days": { "type": "integer", "minimum": 0, "maximum": 3650 },
+        "public_excerpt_chars": { "type": "integer", "minimum": 0, "maximum": 2000 }
+      }
+    }
+  }
+}

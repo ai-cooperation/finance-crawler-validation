@@ -1,0 +1,886 @@
+version: 1
+status: complete
+target:
+  total_brands: 120
+  finance_specialist: 100
+  general_finance_desk: 20
+
+# Endpoints are ordered fallbacks inside one brand. Adding another endpoint
+# never increases the unique-brand denominator.
+finance_specialist_defaults: &finance_specialist_defaults
+  brand_class: finance_specialist
+  languages: [en]
+general_finance_desk_defaults: &general_finance_desk_defaults
+  brand_class: general_finance_desk
+  languages: [en]
+
+brands:
+  - <<: *finance_specialist_defaults
+    id: bloomberg
+    name: Bloomberg
+    canonical_domain: bloomberg.com
+    region: US
+    endpoints:
+      - {id: bloomberg_browser, transport: browser, url: https://www.bloomberg.com/markets, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: reuters
+    name: Reuters
+    canonical_domain: reuters.com
+    region: global
+    endpoints:
+      - {id: reuters_browser, transport: browser, url: https://www.reuters.com/markets/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: financial_times
+    name: Financial Times
+    canonical_domain: ft.com
+    region: UK
+    endpoints:
+      - {id: financial_times_rss, transport: rss, url: "https://www.ft.com/?format=rss", required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: wall_street_journal
+    name: The Wall Street Journal
+    canonical_domain: wsj.com
+    region: US
+    endpoints:
+      - {id: wall_street_journal_browser, transport: browser, url: https://www.wsj.com/news/business, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: cnbc
+    name: CNBC
+    canonical_domain: cnbc.com
+    region: US
+    endpoints:
+      - {id: cnbc_rss, transport: rss, url: https://www.cnbc.com/id/100003114/device/rss/rss.html, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: marketwatch
+    name: MarketWatch
+    canonical_domain: marketwatch.com
+    region: US
+    endpoints:
+      - {id: marketwatch_rss, transport: rss, url: https://feeds.content.dowjones.io/public/rss/mw_topstories, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: barrons
+    name: Barron's
+    canonical_domain: barrons.com
+    region: US
+    endpoints:
+      - {id: barrons_browser, transport: browser, url: https://www.barrons.com/market-data, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: investors_business_daily
+    name: Investor's Business Daily
+    canonical_domain: investors.com
+    region: US
+    endpoints:
+      - {id: investors_business_daily_rss, transport: rss, url: https://www.investors.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: yahoo_finance
+    name: Yahoo Finance
+    canonical_domain: finance.yahoo.com
+    region: global
+    endpoints:
+      - {id: yahoo_finance_html, transport: static_html, url: https://finance.yahoo.com/news/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investing_com
+    name: Investing.com
+    canonical_domain: investing.com
+    region: global
+    endpoints:
+      - {id: investing_com_browser, transport: browser, url: https://www.investing.com/news/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: seeking_alpha
+    name: Seeking Alpha
+    canonical_domain: seekingalpha.com
+    region: US
+    endpoints:
+      - {id: seeking_alpha_browser, transport: browser, url: https://seekingalpha.com/market-news, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: morningstar
+    name: Morningstar
+    canonical_domain: morningstar.com
+    region: global
+    endpoints:
+      - {id: morningstar_html, transport: static_html, url: https://www.morningstar.com/markets, required_capabilities: [http, static_html]}
+      - {id: morningstar_browser, transport: browser, url: https://www.morningstar.com/markets, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: motley_fool
+    name: The Motley Fool
+    canonical_domain: fool.com
+    region: US
+    endpoints:
+      - {id: motley_fool_html, transport: static_html, url: https://www.fool.com/investing-news/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: benzinga
+    name: Benzinga
+    canonical_domain: benzinga.com
+    region: US
+    endpoints:
+      - {id: benzinga_html, transport: static_html, url: https://www.benzinga.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: the_street
+    name: TheStreet
+    canonical_domain: thestreet.com
+    region: US
+    endpoints:
+      - {id: the_street_rss, transport: rss, url: https://www.thestreet.com/.rss/full/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: kiplinger
+    name: Kiplinger
+    canonical_domain: kiplinger.com
+    region: US
+    endpoints:
+      - {id: kiplinger_html, transport: static_html, url: https://www.kiplinger.com/investing, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: money_com
+    name: Money
+    canonical_domain: money.com
+    region: US
+    endpoints:
+      - {id: money_com_html, transport: static_html, url: https://money.com/investing/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investopedia
+    name: Investopedia
+    canonical_domain: investopedia.com
+    region: US
+    endpoints:
+      - {id: investopedia_html, transport: static_html, url: https://www.investopedia.com/markets-4427705, required_capabilities: [http, static_html]}
+      - {id: investopedia_browser, transport: browser, url: https://www.investopedia.com/markets-4427705, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: fortune
+    name: Fortune
+    canonical_domain: fortune.com
+    region: US
+    endpoints:
+      - {id: fortune_rss, transport: rss, url: https://fortune.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: business_insider
+    name: Business Insider
+    canonical_domain: businessinsider.com
+    region: US
+    endpoints:
+      - {id: business_insider_html, transport: static_html, url: https://www.businessinsider.com/markets, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: forbes
+    name: Forbes
+    canonical_domain: forbes.com
+    region: US
+    endpoints:
+      - {id: forbes_html, transport: static_html, url: https://www.forbes.com/money/, required_capabilities: [http, static_html]}
+      - {id: forbes_browser, transport: browser, url: https://www.forbes.com/money/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: the_economist
+    name: The Economist
+    canonical_domain: economist.com
+    region: UK
+    endpoints:
+      - {id: the_economist_html, transport: static_html, url: https://www.economist.com/finance-and-economics, required_capabilities: [http, static_html]}
+      - {id: the_economist_browser, transport: browser, url: https://www.economist.com/finance-and-economics, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: nikkei_asia
+    name: Nikkei Asia
+    canonical_domain: asia.nikkei.com
+    region: Asia
+    endpoints:
+      - {id: nikkei_asia_html, transport: static_html, url: https://asia.nikkei.com/Business, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: quartz
+    name: Quartz
+    canonical_domain: qz.com
+    region: US
+    endpoints:
+      - {id: quartz_rss, transport: rss, url: https://qz.com/rss, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: semafor_business
+    name: Semafor Business
+    canonical_domain: semafor.com
+    region: US
+    endpoints:
+      - {id: semafor_business_html, transport: static_html, url: https://www.semafor.com/vertical/business, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: institutional_investor
+    name: Institutional Investor
+    canonical_domain: institutionalinvestor.com
+    region: US
+    endpoints:
+      - {id: institutional_investor_html, transport: static_html, url: https://www.institutionalinvestor.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: pensions_investments
+    name: Pensions & Investments
+    canonical_domain: pionline.com
+    region: US
+    endpoints:
+      - {id: pensions_investments_html, transport: static_html, url: https://www.pionline.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: american_banker
+    name: American Banker
+    canonical_domain: americanbanker.com
+    region: US
+    endpoints:
+      - {id: american_banker_html, transport: static_html, url: https://www.americanbanker.com/, required_capabilities: [http, static_html]}
+      - {id: american_banker_browser, transport: browser, url: https://www.americanbanker.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: banking_dive
+    name: Banking Dive
+    canonical_domain: bankingdive.com
+    region: US
+    endpoints:
+      - {id: banking_dive_rss, transport: rss, url: https://www.bankingdive.com/feeds/news/, required_capabilities: [http, rss]}
+      - {id: banking_dive_html, transport: static_html, url: https://www.bankingdive.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: payments_dive
+    name: Payments Dive
+    canonical_domain: paymentsdive.com
+    region: US
+    endpoints:
+      - {id: payments_dive_rss, transport: rss, url: https://www.paymentsdive.com/feeds/news/, required_capabilities: [http, rss]}
+      - {id: payments_dive_html, transport: static_html, url: https://www.paymentsdive.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: risk_net
+    name: Risk.net
+    canonical_domain: risk.net
+    region: UK
+    endpoints:
+      - {id: risk_net_html, transport: static_html, url: https://www.risk.net/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: euromoney
+    name: Euromoney
+    canonical_domain: euromoney.com
+    region: UK
+    endpoints:
+      - {id: euromoney_html, transport: static_html, url: https://www.euromoney.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: global_finance
+    name: Global Finance
+    canonical_domain: gfmag.com
+    region: US
+    endpoints:
+      - {id: global_finance_html, transport: static_html, url: https://gfmag.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: international_banker
+    name: International Banker
+    canonical_domain: internationalbanker.com
+    region: UK
+    endpoints:
+      - {id: international_banker_html, transport: static_html, url: https://internationalbanker.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: the_banker
+    name: The Banker
+    canonical_domain: thebanker.com
+    region: UK
+    endpoints:
+      - {id: the_banker_html, transport: static_html, url: https://www.thebanker.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: private_banker_international
+    name: Private Banker International
+    canonical_domain: privatebankerinternational.com
+    region: UK
+    endpoints:
+      - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investment_week
+    name: Investment Week
+    canonical_domain: investmentweek.co.uk
+    region: UK
+    endpoints:
+      - {id: investment_week_html, transport: static_html, url: https://www.investmentweek.co.uk/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investment_news
+    name: InvestmentNews
+    canonical_domain: investmentnews.com
+    region: US
+    endpoints:
+      - {id: investment_news_html, transport: static_html, url: https://www.investmentnews.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: wealth_management
+    name: WealthManagement.com
+    canonical_domain: wealthmanagement.com
+    region: US
+    endpoints:
+      - {id: wealth_management_html, transport: static_html, url: https://www.wealthmanagement.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: think_advisor
+    name: ThinkAdvisor
+    canonical_domain: thinkadvisor.com
+    region: US
+    endpoints:
+      - {id: think_advisor_html, transport: static_html, url: https://www.thinkadvisor.com/, required_capabilities: [http, static_html]}
+      - {id: think_advisor_browser, transport: browser, url: https://www.thinkadvisor.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: advisor_hub
+    name: AdvisorHub
+    canonical_domain: advisorhub.com
+    region: US
+    endpoints:
+      - {id: advisor_hub_html, transport: static_html, url: https://www.advisorhub.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: financial_advisor_magazine
+    name: Financial Advisor Magazine
+    canonical_domain: fa-mag.com
+    region: US
+    endpoints:
+      - {id: financial_advisor_magazine_html, transport: static_html, url: https://www.fa-mag.com/, required_capabilities: [http, static_html]}
+      - {id: financial_advisor_magazine_browser, transport: browser, url: https://www.fa-mag.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: riabiz
+    name: RIABiz
+    canonical_domain: riabiz.com
+    region: US
+    endpoints:
+      - {id: riabiz_html, transport: static_html, url: https://riabiz.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: planadviser
+    name: PLANADVISER
+    canonical_domain: planadviser.com
+    region: US
+    endpoints:
+      - {id: planadviser_html, transport: static_html, url: https://www.planadviser.com/, required_capabilities: [http, static_html]}
+      - {id: planadviser_browser, transport: browser, url: https://www.planadviser.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: chief_investment_officer
+    name: Chief Investment Officer
+    canonical_domain: ai-cio.com
+    region: US
+    endpoints:
+      - {id: chief_investment_officer_html, transport: static_html, url: https://www.ai-cio.com/, required_capabilities: [http, static_html]}
+      - {id: chief_investment_officer_browser, transport: browser, url: https://www.ai-cio.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: benefits_pro
+    name: BenefitsPRO
+    canonical_domain: benefitspro.com
+    region: US
+    endpoints:
+      - {id: benefits_pro_html, transport: static_html, url: https://www.benefitspro.com/, required_capabilities: [http, static_html]}
+      - {id: benefits_pro_browser, transport: browser, url: https://www.benefitspro.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: insurance_journal
+    name: Insurance Journal
+    canonical_domain: insurancejournal.com
+    region: US
+    endpoints:
+      - {id: insurance_journal_api, transport: json_api, url: "https://www.insurancejournal.com/wp-json/wp/v2/posts?per_page=10", required_capabilities: [http, json]}
+      - {id: insurance_journal_html, transport: static_html, url: https://www.insurancejournal.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: reinsurance_news
+    name: Reinsurance News
+    canonical_domain: reinsurancene.ws
+    region: UK
+    endpoints:
+      - {id: reinsurance_news_api, transport: json_api, url: "https://www.reinsurancene.ws/wp-json/wp/v2/posts?per_page=10", required_capabilities: [http, json]}
+      - {id: reinsurance_news_html, transport: static_html, url: https://www.reinsurancene.ws/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: mortgage_professional_america
+    name: Mortgage Professional America
+    canonical_domain: mpamag.com
+    region: US
+    endpoints:
+      - {id: mortgage_professional_america_html, transport: static_html, url: https://www.mpamag.com/us, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: housingwire
+    name: HousingWire
+    canonical_domain: housingwire.com
+    region: US
+    endpoints:
+      - {id: housingwire_html, transport: static_html, url: https://www.housingwire.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: fxstreet
+    name: FXStreet
+    canonical_domain: fxstreet.com
+    region: EU
+    endpoints:
+      - {id: fxstreet_html, transport: static_html, url: https://www.fxstreet.com/news, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: the_trade
+    name: The TRADE
+    canonical_domain: thetradenews.com
+    region: UK
+    endpoints:
+      - {id: the_trade_html, transport: static_html, url: https://www.thetradenews.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investinglive
+    name: investingLive
+    canonical_domain: investinglive.com
+    region: global
+    endpoints:
+      - {id: investinglive_html, transport: static_html, url: https://investinglive.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: finance_magnates
+    name: Finance Magnates
+    canonical_domain: financemagnates.com
+    region: global
+    endpoints:
+      - {id: finance_magnates_html, transport: static_html, url: https://www.financemagnates.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: leaprate
+    name: LeapRate
+    canonical_domain: leaprate.com
+    region: global
+    endpoints:
+      - {id: leaprate_html, transport: static_html, url: https://www.leaprate.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: hedgeweek
+    name: Hedgeweek
+    canonical_domain: hedgeweek.com
+    region: UK
+    endpoints:
+      - {id: hedgeweek_html, transport: static_html, url: https://www.hedgeweek.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: etf_com
+    name: ETF.com
+    canonical_domain: etf.com
+    region: US
+    endpoints:
+      - {id: etf_com_html, transport: static_html, url: https://www.etf.com/, required_capabilities: [http, static_html]}
+      - {id: etf_com_browser, transport: browser, url: https://www.etf.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: etf_stream
+    name: ETF Stream
+    canonical_domain: etfstream.com
+    region: UK
+    endpoints:
+      - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, required_capabilities: [http, static_html]}
+      - {id: etf_stream_browser, transport: browser, url: https://www.etfstream.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: citywire
+    name: Citywire
+    canonical_domain: citywire.com
+    region: UK
+    endpoints:
+      - {id: citywire_html, transport: static_html, url: https://citywire.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: proactive_investors
+    name: Proactive Investors
+    canonical_domain: proactiveinvestors.com
+    region: global
+    endpoints:
+      - {id: proactive_investors_html, transport: static_html, url: https://www.proactiveinvestors.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: stockhead
+    name: Stockhead
+    canonical_domain: stockhead.com.au
+    region: Australia
+    endpoints:
+      - {id: stockhead_html, transport: static_html, url: https://stockhead.com.au/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: livewire_markets
+    name: Livewire Markets
+    canonical_domain: livewiremarkets.com
+    region: Australia
+    endpoints:
+      - {id: livewire_markets_html, transport: static_html, url: https://www.livewiremarkets.com/, required_capabilities: [http, static_html]}
+      - {id: livewire_markets_browser, transport: browser, url: https://www.livewiremarkets.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: sharecafe
+    name: ShareCafe
+    canonical_domain: sharecafe.com.au
+    region: Australia
+    endpoints:
+      - {id: sharecafe_html, transport: static_html, url: https://www.sharecafe.com.au/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: market_online
+    name: The Market Online
+    canonical_domain: themarketonline.com.au
+    region: Australia
+    endpoints:
+      - {id: market_online_html, transport: static_html, url: https://themarketonline.com.au/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: moneycontrol
+    name: Moneycontrol
+    canonical_domain: moneycontrol.com
+    region: India
+    endpoints:
+      - {id: moneycontrol_html, transport: static_html, url: https://www.moneycontrol.com/news/business/markets/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: economic_times_markets
+    name: The Economic Times Markets
+    canonical_domain: economictimes.indiatimes.com
+    region: India
+    endpoints:
+      - {id: economic_times_markets_html, transport: static_html, url: https://economictimes.indiatimes.com/markets, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: mint
+    name: Mint
+    canonical_domain: livemint.com
+    region: India
+    endpoints:
+      - {id: mint_html, transport: static_html, url: https://www.livemint.com/market, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: business_standard
+    name: Business Standard
+    canonical_domain: business-standard.com
+    region: India
+    endpoints:
+      - {id: business_standard_html, transport: static_html, url: https://www.business-standard.com/markets, required_capabilities: [http, static_html]}
+      - {id: business_standard_browser, transport: browser, url: https://www.business-standard.com/markets, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: financial_express
+    name: Financial Express
+    canonical_domain: financialexpress.com
+    region: India
+    endpoints:
+      - {id: financial_express_html, transport: static_html, url: https://www.financialexpress.com/market/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: businessline
+    name: BusinessLine
+    canonical_domain: thehindubusinessline.com
+    region: India
+    endpoints:
+      - {id: businessline_html, transport: static_html, url: https://www.thehindubusinessline.com/markets/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: ndtv_profit
+    name: NDTV Profit
+    canonical_domain: ndtvprofit.com
+    region: India
+    endpoints:
+      - {id: ndtv_profit_html, transport: static_html, url: https://www.ndtvprofit.com/markets, required_capabilities: [http, static_html]}
+      - {id: ndtv_profit_browser, transport: browser, url: https://www.ndtvprofit.com/markets, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: markets_media
+    name: Markets Media
+    canonical_domain: marketsmedia.com
+    region: US
+    endpoints:
+      - {id: markets_media_html, transport: static_html, url: https://www.marketsmedia.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: tradingview_news
+    name: TradingView News
+    canonical_domain: tradingview.com
+    region: global
+    endpoints:
+      - {id: tradingview_news_browser, transport: browser, url: https://www.tradingview.com/news/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: tipranks
+    name: TipRanks
+    canonical_domain: tipranks.com
+    region: global
+    endpoints:
+      - {id: tipranks_html, transport: static_html, url: https://www.tipranks.com/news, required_capabilities: [http, static_html]}
+      - {id: tipranks_browser, transport: browser, url: https://www.tipranks.com/news, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: kitco_news
+    name: Kitco News
+    canonical_domain: kitco.com
+    region: Canada
+    endpoints:
+      - {id: kitco_news_html, transport: static_html, url: https://www.kitco.com/news, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: coindesk
+    name: CoinDesk
+    canonical_domain: coindesk.com
+    region: global
+    endpoints:
+      - {id: coindesk_rss, transport: rss, url: https://www.coindesk.com/arc/outboundfeeds/rss/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: cointelegraph
+    name: Cointelegraph
+    canonical_domain: cointelegraph.com
+    region: global
+    endpoints:
+      - {id: cointelegraph_rss, transport: rss, url: https://cointelegraph.com/rss, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: decrypt
+    name: Decrypt
+    canonical_domain: decrypt.co
+    region: global
+    endpoints:
+      - {id: decrypt_rss, transport: rss, url: https://decrypt.co/feed, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: the_block
+    name: The Block
+    canonical_domain: theblock.co
+    region: global
+    endpoints:
+      - {id: the_block_rss, transport: rss, url: https://www.theblock.co/rss.xml, required_capabilities: [http, rss]}
+      - {id: the_block_html, transport: static_html, url: https://www.theblock.co/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: bitcoin_magazine
+    name: Bitcoin Magazine
+    canonical_domain: bitcoinmagazine.com
+    region: global
+    endpoints:
+      - {id: bitcoin_magazine_rss, transport: rss, url: https://bitcoinmagazine.com/.rss/full/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: cryptoslate
+    name: CryptoSlate
+    canonical_domain: cryptoslate.com
+    region: global
+    endpoints:
+      - {id: cryptoslate_api, transport: json_api, url: "https://cryptoslate.com/wp-json/wp/v2/posts?per_page=10", required_capabilities: [http, json]}
+      - {id: cryptoslate_rss, transport: rss, url: https://cryptoslate.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: crypto_news
+    name: crypto.news
+    canonical_domain: crypto.news
+    region: global
+    endpoints:
+      - {id: crypto_news_rss, transport: rss, url: https://crypto.news/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: beincrypto
+    name: BeInCrypto
+    canonical_domain: beincrypto.com
+    region: global
+    endpoints:
+      - {id: beincrypto_rss, transport: rss, url: https://beincrypto.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: dl_news
+    name: DL News
+    canonical_domain: dlnews.com
+    region: global
+    endpoints:
+      - {id: dl_news_html, transport: static_html, url: https://www.dlnews.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: blockworks
+    name: Blockworks
+    canonical_domain: blockworks.co
+    region: global
+    endpoints:
+      - {id: blockworks_rss, transport: rss, url: https://blockworks.co/feed, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: protos
+    name: Protos
+    canonical_domain: protos.com
+    region: global
+    endpoints:
+      - {id: protos_api, transport: json_api, url: "https://protos.com/wp-json/wp/v2/posts?per_page=10", required_capabilities: [http, json]}
+      - {id: protos_rss, transport: rss, url: https://protos.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: the_defiant
+    name: The Defiant
+    canonical_domain: thedefiant.io
+    region: global
+    endpoints:
+      - {id: the_defiant_rss, transport: rss, url: https://thedefiant.io/feed, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: bankless
+    name: Bankless
+    canonical_domain: bankless.com
+    region: global
+    endpoints:
+      - {id: bankless_rss, transport: rss, url: https://www.bankless.com/feed, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: finextra
+    name: Finextra
+    canonical_domain: finextra.com
+    region: UK
+    endpoints:
+      - {id: finextra_rss, transport: rss, url: https://www.finextra.com/rss/headlines.aspx, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: the_paypers
+    name: The Paypers
+    canonical_domain: thepaypers.com
+    region: EU
+    endpoints:
+      - {id: the_paypers_html, transport: static_html, url: https://thepaypers.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: pymnts
+    name: PYMNTS
+    canonical_domain: pymnts.com
+    region: US
+    endpoints:
+      - {id: pymnts_rss, transport: rss, url: https://www.pymnts.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: tearsheet
+    name: Tearsheet
+    canonical_domain: tearsheet.co
+    region: US
+    endpoints:
+      - {id: tearsheet_html, transport: static_html, url: https://tearsheet.co/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: crowdfund_insider
+    name: Crowdfund Insider
+    canonical_domain: crowdfundinsider.com
+    region: US
+    endpoints:
+      - {id: crowdfund_insider_api, transport: json_api, url: "https://www.crowdfundinsider.com/wp-json/wp/v2/posts?per_page=10", required_capabilities: [http, json]}
+      - {id: crowdfund_insider_rss, transport: rss, url: https://www.crowdfundinsider.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: fintech_futures
+    name: FinTech Futures
+    canonical_domain: fintechfutures.com
+    region: UK
+    endpoints:
+      - {id: fintech_futures_html, transport: static_html, url: https://www.fintechfutures.com/, required_capabilities: [http, static_html]}
+      - {id: fintech_futures_browser, transport: browser, url: https://www.fintechfutures.com/, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: altfi
+    name: AltFi
+    canonical_domain: altfi.com
+    region: UK
+    endpoints:
+      - {id: altfi_html, transport: static_html, url: https://www.altfi.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: sifted
+    name: Sifted
+    canonical_domain: sifted.eu
+    region: EU
+    endpoints:
+      - {id: sifted_rss, transport: rss, url: https://sifted.eu/feed, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: crunchbase_news
+    name: Crunchbase News
+    canonical_domain: news.crunchbase.com
+    region: US
+    endpoints:
+      - {id: crunchbase_news_rss, transport: rss, url: https://news.crunchbase.com/feed/, required_capabilities: [http, rss]}
+  - <<: *finance_specialist_defaults
+    id: pitchbook_news
+    name: PitchBook News
+    canonical_domain: pitchbook.com
+    region: US
+    endpoints:
+      - {id: pitchbook_news_html, transport: static_html, url: https://pitchbook.com/news, required_capabilities: [http, static_html]}
+      - {id: pitchbook_news_browser, transport: browser, url: https://pitchbook.com/news, required_capabilities: [http, javascript, chromium]}
+  - <<: *finance_specialist_defaults
+    id: pe_hub
+    name: PE Hub
+    canonical_domain: pehub.com
+    region: US
+    endpoints:
+      - {id: pe_hub_html, transport: static_html, url: https://www.pehub.com/, required_capabilities: [http, static_html]}
+  - <<: *finance_specialist_defaults
+    id: investments_pensions_europe
+    name: Investments & Pensions Europe
+    canonical_domain: ipe.com
+    region: UK
+    endpoints:
+      - {id: investments_pensions_europe_html, transport: static_html, url: https://www.ipe.com/, required_capabilities: [http, static_html]}
+
+  - <<: *general_finance_desk_defaults
+    id: bbc_business
+    name: BBC Business
+    canonical_domain: bbc.com
+    region: UK
+    endpoints:
+      - {id: bbc_business_rss, transport: rss, url: https://feeds.bbci.co.uk/news/business/rss.xml, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: cnn_business
+    name: CNN Business
+    canonical_domain: cnn.com
+    region: US
+    endpoints:
+      - {id: cnn_business_html, transport: static_html, url: https://www.cnn.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: nbc_business
+    name: NBC News Business
+    canonical_domain: nbcnews.com
+    region: US
+    endpoints:
+      - {id: nbc_business_html, transport: static_html, url: https://www.nbcnews.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: cbs_moneywatch
+    name: CBS MoneyWatch
+    canonical_domain: cbsnews.com
+    region: US
+    endpoints:
+      - {id: cbs_moneywatch_rss, transport: rss, url: https://www.cbsnews.com/latest/rss/moneywatch, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: abc_business
+    name: ABC News Business
+    canonical_domain: abcnews.go.com
+    region: US
+    endpoints:
+      - {id: abc_business_rss, transport: rss, url: https://abcnews.go.com/abcnews/moneyheadlines, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: ap_business
+    name: AP Business
+    canonical_domain: apnews.com
+    region: US
+    endpoints:
+      - {id: ap_business_html, transport: static_html, url: https://apnews.com/hub/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: new_york_times_business
+    name: The New York Times Business
+    canonical_domain: nytimes.com
+    region: US
+    endpoints:
+      - {id: new_york_times_business_rss, transport: rss, url: https://rss.nytimes.com/services/xml/rss/nyt/Business.xml, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: washington_post_business
+    name: The Washington Post Business
+    canonical_domain: washingtonpost.com
+    region: US
+    endpoints:
+      - {id: washington_post_business_rss, transport: rss, url: https://feeds.washingtonpost.com/rss/business, required_capabilities: [http, rss]}
+      - {id: washington_post_business_html, transport: static_html, url: https://www.washingtonpost.com/business/, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: guardian_business
+    name: The Guardian Business
+    canonical_domain: theguardian.com
+    region: UK
+    endpoints:
+      - {id: guardian_business_rss, transport: rss, url: https://www.theguardian.com/business/rss, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: usa_today_money
+    name: USA Today Money
+    canonical_domain: usatoday.com
+    region: US
+    endpoints:
+      - {id: usa_today_money_html, transport: static_html, url: https://www.usatoday.com/money/, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: npr_business
+    name: NPR Business
+    canonical_domain: npr.org
+    region: US
+    endpoints:
+      - {id: npr_business_rss, transport: rss, url: https://feeds.npr.org/1006/rss.xml, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: al_jazeera_economy
+    name: Al Jazeera Economy
+    canonical_domain: aljazeera.com
+    region: global
+    endpoints:
+      - {id: al_jazeera_economy_html, transport: static_html, url: https://www.aljazeera.com/economy/, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: dw_business
+    name: DW Business
+    canonical_domain: dw.com
+    region: EU
+    endpoints:
+      - {id: dw_business_rss, transport: rss, url: https://rss.dw.com/rdf/rss-en-bus, required_capabilities: [http, rss]}
+  - <<: *general_finance_desk_defaults
+    id: france24_business
+    name: France 24 Business
+    canonical_domain: france24.com
+    region: EU
+    endpoints:
+      - {id: france24_business_html, transport: static_html, url: https://www.france24.com/en/business/, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: euronews_business
+    name: Euronews Business
+    canonical_domain: euronews.com
+    region: EU
+    endpoints:
+      - {id: euronews_business_html, transport: static_html, url: https://www.euronews.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: scmp_business
+    name: South China Morning Post Business
+    canonical_domain: scmp.com
+    region: Asia
+    endpoints:
+      - {id: scmp_business_html, transport: static_html, url: https://www.scmp.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: straits_times_business
+    name: The Straits Times Business
+    canonical_domain: straitstimes.com
+    region: Asia
+    endpoints:
+      - {id: straits_times_business_html, transport: static_html, url: https://www.straitstimes.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: cna_business
+    name: CNA Business
+    canonical_domain: channelnewsasia.com
+    region: Asia
+    endpoints:
+      - {id: cna_business_html, transport: static_html, url: https://www.channelnewsasia.com/business, required_capabilities: [http, static_html]}
+  - <<: *general_finance_desk_defaults
+    id: cbc_business
+    name: CBC Business
+    canonical_domain: cbc.ca
+    region: Canada
+    endpoints:
+      - {id: cbc_business_html, transport: static_html, url: https://www.cbc.ca/news/business, required_capabilities: [http, static_html]}
+      - {id: cbc_business_browser, transport: browser, url: https://www.cbc.ca/news/business, required_capabilities: [http, javascript, chromium]}
+  - <<: *general_finance_desk_defaults
+    id: ctv_business
+    name: CTV News Business
+    canonical_domain: ctvnews.ca
+    region: Canada
+    endpoints:
+      - {id: ctv_business_html, transport: static_html, url: https://www.ctvnews.ca/business, required_capabilities: [http, static_html]}

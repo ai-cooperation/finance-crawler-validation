@@ -1,0 +1,14 @@
+{
+  "name": "finance-crawler-cloudflare-browser-run-pilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "wrangler deploy --dry-run",
+    "dev:remote": "wrangler dev --remote --port 8790",
+    "pilot": "node scripts/run-pilot.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.120.0"
+  }
+}

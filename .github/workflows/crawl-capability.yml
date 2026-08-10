@@ -1,0 +1,130 @@
+name: Crawl capability probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Source matrix to probe
+        required: true
+        default: core
+        type: choice
+        options:
+          - core
+          - foreign_communities
+          - news_120
+      repetitions:
+        description: Same-job burst observations per source (not longitudinal stability)
+        required: true
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crawl-capability
+  cancel-in-progress: false
+
+jobs:
+  test-and-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node.js
+        if: inputs.scope == 'foreign_communities'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: experiments/crawlee-browser/package-lock.json
+
+      - name: Install project
+        run: python -m pip install --disable-pip-version-check -e '.[test]'
+
+      - name: Install Crawlee treatment
+        if: inputs.scope == 'foreign_communities'
+        run: npm ci --prefix experiments/crawlee-browser
+
+      - name: Install Chromium and system dependencies
+        run: python -m playwright install --with-deps chromium
+
+      - name: Install Crawlee Chromium revision
+        if: inputs.scope == 'foreign_communities'
+        run: npx --prefix experiments/crawlee-browser playwright install chromium
+
+      - name: Run contract tests
+        run: |
+          python -m pytest --cov=finance_crawler_poc --cov-report=term-missing --cov-fail-under=80
+          node --test worker/test/index.test.mjs
+          node --test experiments/crawlee-browser/test/*.test.mjs
+          node --test experiments/cloudflare-browser-run/test/*.test.mjs
+
+      - name: Select bounded source manifest
+        if: inputs.scope != 'news_120'
+        run: |
+          case "${{ inputs.scope }}" in
+            core) manifest="sources.yaml" ;;
+            foreign_communities) manifest="foreign-community-sources.yaml" ;;
+            *) echo "unsupported scope" >&2; exit 2 ;;
+          esac
+          echo "PROBE_MANIFEST=$manifest" >> "$GITHUB_ENV"
+
+      - name: Probe source matrix
+        if: inputs.scope != 'news_120'
+        env:
+          CF_RELAY_BASE_URL: ${{ vars.CF_RELAY_BASE_URL }}
+        run: >-
+          python -m finance_crawler_poc
+          --manifest "$PROBE_MANIFEST"
+          --output artifacts
+          --repeat "${{ inputs.repetitions }}"
+
+      - name: Probe 120-brand news catalog
+        if: inputs.scope == 'news_120'
+        run: >-
+          python -m finance_crawler_poc.news_cli
+          --catalog news-sources.yaml
+          --executors resource-executors.yaml
+          --current-executor github_actions_crawl4ai
+          --output artifacts
+
+      - name: Run Crawlee Browser treatment
+        if: inputs.scope == 'foreign_communities'
+        run: >-
+          node experiments/crawlee-browser/scripts/run-crawlee.mjs
+          --manifest foreign-community-sources.yaml
+          --output artifacts/crawlee-browser.json
+
+      - name: Add report to job summary
+        if: always() && hashFiles('artifacts/report.md') != ''
+        run: cat artifacts/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add news report to job summary
+        if: always() && hashFiles('artifacts/news-report.md') != ''
+        run: cat artifacts/news-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add Crawlee report to job summary
+        if: always() && hashFiles('artifacts/crawlee-report.md') != ''
+        run: cat artifacts/crawlee-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload capability report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-crawler-capability-report-${{ inputs.scope }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/market-snapshot.schema.json",
+  "title": "OpenBB-normalized market snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_id", "as_of", "provider", "instruments"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "instruments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["symbol", "asset_type", "currency", "price", "observed_at"],
+        "properties": {
+          "symbol": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "asset_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "currency": { "type": ["string", "null"], "maxLength": 16 },
+          "price": { "type": ["number", "null"] },
+          "observed_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

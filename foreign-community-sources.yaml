@@ -1,0 +1,1036 @@
+version: 1
+defaults:
+  timeout_seconds: 20
+  retries: 0
+  min_content_chars: 200
+  kind: community
+  provenance: foreign_community_research_2026_08_07
+  region: global
+sources:
+  # Public browser routes: global and regional retail-investor communities.
+  - id: bogleheads_personal_investments
+    name: Bogleheads Personal Investments
+    topic: 長期投資與個人資產配置
+    community_type: personal_finance
+    region: US
+    access_tier: public_web
+    route_group: bogleheads
+    transport: browser
+    selection_evidence: https://www.bogleheads.org/forum/about
+    url: https://www.bogleheads.org/forum/viewforum.php?f=1
+    required_terms: [Bogleheads, Personal Investments]
+
+  - id: bitcointalk_speculation
+    name: Bitcointalk Speculation
+    topic: 比特幣價格與市場情緒
+    community_type: crypto
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://bitcoin.org/en/community
+    url: https://bitcointalk.org/index.php?board=57.0
+    required_terms: [Bitcoin Forum, Speculation]
+
+  - id: reddit_investing_html
+    name: Reddit r/investing HTML
+    topic: Reddit 投資熱門討論公開頁
+    community_type: retail_investing
+    region: US
+    access_tier: public_web
+    route_group: reddit_investing
+    transport: browser
+    selection_evidence: https://redditinc.com/policies/data-api-terms
+    url: https://www.reddit.com/r/investing/hot/
+    required_terms: [investing]
+    robots_denied: true
+    robots_evidence: https://www.reddit.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: quant_stackexchange_hot
+    name: Quantitative Finance Stack Exchange Hot
+    topic: 量化金融專業問答公開頁
+    community_type: quantitative
+    access_tier: public_web
+    route_group: quant_stackexchange
+    transport: browser
+    selection_evidence: https://quant.stackexchange.com/questions?tab=Hot
+    url: https://quant.stackexchange.com/questions?tab=Hot
+    required_terms: [Quantitative Finance]
+    robots_denied: true
+    robots_evidence: https://quant.stackexchange.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: openbb_github_discussions
+    name: OpenBB GitHub Discussions
+    topic: 開源金融資料平台社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://github.com/OpenBB-finance/OpenBB
+    url: https://github.com/OpenBB-finance/OpenBB/discussions
+    required_terms: [OpenBB, Discussions]
+
+  - id: tradingview_ideas
+    name: TradingView Ideas
+    topic: 全球交易觀點與技術分析
+    community_type: social_investing
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.tradingview.com/support/solutions/43000761245-tradingview-social-network/
+    url: https://www.tradingview.com/ideas/
+    required_terms: [TradingView, Ideas]
+
+  - id: stocktwits_aapl
+    name: Stocktwits AAPL Stream
+    topic: 個股即時情緒訊息流
+    community_type: social_investing
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://stocktwits.com/symbol/AAPL/sentiment
+    url: https://stocktwits.com/symbol/AAPL
+    required_terms: [AAPL]
+
+  - id: moneysavingexpert_savings
+    name: MoneySavingExpert Savings and Investments
+    topic: 英國儲蓄與投資討論
+    community_type: personal_finance
+    region: UK
+    access_tier: public_web
+    route_group: moneysavingexpert_savings
+    transport: browser
+    selection_evidence: https://forums.moneysavingexpert.com/categories/savings-investments
+    url: https://forums.moneysavingexpert.com/categories/savings-investments
+    required_terms: [Savings, investments]
+
+  - id: investorshub_most_read
+    name: InvestorsHub Most Read Boards
+    topic: 美國股票留言板
+    community_type: retail_investing
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://investorshub.advfn.com/boards/about.aspx
+    url: https://investorshub.advfn.com/boards/most_read.aspx
+    required_terms: [InvestorsHub]
+
+  - id: hotcopper_home
+    name: HotCopper
+    topic: 澳洲 ASX 股票論壇
+    community_type: retail_investing
+    region: AU
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://hotcopper.com.au/help/about/
+    url: https://hotcopper.com.au/
+    required_terms: [HotCopper]
+
+  - id: elitetrader_forums
+    name: Elite Trader Forums
+    topic: 主動交易與市場微結構討論
+    community_type: active_trading
+    region: US
+    access_tier: public_web
+    route_group: elitetrader_forums
+    transport: browser
+    selection_evidence: https://www.elitetrader.com/et/forums/
+    url: https://www.elitetrader.com/et/forums/
+    required_terms: [Elite Trader]
+
+  - id: trade2win_forums
+    name: Trade2Win Forums
+    topic: 英國主動交易論壇
+    community_type: active_trading
+    region: UK
+    access_tier: public_web
+    route_group: trade2win_forums
+    transport: browser
+    selection_evidence: https://www.trade2win.com/forums/
+    url: https://www.trade2win.com/forums/
+    required_terms: [Trade2Win]
+
+  - id: wallstreetoasis_forum
+    name: Wall Street Oasis Forum
+    topic: 投行與金融職涯專業社群
+    community_type: professional_finance
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.wallstreetoasis.com/forum
+    url: https://www.wallstreetoasis.com/forum
+    required_terms: [Wall Street Oasis]
+
+  - id: valueinvestorsclub_ideas
+    name: Value Investors Club Ideas
+    topic: 價值投資研究提案
+    community_type: value_investing
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://valueinvestorsclub.com/
+    url: https://valueinvestorsclub.com/ideas
+    required_terms: [Value Investors Club]
+    robots_denied: true
+    robots_evidence: https://valueinvestorsclub.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: cornerofberkshire_forum
+    name: Corner of Berkshire and Fairfax
+    topic: 價值投資與公司研究論壇
+    community_type: value_investing
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://thecobf.com/forum/
+    url: https://thecobf.com/forum/
+    required_terms: [Berkshire, Fairfax]
+
+  - id: siliconinvestor_home
+    name: Silicon Investor
+    topic: 美國股票討論板
+    community_type: retail_investing
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.siliconinvestor.com/
+    url: https://www.siliconinvestor.com/
+    required_terms: [Silicon Investor]
+
+  - id: advfn_uk_share_chat
+    name: ADVFN UK Share Chat
+    topic: 英國私人投資人股票討論
+    community_type: retail_investing
+    region: UK
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://uk.advfn.com/welcome/discussion-forums
+    url: https://uk.advfn.com/stock-market/london/share-chat
+    required_terms: [ADVFN]
+
+  - id: lemonfool_forum
+    name: The Lemon Fool
+    topic: 英國投資與退休理財論壇
+    community_type: personal_finance
+    region: UK
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.lemonfool.co.uk/
+    url: https://www.lemonfool.co.uk/
+    required_terms: [Lemon Fool]
+
+  - id: financial_wisdom_forum
+    name: Financial Wisdom Forum
+    topic: 加拿大投資與個人理財
+    community_type: personal_finance
+    region: CA
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.financialwisdomforum.org/
+    url: https://www.financialwisdomforum.org/forum/
+    required_terms: [Financial Wisdom Forum]
+
+  - id: redflagdeals_investing
+    name: RedFlagDeals Investing Forum
+    topic: 加拿大投資討論
+    community_type: retail_investing
+    region: CA
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://forums.redflagdeals.com/investing-f134/
+    url: https://forums.redflagdeals.com/investing-f134/
+    required_terms: [Investing]
+
+  - id: tradingqna_home
+    name: Trading Q&A by Zerodha
+    topic: 印度交易與券商社群
+    community_type: active_trading
+    region: IN
+    access_tier: public_web
+    route_group: tradingqna
+    transport: browser
+    selection_evidence: https://tradingqna.com/
+    url: https://tradingqna.com/
+    required_terms: [Trading Q&A]
+
+  - id: valuepickr_forum
+    name: ValuePickr Forum
+    topic: 印度公司研究與價值投資
+    community_type: value_investing
+    region: IN
+    access_tier: public_web
+    route_group: valuepickr
+    transport: browser
+    selection_evidence: https://forum.valuepickr.com/
+    url: https://forum.valuepickr.com/
+    required_terms: [ValuePickr]
+
+  - id: moneycontrol_message_board
+    name: Moneycontrol Message Board
+    topic: 印度市場股票留言板
+    community_type: retail_investing
+    region: IN
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://mmb.moneycontrol.com/
+    url: https://mmb.moneycontrol.com/
+    required_terms: [Moneycontrol]
+
+  - id: rankia_forums
+    name: Rankia Forums
+    topic: 西語投資與個人理財社群
+    community_type: retail_investing
+    region: ES
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.rankia.com/foros
+    url: https://www.rankia.com/foros
+    required_terms: [Rankia, Foros]
+
+  - id: wertpapier_forum
+    name: Wertpapier Forum
+    topic: 德語證券與投資論壇
+    community_type: retail_investing
+    region: DE
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.wertpapier-forum.de/
+    url: https://www.wertpapier-forum.de/
+    required_terms: [Wertpapier]
+
+  - id: aussie_stock_forums
+    name: Aussie Stock Forums
+    topic: 澳洲股票交易論壇
+    community_type: active_trading
+    region: AU
+    access_tier: public_web
+    route_group: aussie_stock_forums
+    transport: browser
+    selection_evidence: https://www.aussiestockforums.com/forums/
+    url: https://www.aussiestockforums.com/forums/
+    required_terms: [Aussie Stock Forums]
+
+  - id: money_stackexchange_hot
+    name: Personal Finance and Money Stack Exchange
+    topic: 個人理財專業問答公開頁
+    community_type: personal_finance
+    access_tier: public_web
+    route_group: money_stackexchange
+    transport: browser
+    selection_evidence: https://money.stackexchange.com/questions?tab=Hot
+    url: https://money.stackexchange.com/questions?tab=Hot
+    required_terms: [Personal Finance, Money]
+    robots_denied: true
+    robots_evidence: https://money.stackexchange.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: bitcoin_stackexchange_hot
+    name: Bitcoin Stack Exchange
+    topic: 比特幣技術與經濟問答公開頁
+    community_type: crypto
+    access_tier: public_web
+    route_group: bitcoin_stackexchange
+    transport: browser
+    selection_evidence: https://bitcoin.stackexchange.com/questions?tab=Hot
+    url: https://bitcoin.stackexchange.com/questions?tab=Hot
+    required_terms: [Bitcoin]
+    robots_denied: true
+    robots_evidence: https://bitcoin.stackexchange.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: quantconnect_forum
+    name: QuantConnect Forum
+    topic: 演算法交易策略與實作
+    kind: developer_community
+    community_type: quantitative
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.quantconnect.com/docs/v2/cloud-platform/community/forum
+    url: https://www.quantconnect.com/forum/
+    required_terms: [QuantConnect]
+
+  - id: mql5_forum
+    name: MQL5 Forum
+    topic: 外匯與演算法交易程式社群
+    kind: developer_community
+    community_type: active_trading
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.mql5.com/en/forum
+    url: https://www.mql5.com/en/forum
+    required_terms: [MQL5, Forum]
+
+  - id: seekingalpha_market_news
+    name: Seeking Alpha Market News
+    topic: 投資作者與讀者討論入口
+    community_type: social_investing
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://seekingalpha.com/market-news
+    url: https://seekingalpha.com/market-news
+    required_terms: [Seeking Alpha]
+
+  - id: investing_analysis
+    name: Investing.com Analysis
+    topic: 全球市場分析與留言入口
+    community_type: social_investing
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.investing.com/analysis/
+    url: https://www.investing.com/analysis/
+    required_terms: [Investing.com, Analysis]
+
+  - id: etoro_popular_investors
+    name: eToro Popular Investors
+    topic: 社群投資與公開投資人頁
+    community_type: social_investing
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.etoro.com/discover/people
+    url: https://www.etoro.com/discover/people
+    required_terms: [eToro, CopyTrader]
+
+  - id: x_finance_search_web
+    name: X Finance Search Web
+    topic: 公開金融關鍵字搜尋頁邊界
+    community_type: social_investing
+    access_tier: public_web
+    route_group: x_finance
+    transport: browser
+    selection_evidence: https://docs.x.com/overview
+    url: https://x.com/search?q=stock%20market&src=typed_query
+    required_terms: [Search]
+    robots_denied: true
+    robots_evidence: https://x.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: quora_investing
+    name: Quora Investing Topic
+    topic: 投資問答社群公開頁
+    community_type: retail_investing
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://www.quora.com/topic/Investing
+    url: https://www.quora.com/topic/Investing
+    required_terms: [Investing]
+    robots_denied: true
+    robots_evidence: https://www.quora.com/robots.txt
+    robots_checked_at: "2026-08-09"
+
+  - id: mr_money_mustache_forum
+    name: Mr. Money Mustache Forum
+    topic: 財務獨立與節儉生活社群
+    community_type: personal_finance
+    region: US
+    access_tier: public_web
+    route_group: mr_money_mustache
+    transport: browser
+    selection_evidence: https://forum.mrmoneymustache.com/
+    url: https://forum.mrmoneymustache.com/
+    required_terms: [Money Mustache]
+
+  - id: rational_reminder_community
+    name: Rational Reminder Community
+    topic: 實證投資與個人理財社群
+    community_type: personal_finance
+    region: CA
+    access_tier: member_only
+    route_group: rational_reminder
+    transport: browser
+    selection_evidence: https://community.rationalreminder.ca/
+    url: https://community.rationalreminder.ca/
+    enabled: false
+    disabled_reason: 社群目前將匿名入口重導至 /login，需會員身分，不以頁面標題誤判為公開內容
+    required_terms: [Rational Reminder]
+
+  - id: white_coat_investor_forum
+    name: White Coat Investor Forum
+    topic: 高收入專業人士個人理財
+    community_type: personal_finance
+    region: US
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://forum.whitecoatinvestor.com/
+    url: https://forum.whitecoatinvestor.com/
+    required_terms: [White Coat Investor]
+
+  - id: coinmarketcap_community
+    name: CoinMarketCap Community
+    topic: 加密資產社群動態
+    community_type: crypto
+    access_tier: public_web
+    transport: browser
+    selection_evidence: https://coinmarketcap.com/academy/article/coinmarketcap-official-social-channels
+    url: https://coinmarketcap.com/community/
+    required_terms: [CoinMarketCap, Community]
+
+  # Public JSON/API routes and explicit anonymous-auth boundary probes.
+  - id: reddit_investing_json
+    name: Reddit r/investing Anonymous JSON
+    topic: Reddit 匿名 JSON 存取邊界
+    community_type: retail_investing
+    region: US
+    access_tier: auth_boundary
+    route_group: reddit_investing
+    transport: json_api
+    selection_evidence: https://redditinc.com/policies/data-api-terms
+    url: https://www.reddit.com/r/investing/hot.json?limit=25
+    required_terms: [data, children]
+
+  - id: hackernews_finance_search
+    name: Hacker News Finance Search API
+    topic: 科技創業社群金融討論
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://hn.algolia.com/api
+    url: https://hn.algolia.com/api/v1/search?query=finance&tags=story&hitsPerPage=20
+    required_terms: [hits, title]
+
+  - id: money_stackexchange_api
+    name: Personal Finance Stack Exchange API
+    topic: 個人理財熱門問題官方 API
+    community_type: personal_finance
+    access_tier: public_api
+    route_group: money_stackexchange
+    transport: json_api
+    selection_evidence: https://api.stackexchange.com/docs/questions
+    url: https://api.stackexchange.com/2.3/questions?site=money&order=desc&sort=hot&pagesize=20
+    required_terms: [items, question_id]
+
+  - id: bitcoin_stackexchange_api
+    name: Bitcoin Stack Exchange API
+    topic: 比特幣熱門問題官方 API
+    community_type: crypto
+    access_tier: public_api
+    route_group: bitcoin_stackexchange
+    transport: json_api
+    selection_evidence: https://api.stackexchange.com/docs/questions
+    url: https://api.stackexchange.com/2.3/questions?site=bitcoin&order=desc&sort=hot&pagesize=20
+    required_terms: [items, question_id]
+
+  - id: quant_stackexchange_api
+    name: Quantitative Finance Stack Exchange API
+    topic: 量化金融熱門問題官方 API
+    community_type: quantitative
+    access_tier: public_api
+    route_group: quant_stackexchange
+    transport: json_api
+    selection_evidence: https://api.stackexchange.com/docs/questions
+    url: https://api.stackexchange.com/2.3/questions?site=quant&order=desc&sort=hot&pagesize=20
+    required_terms: [items, question_id]
+
+  - id: ethereum_research_json
+    name: Ethereum Research Latest JSON
+    topic: 以太坊研究社群 Discourse API
+    kind: developer_community
+    community_type: crypto
+    access_tier: public_api
+    route_group: ethereum_research
+    transport: json_api
+    selection_evidence: https://ethresear.ch/
+    url: https://ethresear.ch/latest.json
+    required_terms: [topic_list, topics]
+
+  - id: ethereum_magicians_json
+    name: Ethereum Magicians Latest JSON
+    topic: 以太坊標準與治理社群 API
+    kind: developer_community
+    community_type: crypto
+    access_tier: public_api
+    route_group: ethereum_magicians
+    transport: json_api
+    selection_evidence: https://ethereum-magicians.org/
+    url: https://ethereum-magicians.org/latest.json
+    required_terms: [topic_list, topics]
+
+  - id: tradingqna_json
+    name: Trading Q&A Latest JSON
+    topic: 印度交易 Discourse API
+    community_type: active_trading
+    region: IN
+    access_tier: public_api
+    route_group: tradingqna
+    transport: json_api
+    selection_evidence: https://tradingqna.com/
+    url: https://tradingqna.com/latest.json
+    required_terms: [topic_list, topics]
+
+  - id: valuepickr_json
+    name: ValuePickr Latest JSON
+    topic: 印度價值投資 Discourse API
+    community_type: value_investing
+    region: IN
+    access_tier: public_api
+    route_group: valuepickr
+    transport: json_api
+    selection_evidence: https://forum.valuepickr.com/
+    url: https://forum.valuepickr.com/latest.json
+    required_terms: [topic_list, topics]
+
+  - id: rational_reminder_json
+    name: Rational Reminder Latest JSON
+    topic: 實證投資 Discourse API
+    community_type: personal_finance
+    region: CA
+    access_tier: member_only
+    route_group: rational_reminder
+    transport: json_api
+    selection_evidence: https://community.rationalreminder.ca/
+    url: https://community.rationalreminder.ca/latest.json
+    enabled: false
+    disabled_reason: latest.json 明確回傳 not_logged_in，需會員身分
+    required_terms: [topic_list, topics]
+
+  - id: mastodon_investing_tag
+    name: Mastodon Investing Hashtag API
+    topic: 聯邦式社群公開投資標籤
+    community_type: social_investing
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://docs.joinmastodon.org/methods/timelines/
+    url: https://mastodon.social/api/v1/timelines/tag/investing?limit=20
+    required_terms: [account, content]
+
+  - id: bluesky_stock_market_search
+    name: Bluesky Stock Market Search API
+    topic: 去中心化社群公開金融搜尋
+    community_type: social_investing
+    access_tier: auth_boundary
+    transport: json_api
+    selection_evidence: https://docs.bsky.app/docs/advanced-guides/api-directory
+    url: https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=stock%20market&limit=20
+    required_terms: [posts, record]
+
+  - id: github_freqtrade_issues
+    name: Freqtrade GitHub Issues
+    topic: 開源加密交易機器人社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://www.freqtrade.io/en/stable/developer/
+    url: https://api.github.com/repos/freqtrade/freqtrade/issues?state=open&sort=updated&per_page=20
+    required_terms: [title, html_url]
+
+  - id: github_lean_issues
+    name: QuantConnect Lean GitHub Issues
+    topic: 開源演算法交易引擎社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://github.com/QuantConnect/Lean
+    url: https://api.github.com/repos/QuantConnect/Lean/issues?state=open&sort=updated&per_page=20
+    required_terms: [title, html_url]
+
+  - id: github_hummingbot_issues
+    name: Hummingbot GitHub Issues
+    topic: 開源加密做市機器人社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://github.com/hummingbot/hummingbot
+    url: https://api.github.com/repos/hummingbot/hummingbot/issues?state=open&sort=updated&per_page=20
+    required_terms: [title, html_url]
+
+  - id: github_backtrader_issues
+    name: Backtrader GitHub Issues
+    topic: Python 回測框架社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://github.com/mementum/backtrader
+    url: https://api.github.com/repos/mementum/backtrader/issues?state=open&sort=updated&per_page=20
+    required_terms: [title, html_url]
+
+  - id: github_jesse_issues
+    name: Jesse GitHub Issues
+    topic: 開源加密交易框架社群
+    kind: developer_community
+    community_type: developer_ecosystem
+    access_tier: public_api
+    transport: json_api
+    selection_evidence: https://github.com/jesse-ai/jesse
+    url: https://api.github.com/repos/jesse-ai/jesse/issues?state=open&sort=updated&per_page=20
+    required_terms: [title, html_url]
+
+  - id: x_recent_search_without_token
+    name: X Recent Search Without Token
+    topic: X 金融貼文 API 認證邊界
+    community_type: social_investing
+    access_tier: auth_boundary
+    route_group: x_finance
+    transport: json_api
+    selection_evidence: https://docs.x.com/overview
+    url: https://api.x.com/2/tweets/search/recent?query=stock%20market&max_results=10
+    min_content_chars: 1
+    required_terms: []
+
+  - id: youtube_investing_search_without_key
+    name: YouTube Investing Search Without Key
+    topic: 財經影片與留言發現 API 認證邊界
+    community_type: social_investing
+    access_tier: auth_boundary
+    route_group: youtube_investing
+    transport: json_api
+    selection_evidence: https://developers.google.com/youtube/v3/docs/search/list
+    url: https://www.googleapis.com/youtube/v3/search?part=snippet&q=investing&type=video&maxResults=10
+    min_content_chars: 1
+    required_terms: []
+
+  # Public feed routes: machine-friendly alternatives to rendered pages.
+  - id: money_stackexchange_feed
+    name: Personal Finance Stack Exchange Feed
+    topic: 個人理財問答 Atom
+    community_type: personal_finance
+    access_tier: public_feed
+    route_group: money_stackexchange
+    transport: rss
+    selection_evidence: https://money.stackexchange.com/feeds
+    url: https://money.stackexchange.com/feeds
+    relay_path: /v1/feed/money_stackexchange_feed
+    required_terms: [feed, entry]
+
+  - id: bitcoin_stackexchange_feed
+    name: Bitcoin Stack Exchange Feed
+    topic: 比特幣問答 Atom
+    community_type: crypto
+    access_tier: public_feed
+    route_group: bitcoin_stackexchange
+    transport: rss
+    selection_evidence: https://bitcoin.stackexchange.com/feeds
+    url: https://bitcoin.stackexchange.com/feeds
+    relay_path: /v1/feed/bitcoin_stackexchange_feed
+    required_terms: [feed, entry]
+
+  - id: quant_stackexchange_feed
+    name: Quantitative Finance Stack Exchange Feed
+    topic: 量化金融問答 Atom
+    community_type: quantitative
+    access_tier: public_feed
+    route_group: quant_stackexchange
+    transport: rss
+    selection_evidence: https://quant.stackexchange.com/feeds
+    url: https://quant.stackexchange.com/feeds
+    relay_path: /v1/feed/quant_stackexchange_feed
+    required_terms: [feed, entry]
+
+  - id: ethereum_research_rss
+    name: Ethereum Research RSS
+    topic: 以太坊研究社群 RSS
+    kind: developer_community
+    community_type: crypto
+    access_tier: public_feed
+    route_group: ethereum_research
+    transport: rss
+    selection_evidence: https://ethresear.ch/
+    url: https://ethresear.ch/latest.rss
+    required_terms: [rss, item]
+
+  - id: ethereum_magicians_rss
+    name: Ethereum Magicians RSS
+    topic: 以太坊標準社群 RSS
+    kind: developer_community
+    community_type: crypto
+    access_tier: public_feed
+    route_group: ethereum_magicians
+    transport: rss
+    selection_evidence: https://ethereum-magicians.org/
+    url: https://ethereum-magicians.org/latest.rss
+    required_terms: [rss, item]
+
+  - id: tradingqna_rss
+    name: Trading Q&A RSS
+    topic: 印度交易社群 RSS
+    community_type: active_trading
+    region: IN
+    access_tier: public_feed
+    route_group: tradingqna
+    transport: rss
+    selection_evidence: https://tradingqna.com/
+    url: https://tradingqna.com/latest.rss
+    required_terms: [rss, item]
+
+  - id: valuepickr_rss
+    name: ValuePickr RSS
+    topic: 印度價值投資社群 RSS
+    community_type: value_investing
+    region: IN
+    access_tier: public_feed
+    route_group: valuepickr
+    transport: rss
+    selection_evidence: https://forum.valuepickr.com/
+    url: https://forum.valuepickr.com/latest.rss
+    required_terms: [rss, item]
+
+  - id: rational_reminder_rss
+    name: Rational Reminder RSS
+    topic: 實證投資社群 RSS
+    community_type: personal_finance
+    region: CA
+    access_tier: member_only
+    route_group: rational_reminder
+    transport: rss
+    selection_evidence: https://community.rationalreminder.ca/
+    url: https://community.rationalreminder.ca/latest.rss
+    enabled: false
+    disabled_reason: latest.rss 重導至 /login 並回傳 HTML，不是匿名公開 feed
+    required_terms: [rss, item]
+
+  - id: elitetrader_forums_rss
+    name: Elite Trader Forums RSS
+    topic: 主動交易論壇 RSS
+    community_type: active_trading
+    region: US
+    access_tier: public_feed
+    route_group: elitetrader_forums
+    transport: rss
+    selection_evidence: https://www.elitetrader.com/et/forums/
+    url: https://www.elitetrader.com/et/forums/-/index.rss
+    required_terms: [rss, item]
+
+  - id: trade2win_forums_rss
+    name: Trade2Win Forums RSS
+    topic: 英國交易論壇 RSS
+    community_type: active_trading
+    region: UK
+    access_tier: public_feed
+    route_group: trade2win_forums
+    transport: rss
+    selection_evidence: https://www.trade2win.com/forums/
+    url: https://www.trade2win.com/forums/-/index.rss
+    required_terms: [rss, item]
+
+  - id: bogleheads_forum_feed
+    name: Bogleheads Forum Feed
+    topic: Bogleheads phpBB feed 邊界
+    community_type: personal_finance
+    region: US
+    access_tier: public_feed
+    route_group: bogleheads
+    transport: rss
+    selection_evidence: https://www.bogleheads.org/forum/about
+    url: https://www.bogleheads.org/forum/app.php/feed
+    relay_path: /v1/feed/bogleheads_forum_feed
+    required_terms: [feed, entry]
+
+  - id: financial_wisdom_forum_feed
+    name: Financial Wisdom Forum Atom
+    topic: Canadian personal finance and investing discussions
+    kind: community
+    community_type: personal_finance
+    region: CA
+    access_tier: public_feed
+    route_group: financial_wisdom_forum
+    transport: rss
+    provenance: public phpBB Atom feed discovered and verified 2026-08-08
+    selection_evidence: https://www.financialwisdomforum.org/
+    url: https://www.financialwisdomforum.org/forum/app.php/feed
+    relay_path: /v1/feed/financial_wisdom_forum_feed
+    required_terms: [feed, entry]
+
+  - id: moneysavingexpert_savings_feed
+    name: MoneySavingExpert Savings Feed
+    topic: 英國儲蓄投資分類 feed
+    community_type: personal_finance
+    region: UK
+    access_tier: public_feed
+    route_group: moneysavingexpert_savings
+    transport: rss
+    selection_evidence: https://forums.moneysavingexpert.com/categories/savings-investments
+    url: https://forums.moneysavingexpert.com/categories/savings-investments/feed.rss
+    required_terms: [rss, item]
+
+  - id: aussie_stock_forums_rss
+    name: Aussie Stock Forums RSS
+    topic: 澳洲股票論壇 RSS
+    community_type: active_trading
+    region: AU
+    access_tier: public_feed
+    route_group: aussie_stock_forums
+    transport: rss
+    selection_evidence: https://www.aussiestockforums.com/forums/
+    url: https://www.aussiestockforums.com/forums/-/index.rss
+    relay_path: /v1/feed/aussie_stock_forums_rss
+    required_terms: [rss, item]
+
+  - id: mr_money_mustache_feed
+    name: Mr. Money Mustache Forum Feed
+    topic: 財務獨立論壇 RSS 邊界
+    community_type: personal_finance
+    region: US
+    access_tier: public_feed
+    route_group: mr_money_mustache
+    transport: rss
+    selection_evidence: https://forum.mrmoneymustache.com/
+    url: https://forum.mrmoneymustache.com/index.php?action=.xml;type=rss
+    relay_path: /v1/feed/mr_money_mustache_feed
+    required_terms: [rss, item]
+
+  # Catalog-only ecosystems: require credentials, membership, or commercial access.
+  - id: reddit_oauth_api
+    name: Reddit OAuth Data API
+    topic: Reddit 多財經 subreddit 正式資料路徑
+    community_type: retail_investing
+    region: US
+    access_tier: credentialed_api
+    route_group: reddit_investing
+    transport: json_api
+    selection_evidence: https://developers.reddit.com/docs/capabilities/server/reddit-api
+    url: https://oauth.reddit.com/r/investing/hot?limit=25
+    enabled: false
+    disabled_reason: 需要核准的 Reddit app 與 OAuth token；匿名 JSON 已另列邊界探測
+    required_terms: [data, children]
+
+  - id: x_paid_search_api
+    name: X Paid Search API
+    topic: X 財經貼文正式搜尋路徑
+    community_type: social_investing
+    access_tier: commercial_api
+    route_group: x_finance
+    transport: json_api
+    selection_evidence: https://docs.x.com/overview
+    url: https://api.x.com/2/tweets/search/recent?query=stock%20market&max_results=10
+    enabled: false
+    disabled_reason: 官方搜尋 API 需要開發者憑證與付費 credits
+    required_terms: [data]
+
+  - id: youtube_comments_api
+    name: YouTube Finance Comments API
+    topic: 財經影片留言正式 API
+    community_type: social_investing
+    access_tier: credentialed_api
+    route_group: youtube_investing
+    transport: json_api
+    selection_evidence: https://developers.google.com/youtube/v3/docs/commentThreads/list
+    url: https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=VIDEO_ID
+    enabled: false
+    disabled_reason: 需要 Google API key 與實際財經影片 ID；無金鑰搜尋已另列邊界探測
+    required_terms: [items]
+
+  - id: discord_finance_servers
+    name: Discord Finance Servers
+    topic: Discord 券商、交易與加密伺服器訊息
+    kind: developer_community
+    community_type: social_investing
+    access_tier: credentialed_api
+    transport: json_api
+    selection_evidence: https://docs.discord.com/developers/reference
+    url: https://discord.com/api/v10/channels/CHANNEL_ID/messages
+    enabled: false
+    disabled_reason: 需要 bot 或 OAuth token、伺服器安裝同意與 READ_MESSAGE_HISTORY 權限
+    required_terms: [content]
+
+  - id: telegram_finance_channels
+    name: Telegram Finance Channels
+    topic: Telegram 公開頻道與討論群歷史訊息
+    community_type: social_investing
+    access_tier: credentialed_api
+    transport: json_api
+    selection_evidence: https://core.telegram.org/api/obtaining_api_id
+    url: https://api.telegram.org/
+    enabled: false
+    disabled_reason: 完整歷史訊息需要 Telegram app credentials/MTProto 與頻道權限，不以網頁繞過
+    required_terms: []
+
+  - id: facebook_investing_groups
+    name: Facebook Investing Groups
+    topic: Facebook 投資社團
+    community_type: social_investing
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://developers.facebook.com/docs/groups-api
+    url: https://www.facebook.com/groups/feed/
+    enabled: false
+    disabled_reason: 群組資料需要會員身分、群組授權與平台核准，不做未登入頁面繞過
+    required_terms: []
+
+  - id: linkedin_finance_groups
+    name: LinkedIn Finance Groups
+    topic: LinkedIn 金融專業社群
+    community_type: professional_finance
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api
+    url: https://www.linkedin.com/groups/
+    enabled: false
+    disabled_reason: 社群內容需要會員登入且官方 API 權限不提供一般群組歷史擷取
+    required_terms: []
+
+  - id: whatsapp_finance_communities
+    name: WhatsApp Finance Communities
+    topic: WhatsApp 投資群組與 Communities
+    community_type: social_investing
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://www.whatsapp.com/communities
+    url: https://www.whatsapp.com/communities
+    enabled: false
+    disabled_reason: 訊息為封閉會員資料，Cloud API 不提供任意群組歷史讀取
+    required_terms: []
+
+  - id: slack_finance_workspaces
+    name: Slack Finance Workspaces
+    topic: 私有量化與投資工作區
+    kind: developer_community
+    community_type: professional_finance
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://api.slack.com/authentication
+    url: https://slack.com/community
+    enabled: false
+    disabled_reason: 工作區訊息需要成員資格、Slack app 安裝與對應 OAuth scopes
+    required_terms: []
+
+  - id: tiktok_finance_comments
+    name: TikTok Finance Comments
+    topic: FinTok 影片與留言
+    community_type: social_investing
+    access_tier: credentialed_api
+    transport: json_api
+    selection_evidence: https://developers.tiktok.com/products/research-api/
+    url: https://open.tiktokapis.com/v2/research/video/comment/list/
+    enabled: false
+    disabled_reason: Research API 需要資格審核、client credentials 與核准研究用途
+    required_terms: [data]
+
+  - id: public_com_community
+    name: Public.com Community
+    topic: 券商內社群投資動態
+    community_type: social_investing
+    region: US
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://public.com/
+    url: https://public.com/
+    enabled: false
+    disabled_reason: 完整社群 feed 屬登入後券商產品，沒有公開資料 API
+    required_terms: []
+
+  - id: webull_community
+    name: Webull Community
+    topic: 券商內股票社群動態
+    community_type: social_investing
+    region: US
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://www.webull.com/community
+    url: https://www.webull.com/community
+    enabled: false
+    disabled_reason: 完整社群資料需要帳戶/應用程式情境，沒有核准的公開歷史 API
+    required_terms: []
+
+  - id: substack_finance_comments
+    name: Substack Finance Comments
+    topic: 財經電子報留言與 Chat
+    community_type: social_investing
+    access_tier: member_only
+    transport: browser
+    selection_evidence: https://substack.com/browse/finance
+    url: https://substack.com/browse/finance
+    enabled: false
+    disabled_reason: 留言與 Chat 權限依各 publication 訂閱/會員設定，不能以聚合頁代表完整資料
+    required_terms: []

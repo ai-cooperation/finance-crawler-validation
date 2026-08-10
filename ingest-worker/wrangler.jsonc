@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "finance-crawler-validation-ingest",
+  "main": "src/index.ts",
+  // Latest date supported by @cloudflare/vitest-pool-workers 0.20.3/workerd.
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  },
+  "vars": {
+    "GITHUB_OIDC_AUDIENCE": "finance-crawler-validation-ingest",
+    "GITHUB_REPOSITORY_ID": "1329574278",
+    "GITHUB_OWNER_ID": "258149792",
+    "GITHUB_WORKFLOW_REF": "ai-cooperation/finance-crawler-validation/.github/workflows/topic-radar.yml@refs/heads/main",
+    "GITHUB_REF": "refs/heads/main",
+    "GITHUB_EVENT_NAME": "workflow_dispatch"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "finance-crawler-validation-core",
+      "database_id": "476bd84f-e924-4b9b-a9d9-dfca9ea29a1a",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RAW_OBJECTS",
+      "bucket_name": "finance-crawler-validation-raw"
+    }
+  ]
+}

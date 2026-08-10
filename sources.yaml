@@ -1,0 +1,338 @@
+version: 1
+defaults:
+  timeout_seconds: 40
+  retries: 1
+  min_content_chars: 300
+sources:
+  - id: twse_openapi_stock_day
+    name: TWSE OpenAPI 每日收盤行情
+    topic: 台股市場資料
+    kind: official_data
+    transport: json_api
+    url: https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+    required_terms: [Code, Name]
+
+  - id: bbc_business_rss
+    name: BBC Business RSS
+    topic: 國際財經新聞
+    kind: news
+    transport: rss
+    url: https://feeds.bbci.co.uk/news/business/rss.xml
+    required_terms: [channel, item]
+
+  - id: cbc_taiwan_news
+    name: 中央銀行新聞稿
+    topic: 利率與貨幣政策
+    kind: official_news
+    transport: browser
+    url: https://www.cbc.gov.tw/tw/lp-302-1.html
+    required_terms: [中央銀行]
+
+  - id: fsc_taiwan_news
+    name: 金管會最新消息
+    topic: 金融監理與投資人保護
+    kind: official_news
+    transport: browser
+    url: https://www.fsc.gov.tw/ch/home.jsp?id=96&parentpath=0
+    required_terms: [金融監督管理委員會]
+
+  - id: twse_stock_day_page
+    name: TWSE 個股日成交資訊
+    topic: 台股歷史行情
+    kind: official_data
+    transport: browser
+    url: https://www.twse.com.tw/zh/trading/historical/stock-day.html
+    required_terms: [個股日成交資訊]
+
+  - id: mops_home
+    name: 公開資訊觀測站
+    topic: 上市櫃公司公告
+    kind: official_data
+    transport: browser
+    url: https://mops.twse.com.tw/mops/#/web/index
+    required_terms: [單一公司彙總報表, 重大訊息]
+
+  - id: mops_legacy_home
+    name: 公開資訊觀測站原版入口
+    topic: 上市櫃公司公告備援
+    kind: official_data
+    transport: browser
+    url: https://mopsov.twse.com.tw/mops/web/index
+    required_terms: [公開資訊觀測站, 重大訊息]
+
+  - id: twse_openapi_material_information
+    name: TWSE OpenAPI 上市公司每日重大訊息
+    topic: 上市公司重大訊息機器介接
+    kind: official_data
+    transport: json_api
+    url: https://openapi.twse.com.tw/v1/opendata/t187ap04_L
+    timeout_seconds: 120
+    min_content_chars: 1000
+    required_terms: [公司代號, 主旨, 說明]
+
+  - id: ptt_stock
+    name: PTT Stock 看板
+    topic: 台股社群討論
+    kind: community
+    transport: browser
+    url: https://www.ptt.cc/bbs/Stock/index.html
+    required_terms: [看板, Stock]
+
+  - id: yahoo_finance_aapl
+    name: Yahoo Finance AAPL
+    topic: 美股個股行情
+    kind: market_data
+    transport: browser
+    provenance: crawl4ai_example
+    url: https://finance.yahoo.com/quote/AAPL/
+    required_terms: [AAPL, Apple]
+
+  - id: coinmarketcap_page_1
+    name: CoinMarketCap 第一頁
+    topic: 加密資產行情
+    kind: market_data
+    transport: browser
+    provenance: crawl4ai_example
+    url: https://coinmarketcap.com/?page=1
+    required_terms: [Bitcoin]
+
+  - id: finviz_home
+    name: Finviz 首頁
+    topic: 美股市場掃描
+    kind: market_data
+    transport: browser
+    provenance: crawl4ai_example
+    url: https://finviz.com/
+    required_terms: [FINVIZ]
+
+  - id: nbc_business
+    name: NBC Business
+    topic: 美國商業新聞
+    kind: news
+    transport: browser
+    provenance: crawl4ai_example
+    url: https://www.nbcnews.com/business
+    required_terms: [Business]
+
+  - id: wikipedia_gdp_nominal
+    name: Wikipedia 名目 GDP 列表
+    topic: 總體經濟比較
+    kind: reference
+    transport: browser
+    provenance: crawl4ai_example
+    url: https://en.wikipedia.org/wiki/List_of_countries_by_GDP_(nominal)
+    required_terms: [GDP]
+
+  - id: sec_edgar_company_search
+    name: SEC EDGAR 公司查詢
+    topic: 美國公司申報
+    kind: official_data
+    transport: browser
+    url: https://www.sec.gov/edgar/searchedgar/companysearch
+    enabled: false
+    disabled_reason: SEC 要求 User-Agent 包含可聯絡的姓名與 email；公開 repo 尚未配置
+    required_terms: [EDGAR]
+
+  - id: dcard_money
+    name: Dcard 理財板
+    topic: 台灣年輕族群理財討論
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://www.dcard.tw/f/money
+    url: https://www.dcard.tw/f/money
+    required_terms: [理財]
+
+  - id: mobile01_finance
+    name: Mobile01 投資理財綜合
+    topic: 台灣投資理財長篇討論
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://www.mobile01.com/forumlist.php?f=37
+    url: https://www.mobile01.com/topiclist.php?f=291
+    required_terms: [投資理財綜合]
+
+  - id: bogleheads_personal_investments
+    name: Bogleheads Personal Investments
+    topic: 長期投資與個人資產配置
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://www.bogleheads.org/forum/about
+    url: https://www.bogleheads.org/forum/viewforum.php?f=1
+    required_terms: [Personal Investments, Bogleheads]
+
+  - id: bitcointalk_speculation
+    name: Bitcointalk Speculation
+    topic: 比特幣價格與市場情緒討論
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://bitcointalk.org/
+    url: https://bitcointalk.org/index.php?board=57.0
+    required_terms: [Bitcoin Forum, Speculation]
+
+  - id: reddit_investing_html
+    name: Reddit r/investing HTML
+    topic: Reddit 投資熱門討論
+    kind: community
+    transport: browser
+    provenance: boundary_probe
+    selection_evidence: https://redditinc.com/policies/data-api-terms
+    url: https://www.reddit.com/r/investing/hot/
+    required_terms: [investing]
+
+  - id: reddit_investing_json
+    name: Reddit r/investing 匿名 JSON
+    topic: Reddit 公開資料 API 邊界
+    kind: community
+    transport: json_api
+    provenance: boundary_probe
+    selection_evidence: https://developers.reddit.com/docs/capabilities/server/reddit-api
+    url: https://www.reddit.com/r/investing/hot.json?limit=25
+    required_terms: [data, children]
+
+  - id: quant_stackexchange_hot
+    name: Quantitative Finance Stack Exchange Hot
+    topic: 量化金融專業問答
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://quant.stackexchange.com/questions?tab=Hot
+    url: https://quant.stackexchange.com/questions?tab=Hot
+    required_terms: [Questions, Quantitative Finance]
+
+  - id: openbb_github_discussions
+    name: OpenBB GitHub Discussions
+    topic: 開源金融資料平台社群討論
+    kind: developer_community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://github.com/OpenBB-finance/OpenBB
+    url: https://github.com/OpenBB-finance/OpenBB/discussions
+    required_terms: [OpenBB, Discussions]
+
+  - id: tradingview_ideas
+    name: TradingView Ideas
+    topic: 全球交易觀點與技術分析社群
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://www.tradingview.com/social-network/
+    url: https://www.tradingview.com/ideas/
+    required_terms: [TradingView, Ideas]
+
+  - id: stocktwits_aapl
+    name: Stocktwits AAPL Stream
+    topic: 個股即時情緒與訊息流
+    kind: community
+    transport: browser
+    provenance: popularity_research_2026_08_07
+    selection_evidence: https://stocktwits.com/symbol/AAPL/sentiment
+    url: https://stocktwits.com/symbol/AAPL
+    required_terms: [AAPL, Apple]
+
+  - id: hackernews_finance_search
+    name: Hacker News Finance Search API
+    topic: 科技創業社群的金融相關討論
+    kind: developer_community
+    transport: json_api
+    provenance: official_community_api
+    selection_evidence: https://hn.algolia.com/api
+    url: https://hn.algolia.com/api/v1/search?query=finance&tags=story&hitsPerPage=20
+    required_terms: [hits, title]
+
+  - id: federal_reserve_press_rss
+    name: Federal Reserve Press Releases RSS
+    topic: 美國央行政策與監理新聞
+    kind: official_news
+    transport: rss
+    provenance: official_feed
+    selection_evidence: https://www.federalreserve.gov/feeds/feeds.htm
+    url: https://www.federalreserve.gov/feeds/press_all.xml
+    required_terms: [Federal Reserve, item]
+
+  - id: google_news_finance_rss
+    name: Google News Finance RSS
+    topic: 財經新聞聚合
+    kind: aggregator
+    transport: rss
+    provenance: boundary_probe
+    selection_evidence: https://news.google.com/
+    url: https://news.google.com/rss/search?q=finance&hl=en-US&gl=US&ceid=US:en
+    required_terms: [Google News, item]
+
+  - id: world_bank_gdp_api
+    name: World Bank GDP Indicators API
+    topic: 跨國 GDP 結構化資料
+    kind: official_data
+    transport: json_api
+    provenance: official_api
+    selection_evidence: https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures
+    url: https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=25
+    required_terms: [indicator, country]
+
+  - id: coingecko_markets_api
+    name: CoinGecko Markets API
+    topic: 加密資產結構化行情
+    kind: market_data
+    transport: json_api
+    provenance: public_api
+    selection_evidence: https://docs.coingecko.com/reference/coins-markets
+    url: https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=25&page=1
+    required_terms: [current_price, market_cap]
+
+  - id: reuters_markets
+    name: Reuters Markets
+    topic: 國際市場即時新聞
+    kind: news
+    transport: browser
+    provenance: boundary_probe
+    selection_evidence: https://www.reuters.com/markets/
+    url: https://www.reuters.com/markets/
+    required_terms: [Markets, Reuters]
+
+  - id: financial_times_markets
+    name: Financial Times Markets
+    topic: 全球市場與付費新聞邊界
+    kind: news
+    transport: browser
+    provenance: boundary_probe
+    selection_evidence: https://www.ft.com/markets
+    url: https://www.ft.com/markets
+    required_terms: [Markets, Financial Times]
+
+  - id: marketwatch_markets
+    name: MarketWatch Markets
+    topic: 美國市場新聞與存取限制
+    kind: news
+    transport: browser
+    provenance: boundary_probe
+    selection_evidence: https://www.marketwatch.com/markets
+    url: https://www.marketwatch.com/markets
+    required_terms: [Markets, MarketWatch]
+
+  - id: fred_gdp_without_key
+    name: FRED GDP API 無金鑰邊界
+    topic: 需要 API key 的官方經濟資料
+    kind: official_data
+    transport: json_api
+    provenance: auth_boundary_probe
+    selection_evidence: https://fred.stlouisfed.org/docs/api/fred/v2/api_key.html
+    url: https://api.stlouisfed.org/fred/series/observations?series_id=GDP&file_type=json
+    min_content_chars: 1
+    retries: 0
+    required_terms: []
+
+  - id: alpha_vantage_without_key
+    name: Alpha Vantage Quote API 無金鑰邊界
+    topic: 需要 API key 的商業市場資料
+    kind: market_data
+    transport: json_api
+    provenance: auth_boundary_probe
+    selection_evidence: https://www.alphavantage.co/documentation/
+    url: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM
+    min_content_chars: 1
+    retries: 0
+    required_terms: []

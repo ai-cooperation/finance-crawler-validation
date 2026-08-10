@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/topic-snapshot.schema.json",
+  "title": "Topic radar snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "snapshot_id",
+    "run_id",
+    "as_of",
+    "partial",
+    "failed_sources",
+    "input_item_ids",
+    "topics"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "partial": { "type": "boolean" },
+    "failed_sources": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" }
+    },
+    "input_item_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/sha256" }
+    },
+    "topics": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/topic" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "topic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic_id",
+        "label",
+        "score",
+        "item_count",
+        "source_count",
+        "news_count",
+        "social_count",
+        "evidence_ids",
+        "divergence"
+      ],
+      "properties": {
+        "topic_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "score": { "type": "number", "minimum": 0 },
+        "item_count": { "type": "integer", "minimum": 1 },
+        "source_count": { "type": "integer", "minimum": 1 },
+        "news_count": { "type": "integer", "minimum": 0 },
+        "social_count": { "type": "integer", "minimum": 0 },
+        "evidence_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sha256" }
+        },
+        "divergence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["direction", "magnitude"],
+          "properties": {
+            "direction": {
+              "enum": ["aligned", "news_leads", "social_leads", "insufficient_data"]
+            },
+            "magnitude": {
+              "oneOf": [
+                { "type": "number", "minimum": 0, "maximum": 1 },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "finance-crawler-poc"
+version = "0.1.0"
+description = "A reproducible capability probe for finance crawling paths on GitHub Actions."
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+license = { text = "MIT" }
+dependencies = [
+  "crawl4ai==0.9.2",
+  "httpx[http2]>=0.27.2,<1",
+  "jsonschema[format]>=4.23,<5",
+  "PyYAML>=6.0,<7",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+]
+
+[project.scripts]
+finance-crawler-probe = "finance_crawler_poc.cli:main"
+finance-news-probe = "finance_crawler_poc.news_cli:main"
+finance-topic-radar = "finance_crawler_poc.radar_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/finance_crawler_poc"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["finance_crawler_poc"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

@@ -1,0 +1,159 @@
+from collections import Counter
+from pathlib import Path
+
+import pytest
+
+from finance_crawler_poc.news_catalog import NewsCatalogError, load_news_catalog
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def write_catalog(tmp_path: Path, body: str) -> Path:
+    path = tmp_path / "news-sources.yaml"
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
+def test_catalog_counts_unique_brands_instead_of_endpoints(tmp_path: Path) -> None:
+    catalog = load_news_catalog(
+        write_catalog(
+            tmp_path,
+            """
+version: 1
+status: draft
+target:
+  total_brands: 120
+  finance_specialist: 100
+  general_finance_desk: 20
+brands:
+  - id: specialist_one
+    name: Specialist One
+    canonical_domain: specialist.example
+    brand_class: finance_specialist
+    region: global
+    languages: [en]
+    endpoints:
+      - id: specialist_one_rss
+        transport: rss
+        url: https://specialist.example/rss
+        required_capabilities: [http, rss]
+      - id: specialist_one_browser
+        transport: browser
+        url: https://specialist.example/markets
+        required_capabilities: [http, javascript]
+  - id: general_one
+    name: General One Finance
+    canonical_domain: general.example
+    brand_class: general_finance_desk
+    region: US
+    languages: [en]
+    endpoints:
+      - id: general_one_api
+        transport: json_api
+        url: https://general.example/api/business
+        required_capabilities: [http, json]
+""",
+        )
+    )
+
+    assert catalog.brand_count == 2
+    assert catalog.endpoint_count == 3
+    assert catalog.target.total_brands == 120
+    assert catalog.is_complete is False
+    assert {brand.canonical_domain for brand in catalog.brands} == {
+        "general.example",
+        "specialist.example",
+    }
+
+
+def test_complete_catalog_must_match_100_plus_20_contract(tmp_path: Path) -> None:
+    body = """
+version: 1
+status: complete
+target:
+  total_brands: 120
+  finance_specialist: 100
+  general_finance_desk: 20
+brands:
+  - id: specialist_one
+    name: Specialist One
+    canonical_domain: specialist.example
+    brand_class: finance_specialist
+    region: global
+    languages: [en]
+    endpoints:
+      - id: specialist_one_rss
+        transport: rss
+        url: https://specialist.example/rss
+        required_capabilities: [http, rss]
+"""
+
+    with pytest.raises(NewsCatalogError, match="complete catalog must contain 120 brands"):
+        load_news_catalog(write_catalog(tmp_path, body))
+
+
+def test_catalog_rejects_duplicate_brand_domains_and_endpoint_ids(tmp_path: Path) -> None:
+    duplicate_domain = """
+version: 1
+status: draft
+target: {total_brands: 120, finance_specialist: 100, general_finance_desk: 20}
+brands:
+  - id: first_brand
+    name: First
+    canonical_domain: finance.example
+    brand_class: finance_specialist
+    region: global
+    languages: [en]
+    endpoints:
+      - {id: shared_feed, transport: rss, url: https://finance.example/rss, required_capabilities: [http, rss]}
+  - id: second_brand
+    name: Second
+    canonical_domain: finance.example
+    brand_class: general_finance_desk
+    region: US
+    languages: [en]
+    endpoints:
+      - {id: second_feed, transport: rss, url: https://finance.example/business/rss, required_capabilities: [http, rss]}
+"""
+    with pytest.raises(NewsCatalogError, match="duplicate canonical domain"):
+        load_news_catalog(write_catalog(tmp_path, duplicate_domain))
+
+    duplicate_endpoint = duplicate_domain.replace(
+        "canonical_domain: finance.example\n    brand_class: general_finance_desk",
+        "canonical_domain: general.example\n    brand_class: general_finance_desk",
+    ).replace("id: second_feed", "id: shared_feed")
+    with pytest.raises(NewsCatalogError, match="duplicate endpoint id"):
+        load_news_catalog(write_catalog(tmp_path, duplicate_endpoint))
+
+
+def test_target_composition_must_sum_to_unique_brand_target(tmp_path: Path) -> None:
+    body = """
+version: 1
+status: draft
+target: {total_brands: 120, finance_specialist: 90, general_finance_desk: 20}
+brands: []
+"""
+
+    with pytest.raises(NewsCatalogError, match="target composition must sum to 120"):
+        load_news_catalog(write_catalog(tmp_path, body))
+
+
+def test_repository_news_catalog_freezes_the_120_brand_denominator() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+
+    assert catalog.status == "complete"
+    assert catalog.target.total_brands == 120
+    assert catalog.target.finance_specialist == 100
+    assert catalog.target.general_finance_desk == 20
+    assert catalog.brand_count == 120
+    assert catalog.endpoint_count >= 120
+    assert Counter(brand.brand_class for brand in catalog.brands) == {
+        "finance_specialist": 100,
+        "general_finance_desk": 20,
+    }
+    assert {
+        endpoint.transport
+        for brand in catalog.brands
+        for endpoint in brand.endpoints
+    } == {"browser", "json_api", "rss", "static_html"}

@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "finance-crawler-browser-run-pilot",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-08-08",
+  "browser": {
+    "binding": "BROWSER",
+    "remote": true
+  }
+}

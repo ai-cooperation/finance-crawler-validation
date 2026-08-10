@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/raw-item.schema.json",
+  "title": "Normalized raw finance item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "item_id",
+    "source_id",
+    "canonical_url",
+    "title",
+    "summary",
+    "content",
+    "published_at",
+    "collected_at",
+    "transport",
+    "kind",
+    "layer",
+    "content_sha256",
+    "rights",
+    "engagement",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "item_id": { "$ref": "#/$defs/sha256" },
+    "source_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+    "canonical_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "maxLength": 4096
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "summary": { "type": "string", "maxLength": 5000 },
+    "content": { "type": "string", "maxLength": 1000000 },
+    "published_at": {
+      "oneOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
+    "collected_at": { "type": "string", "format": "date-time" },
+    "transport": { "enum": ["browser", "json_api", "rss", "static_html"] },
+    "kind": {
+      "enum": [
+        "aggregator",
+        "community",
+        "developer_community",
+        "market_data",
+        "news",
+        "official_data",
+        "official_news"
+      ]
+    },
+    "layer": { "enum": ["market", "news", "official", "social"] },
+    "content_sha256": { "$ref": "#/$defs/sha256" },
+    "rights": { "$ref": "#/$defs/rights" },
+    "engagement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "comments", "shares", "likes"],
+      "properties": {
+        "score": { "$ref": "#/$defs/nullable_count" },
+        "comments": { "$ref": "#/$defs/nullable_count" },
+        "shares": { "$ref": "#/$defs/nullable_count" },
+        "likes": { "$ref": "#/$defs/nullable_count" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "status_code", "final_url", "extraction_method"],
+      "properties": {
+        "route": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "status_code": {
+          "oneOf": [
+            { "type": "integer", "minimum": 100, "maximum": 599 },
+            { "type": "null" }
+          ]
+        },
+        "final_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "maxLength": 4096
+        },
+        "extraction_method": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "rights": {
+            "properties": { "redistribution": { "const": "metadata_only" } },
+            "required": ["redistribution"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rights": {
+            "properties": { "public_excerpt_chars": { "const": 0 } }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nullable_count": {
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "number", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["redistribution", "retention_days", "public_excerpt_chars"],
+      "properties": {
+        "redistribution": { "enum": ["metadata_only", "excerpt", "full"] },
+        "retention_days": { "type": "integer", "minimum": 0, "maximum": 3650 },
+        "public_excerpt_chars": { "type": "integer", "minimum": 0, "maximum": 2000 }
+      }
+    }
+  }
+}

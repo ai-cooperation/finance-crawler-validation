@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "run_id": 31309377786,
+  "run_url": "https://github.com/AlanChen75/finance-crawler-poc/actions/runs/31309377786",
+  "commit": "ff2c46ad9215a18486bd983b3b73434ac073a858",
+  "created_at": "2026-08-09T10:52:02Z",
+  "completed_at": "2026-08-09T10:55:22Z",
+  "scope": "news_120",
+  "runtime_executor": "github_actions_crawl4ai",
+  "observation_unit": "unique_news_brand",
+  "catalog": {
+    "brands": 120,
+    "finance_specialist": 100,
+    "general_finance_desk": 20,
+    "declared_endpoints": 148
+  },
+  "brand_results": {
+    "recorded": 120,
+    "successful": 99,
+    "failed": 21,
+    "success_rate": 0.825,
+    "finance_specialist_successful": 79,
+    "general_finance_desk_successful": 20
+  },
+  "endpoint_results": {
+    "attempted": 141,
+    "successful": 99,
+    "rss_successful": 32,
+    "json_api_successful": 2,
+    "static_html_successful": 49,
+    "browser_attempted": 25,
+    "browser_successful": 16,
+    "browser_blocked": 6,
+    "browser_robots_denied": 3,
+    "fallback_brands": 21,
+    "fallback_recoveries": 17
+  },
+  "failed_brand_outcomes": {
+    "blocked": [
+      "bloomberg",
+      "investing_com",
+      "benzinga",
+      "money_com",
+      "private_banker_international",
+      "advisor_hub",
+      "financial_advisor_magazine",
+      "the_trade",
+      "hedgeweek",
+      "etf_com",
+      "etf_stream",
+      "stockhead",
+      "livewire_markets",
+      "financial_express",
+      "bitcoin_magazine"
+    ],
+    "invalid_content": [
+      "international_banker",
+      "leaprate",
+      "citywire"
+    ],
+    "robots_denied": [
+      "reuters",
+      "wall_street_journal",
+      "barrons"
+    ]
+  },
+  "content_contract": {
+    "static_html_visible_text_only": true,
+    "minimum_visible_characters": 300,
+    "finance_semantic_term_required": true,
+    "full_body_retained": false
+  },
+  "news_report_sha256": "5e991ab2c3ee406689826ec6213ce1ff1e5ef128997992eaea6f0f325154ab19"
+}

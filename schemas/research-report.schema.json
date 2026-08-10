@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-report.schema.json",
+  "title": "Evidence-linked model second opinion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "topic_snapshot_id",
+    "topic_id",
+    "generated_at",
+    "expires_at",
+    "model",
+    "agent_version",
+    "second_opinion",
+    "bull_case",
+    "bear_case",
+    "risk_view"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "report_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "topic_snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "topic_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "model": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "agent_version": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "second_opinion": { "const": true },
+    "bull_case": { "$ref": "#/$defs/claims" },
+    "bear_case": { "$ref": "#/$defs/claims" },
+    "risk_view": { "$ref": "#/$defs/claims" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "confidence", "evidence_ids"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 5000 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "evidence_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    }
+  }
+}

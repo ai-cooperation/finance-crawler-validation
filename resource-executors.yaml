@@ -1,0 +1,42 @@
+version: 1
+
+# These are repository routing-policy caps, not claims about provider maxima.
+# Actual eligibility also depends on runtime availability, remaining quota,
+# credential presence, task demand, and earlier attempts.
+executors:
+  - id: cf_worker_http
+    platform: cloudflare
+    capabilities: [http, json, rss, static_html]
+    max_duration_seconds: 30
+    max_response_bytes: 2000000
+    cost_rank: 1
+
+  - id: cf_browser_run
+    platform: cloudflare
+    capabilities: [http, javascript, chromium]
+    max_duration_seconds: 60
+    max_response_bytes: 5000000
+    cost_rank: 2
+
+  - id: github_actions_crawl4ai
+    platform: github_actions
+    capabilities: [http, json, rss, static_html, javascript, chromium, python, crawl4ai]
+    max_duration_seconds: 1200
+    max_response_bytes: 20000000
+    cost_rank: 3
+
+  - id: firecrawl_hosted
+    platform: commercial
+    capabilities: [http, javascript, chromium, web_unlocker]
+    max_duration_seconds: 120
+    max_response_bytes: 20000000
+    cost_rank: 4
+    requires_credential: true
+
+  - id: browserless_residential
+    platform: commercial
+    capabilities: [http, javascript, chromium, residential_egress]
+    max_duration_seconds: 120
+    max_response_bytes: 20000000
+    cost_rank: 4
+    requires_credential: true

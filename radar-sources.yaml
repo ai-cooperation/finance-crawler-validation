@@ -1,0 +1,201 @@
+version: 1
+minimum_successful_sources: 12
+maximum_items_per_run: 60
+
+# Phase-0 vertical slice: 15 unique origins, not repeated routes for one brand.
+# Every record defaults to private, metadata-only retention in R2.
+sources:
+  - schema_version: 1
+    source_id: federal_reserve_press_rss
+    name: Federal Reserve Press Releases
+    kind: official_news
+    layer: official
+    transport: rss
+    canonical_url: https://www.federalreserve.gov/feeds/press_all.xml
+    freshness_sla_minutes: 360
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: rss
+    max_items: 3
+    timeout_seconds: 30
+
+  - schema_version: 1
+    source_id: ecb_press_rss
+    name: European Central Bank Press Releases
+    kind: official_news
+    layer: official
+    transport: rss
+    canonical_url: https://www.ecb.europa.eu/rss/press.html
+    freshness_sla_minutes: 360
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: rss
+    max_items: 3
+    timeout_seconds: 30
+
+  - schema_version: 1
+    source_id: bbc_business_rss
+    name: BBC Business
+    kind: news
+    layer: news
+    transport: rss
+    canonical_url: https://feeds.bbci.co.uk/news/business/rss.xml
+    freshness_sla_minutes: 120
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: rss
+    max_items: 3
+    timeout_seconds: 30
+
+  - schema_version: 1
+    source_id: cnbc_top_news_rss
+    name: CNBC Top News
+    kind: news
+    layer: news
+    transport: rss
+    canonical_url: https://www.cnbc.com/id/100003114/device/rss/rss.html
+    freshness_sla_minutes: 120
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: rss
+    max_items: 3
+    timeout_seconds: 30
+
+  - schema_version: 1
+    source_id: marketwatch_topstories_rss
+    name: MarketWatch Top Stories
+    kind: news
+    layer: news
+    transport: rss
+    canonical_url: https://feeds.content.dowjones.io/public/rss/mw_topstories
+    freshness_sla_minutes: 120
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: rss
+    max_items: 3
+    timeout_seconds: 30
+
+  - schema_version: 1
+    source_id: hacker_news_finance_api
+    name: Hacker News Finance Search
+    kind: developer_community
+    layer: social
+    transport: json_api
+    canonical_url: https://hn.algolia.com/api/v1/search_by_date?query=finance&tags=story&hitsPerPage=10
+    freshness_sla_minutes: 120
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: hn_algolia
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: money_stackexchange_api
+    name: Personal Finance Stack Exchange Hot Questions
+    kind: community
+    layer: social
+    transport: json_api
+    canonical_url: https://api.stackexchange.com/2.3/questions?site=money&order=desc&sort=hot&pagesize=10&filter=default
+    freshness_sla_minutes: 180
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: stackexchange
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: quant_stackexchange_api
+    name: Quantitative Finance Stack Exchange Hot Questions
+    kind: community
+    layer: social
+    transport: json_api
+    canonical_url: https://api.stackexchange.com/2.3/questions?site=quant&order=desc&sort=hot&pagesize=10&filter=default
+    freshness_sla_minutes: 180
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: stackexchange
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: coingecko_markets_api
+    name: CoinGecko Top Markets
+    kind: market_data
+    layer: market
+    transport: json_api
+    canonical_url: https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false
+    freshness_sla_minutes: 30
+    rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
+    extractor: coingecko_markets
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: world_bank_growth_api
+    name: World Bank Global GDP Growth
+    kind: official_data
+    layer: official
+    transport: json_api
+    canonical_url: https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.MKTP.KD.ZG?format=json&per_page=10
+    freshness_sla_minutes: 10080
+    rights: {redistribution: metadata_only, retention_days: 365, public_excerpt_chars: 0}
+    extractor: world_bank
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: openbb_github_issues_api
+    name: OpenBB GitHub Issues
+    kind: developer_community
+    layer: social
+    transport: json_api
+    canonical_url: https://api.github.com/repos/OpenBB-finance/OpenBB/issues?state=open&per_page=10&sort=updated&direction=desc
+    freshness_sla_minutes: 180
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: github_issues
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: tradingagents_github_issues_api
+    name: TradingAgents GitHub Issues
+    kind: developer_community
+    layer: social
+    transport: json_api
+    canonical_url: https://api.github.com/repos/TauricResearch/TradingAgents/issues?state=open&per_page=10&sort=updated&direction=desc
+    freshness_sla_minutes: 180
+    rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
+    extractor: github_issues
+    max_items: 3
+    timeout_seconds: 20
+
+  - schema_version: 1
+    source_id: openbb_github_discussions_browser
+    name: OpenBB GitHub Discussions
+    kind: developer_community
+    layer: social
+    transport: browser
+    canonical_url: https://github.com/OpenBB-finance/OpenBB/discussions
+    freshness_sla_minutes: 360
+    rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
+    extractor: browser_document
+    max_items: 1
+    timeout_seconds: 40
+
+  - schema_version: 1
+    source_id: tradingview_ideas_browser
+    name: TradingView Ideas
+    kind: community
+    layer: social
+    transport: browser
+    canonical_url: https://www.tradingview.com/ideas/
+    freshness_sla_minutes: 120
+    rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
+    extractor: browser_document
+    max_items: 1
+    timeout_seconds: 40
+
+  - schema_version: 1
+    source_id: bogleheads_investing_browser
+    name: Bogleheads Personal Investments
+    kind: community
+    layer: social
+    transport: browser
+    canonical_url: https://www.bogleheads.org/forum/viewforum.php?f=1
+    freshness_sla_minutes: 360
+    rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
+    extractor: browser_document
+    max_items: 1
+    timeout_seconds: 40

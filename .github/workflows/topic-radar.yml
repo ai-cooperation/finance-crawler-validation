@@ -1,0 +1,80 @@
+name: Finance topic radar vertical slice
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: finance-topic-radar
+  cancel-in-progress: false
+
+jobs:
+  collect-and-ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install collector
+        run: python -m pip install --disable-pip-version-check -e .
+
+      - name: Install Chromium and system dependencies
+        run: python -m playwright install --with-deps chromium
+
+      - name: Collect 15-source radar slice
+        run: >-
+          finance-topic-radar
+          --manifest radar-sources.yaml
+          --output artifacts/topic-radar
+
+      - name: Ingest and publish through GitHub OIDC
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/ingest-envelope.json \
+            "$INGEST_WORKER_URL/v1/ingest/items"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/topic-snapshot.json \
+            "$INGEST_WORKER_URL/v1/ingest/publish"
+
+      - name: Upload public source-health report
+        if: always() && hashFiles('artifacts/topic-radar/run-report.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-topic-radar-${{ github.run_id }}
+          path: artifacts/topic-radar/run-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Open a failure alert issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh issue create
+          --repo "$GITHUB_REPOSITORY"
+          --title "Topic radar failed: run $GITHUB_RUN_ID"
+          --body "The manual topic-radar validation failed. Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

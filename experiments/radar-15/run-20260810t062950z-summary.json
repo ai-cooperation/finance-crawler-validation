@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "run_id": "run_20260810t062950z",
+  "as_of": "2026-08-10T06:29:50.362313Z",
+  "execution_environment": "local_uv_isolated_macos",
+  "github_actions_triggered": false,
+  "cloudflare_deployed": false,
+  "accepted": true,
+  "partial": true,
+  "minimum_successful_sources": 12,
+  "total_unique_sources": 15,
+  "successful_sources": 14,
+  "normalized_items": 38,
+  "by_transport": {
+    "rss": {"successful": 5, "total": 5},
+    "json_api": {"successful": 7, "total": 7},
+    "browser": {"successful": 2, "total": 3}
+  },
+  "failed_sources": [
+    {
+      "source_id": "bogleheads_investing_browser",
+      "transport": "browser",
+      "route": "crawl4ai",
+      "status_code": 403,
+      "classification": "cloudflare_js_challenge"
+    }
+  ],
+  "topics": [
+    {
+      "topic_id": "equities_earnings",
+      "score": 5.1099,
+      "item_count": 4,
+      "source_count": 4,
+      "news_count": 1,
+      "social_count": 3,
+      "divergence": {"direction": "social_leads", "magnitude": 0.5}
+    },
+    {
+      "topic_id": "ai_semiconductors",
+      "score": 4.75,
+      "item_count": 4,
+      "source_count": 3,
+      "news_count": 3,
+      "social_count": 1,
+      "divergence": {"direction": "news_leads", "magnitude": 0.5}
+    },
+    {
+      "topic_id": "personal_finance",
+      "score": 3.75,
+      "item_count": 3,
+      "source_count": 3,
+      "news_count": 1,
+      "social_count": 2,
+      "divergence": {"direction": "social_leads", "magnitude": 0.3333}
+    }
+  ],
+  "private_artifact_hashes": {
+    "ingest-envelope.json": "3c767cdc66d1c26f573d3a2ee31b3a6f34906681d6a6c9536d63d877ba4bda39",
+    "raw-items.json": "35ebee04751b01e5d42e87dcc9dac428d77947ec679d3656ed6eddd3dceba895",
+    "run-report.json": "6591255a3578e991070c03989947837cc68b24a829547515dfa4d557e32ab40e",
+    "topic-snapshot.json": "5e71dd2d85380b35e850c901fe587a452504c28e93e5fa1e7cf9505a61e5175c"
+  }
+}

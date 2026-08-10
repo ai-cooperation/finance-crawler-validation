@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/audit-event.schema.json",
+  "title": "Append-only audit event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "run_id",
+    "stage",
+    "status",
+    "happened_at",
+    "payload_sha256",
+    "previous_event_hash",
+    "event_hash"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "format": "uuid" },
+    "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "stage": {
+      "enum": [
+        "raw_collected",
+        "openbb_normalized",
+        "topic_scored",
+        "tradingagents_completed",
+        "published"
+      ]
+    },
+    "status": { "enum": ["started", "completed", "failed", "skipped"] },
+    "happened_at": { "type": "string", "format": "date-time" },
+    "payload_sha256": { "$ref": "#/$defs/nullable_sha256" },
+    "previous_event_hash": { "$ref": "#/$defs/nullable_sha256" },
+    "event_hash": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nullable_sha256": {
+      "oneOf": [
+        { "$ref": "#/$defs/sha256" },
+        { "type": "null" }
+      ]
+    }
+  }
+}
