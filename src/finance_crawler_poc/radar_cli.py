@@ -85,6 +85,7 @@ def build_radar_artifacts(
             for transport in ("rss", "json_api", "browser")
         },
         "source_results": list(collection.source_results),
+        "checkpoints": list(collection.checkpoints),
     }
     return envelope, snapshot, report
 
@@ -127,6 +128,7 @@ async def run_radar(
             "items": 0,
             "topics": 0,
             "source_results": list(collection.source_results),
+            "checkpoints": list(collection.checkpoints),
         }
         _write_json(output_directory / "run-report.json", report)
         return report

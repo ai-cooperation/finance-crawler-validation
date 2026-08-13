@@ -121,6 +121,60 @@ def status_response() -> dict[str, object]:
     }
 
 
+def soak_observation() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "workflow_run_id": "31309377786",
+        "run_attempt": 1,
+        "commit_sha": "d" * 40,
+        "observed_at": "2026-08-13T12:00:00Z",
+        "replayed": False,
+        "admission": {
+            "decision": "admitted",
+            "reason": "admitted",
+            "requested_at": "2026-08-13T11:59:00Z",
+        },
+        "scheduled_run": {
+            "state": "published",
+            "run_id": "run_20260810t020500z",
+            "snapshot_id": "radar_20260810t020500z",
+            "item_count": 1,
+            "published_at": "2026-08-13T12:00:00Z",
+            "current_snapshot_matches": True,
+        },
+        "status": status_response(),
+        "d1_counts": {
+            "runs": 1,
+            "published_runs": 1,
+            "raw_items": 1,
+            "topic_snapshots": 1,
+            "audit_events": 2,
+            "run_admissions": 1,
+            "operational_alerts": 0,
+            "open_alerts": 0,
+        },
+        "r2_integrity": {
+            "checked_objects": 2,
+            "max_checked_objects": 4,
+            "all_metadata_match": True,
+            "samples": [
+                {
+                    "kind": "topic",
+                    "object_key": "topics/radar_20260810t020500z.json",
+                    "size": 512,
+                    "content_sha256": "b" * 64,
+                },
+                {
+                    "kind": "raw",
+                    "object_key": "raw/source/item.json",
+                    "size": 256,
+                    "content_sha256": "c" * 64,
+                },
+            ],
+        },
+    }
+
+
 def test_all_versioned_contracts_are_loadable() -> None:
     assert CONTRACT_NAMES == frozenset(
         {
@@ -130,6 +184,7 @@ def test_all_versioned_contracts_are_loadable() -> None:
             "raw-item",
             "research-report",
             "source-record",
+            "soak-observation",
             "status-response",
             "topic-snapshot",
         }
@@ -147,6 +202,7 @@ def test_all_versioned_contracts_are_loadable() -> None:
         ("raw-item", raw_item()),
         ("topic-snapshot", topic_snapshot()),
         ("status-response", status_response()),
+        ("soak-observation", soak_observation()),
     ],
 )
 def test_core_contracts_accept_valid_payloads(

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/soak-observation.schema.json",
+  "title": "P0 Soak Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workflow_run_id",
+    "run_attempt",
+    "commit_sha",
+    "observed_at",
+    "replayed",
+    "admission",
+    "scheduled_run",
+    "status",
+    "d1_counts",
+    "r2_integrity"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "workflow_run_id": { "type": "string", "pattern": "^[0-9]+$" },
+    "run_attempt": { "type": "integer", "minimum": 1 },
+    "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "replayed": { "type": "boolean" },
+    "admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "reason", "requested_at"],
+      "properties": {
+        "decision": { "enum": ["admitted", "denied"] },
+        "reason": { "enum": ["admitted", "daily_run_limit", "minimum_interval"] },
+        "requested_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "scheduled_run": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "run_id",
+            "snapshot_id",
+            "item_count",
+            "published_at",
+            "current_snapshot_matches"
+          ],
+          "properties": {
+            "state": { "const": "published" },
+            "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+            "snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+            "item_count": { "type": "integer", "minimum": 1 },
+            "published_at": { "type": "string", "format": "date-time" },
+            "current_snapshot_matches": { "const": true }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "run_id",
+            "snapshot_id",
+            "item_count",
+            "published_at",
+            "current_snapshot_matches"
+          ],
+          "properties": {
+            "state": { "enum": ["not_admitted", "not_started", "incomplete"] },
+            "run_id": { "type": ["string", "null"] },
+            "snapshot_id": { "type": ["string", "null"] },
+            "item_count": { "type": ["integer", "null"], "minimum": 0 },
+            "published_at": { "type": ["string", "null"], "format": "date-time" },
+            "current_snapshot_matches": { "const": false }
+          }
+        }
+      ]
+    },
+    "status": { "$ref": "status-response.schema.json" },
+    "d1_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runs",
+        "published_runs",
+        "raw_items",
+        "topic_snapshots",
+        "audit_events",
+        "run_admissions",
+        "operational_alerts",
+        "open_alerts"
+      ],
+      "properties": {
+        "runs": { "type": "integer", "minimum": 0 },
+        "published_runs": { "type": "integer", "minimum": 0 },
+        "raw_items": { "type": "integer", "minimum": 0 },
+        "topic_snapshots": { "type": "integer", "minimum": 0 },
+        "audit_events": { "type": "integer", "minimum": 0 },
+        "run_admissions": { "type": "integer", "minimum": 0 },
+        "operational_alerts": { "type": "integer", "minimum": 0 },
+        "open_alerts": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "r2_integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checked_objects", "max_checked_objects", "all_metadata_match", "samples"],
+      "properties": {
+        "checked_objects": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "max_checked_objects": { "const": 4 },
+        "all_metadata_match": { "const": true },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "object_key", "size", "content_sha256"],
+            "properties": {
+              "kind": { "enum": ["topic", "raw"] },
+              "object_key": { "type": "string", "minLength": 1 },
+              "size": { "type": "integer", "minimum": 1 },
+              "content_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
