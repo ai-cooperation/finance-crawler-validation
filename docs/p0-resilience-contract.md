@@ -113,4 +113,8 @@ Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_fre
 - [Actions run 31676925023](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31676925023) 從 commit `e0078b2aeea3fd6807f8ceff5e090768711fe1e3` 執行一次 15 來源收集，耗時 1 分 58 秒；同一 job 的 ingest replay 與 publish replay 都回傳 `replayed=true`。
 - invalid publish 回傳 HTTP 422 `invalid_payload`，前後 status 的 snapshot ID 與 content hash 相同，last-good 未被破壞。
 - D1 只產生 1 筆 `completed` receipt、1 個新 run、37 個 run links、1 個新 snapshot，以及 2 個 audit events；R2 topic object SHA-256 與 D1、status 相同。
-- 來源實測 13/15：RSS 5/5、Public API 7/7、Browser＋Crawl4AI 1/3。這證明重放與 last-good 契約成立，但 Browser 成功率仍是 Gate 2 擴大來源與路由驗證的風險，不宣稱 P0 整體或 120 來源已完成。
+- 該次重放／last-good 實測的來源為 13/15：RSS 5/5、Public API 7/7、Browser＋Crawl4AI 1/3。這是當次 run 的真實結果，不外推為長期成功率。
+- D1 migration `0003_operational_alerts.sql` 已套用。[Actions run 31684943198](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31684943198) 取得 admission 後實際執行 checkpoint catch-up，來源 14/15 成功、產生 19 items；`run-report.json` SHA-256 為 `a6aed887b92a7d73a4e34d07216c3fae80c7cf2a9e1da54478e72c1bbdc11d75`，並保留 RSS/API 改寫後的實際 URL。
+- D1 記錄 run `31684943198` 為 `admitted`；後續 `31685137981`、`31685320719`、`31685905458` 與 `31687414440` 均為 `minimum_interval` denial。修正合法 `false` 被 jq 誤判後，run `31687414440` 在 19 秒內正常結束，未安裝 Chromium，也未執行 collect 或 ingest。
+- [Actions run 31685905458](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31685905458) 以手動故障注入驗證外部 transport。臨時 HTTPS sink、D1 `operational_alerts` 與 GitHub issue 各只產生 1 筆；重放同一 run 後仍各為 1。測試 sink 已移除、Cloudflare 告警 secret 已清空，因此這項只證明機器到機器的送達與去重，不宣稱真人收件成功。
+- Gate 2 已另以 120 個唯一新聞品牌驗收，114/120 成功（95.00%）。P0 未關閉的唯一子項是：先配置並驗證有人訂閱的告警目的地，再開啟低頻 schedule／Cron 進行 soak。在此之前兩種排程均保持關閉。
