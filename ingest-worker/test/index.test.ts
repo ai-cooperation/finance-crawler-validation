@@ -17,6 +17,7 @@ import {
   StatusReadError,
 } from "../src/status";
 import statusResponseSchema from "../../schemas/status-response.schema.json";
+import { runFreshnessWatchdog } from "../src/watchdog";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -111,6 +112,8 @@ beforeEach(async () => {
     env.DB.prepare("DELETE FROM source_state"),
     env.DB.prepare("DELETE FROM audit_events"),
     env.DB.prepare("DELETE FROM ingest_receipts"),
+    env.DB.prepare("DELETE FROM operational_alerts"),
+    env.DB.prepare("DELETE FROM run_admissions"),
     env.DB.prepare("DELETE FROM runs"),
   ]);
   const objects = await env.RAW_OBJECTS.list();
@@ -508,6 +511,305 @@ describe("D1-backed status", () => {
   });
 });
 
+describe("OIDC run planning", () => {
+  const handler = createHandler({
+    authenticate: async () => ({
+      workflowRunId: "31309377786",
+      commitSha: "d".repeat(40),
+    }),
+    now: () => new Date("2026-08-13T08:00:00Z"),
+  });
+
+  const request = (sourceIds: string[]) => new Request(
+    "https://ingest.example/v1/run/plan",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        source_ids: sourceIds,
+      }),
+    },
+  );
+
+  it("returns bounded persisted checkpoints before collection", async () => {
+    await env.DB.prepare(
+      `INSERT INTO source_state (
+        source_id, status, last_successful_crawl, last_article_date,
+        cursor, last_snapshot_id, updated_at
+      ) VALUES (?, 'success', ?, ?, NULL, ?, ?)`,
+    ).bind(
+      "federal_reserve_press_rss",
+      "2026-08-12T02:05:00Z",
+      "2026-08-12T02:00:00Z",
+      "radar_20260812t020500z",
+      "2026-08-12T02:05:30Z",
+    ).run();
+
+    const response = await handler.fetch(request([
+      "federal_reserve_press_rss",
+      "new_source",
+    ]), env);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      schema_version: 1,
+      admitted: true,
+      reason: "admitted",
+      policy: {
+        daily_run_limit: 2,
+        minimum_interval_seconds: 21600,
+        admitted_runs_today: 1,
+      },
+      checkpoints: [
+        {
+          source_id: "federal_reserve_press_rss",
+          status: "success",
+          last_successful_crawl: "2026-08-12T02:05:00Z",
+          last_article_date: "2026-08-12T02:00:00Z",
+          cursor: null,
+        },
+        {
+          source_id: "new_source",
+          status: null,
+          last_successful_crawl: null,
+          last_article_date: null,
+          cursor: null,
+        },
+      ],
+    });
+  });
+
+  it("denies admission before expensive browser setup when the daily cap is reached", async () => {
+    for (const [suffix, requestedAt] of [
+      ["a", "2026-08-13T01:00:00Z"],
+      ["b", "2026-08-13T07:00:00Z"],
+    ]) {
+      await env.DB.prepare(
+        `INSERT INTO run_admissions (
+          workflow_run_id, commit_sha, decision, reason, requested_at
+        ) VALUES (?, ?, 'admitted', 'admitted', ?)`,
+      ).bind(
+        `3130937778${suffix}`,
+        "d".repeat(40),
+        requestedAt,
+      ).run();
+    }
+
+    const response = await handler.fetch(request(["new_source"]), env);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      admitted: false,
+      reason: "daily_run_limit",
+      policy: { admitted_runs_today: 2 },
+    });
+  });
+
+  it("denies admission during the configured quiet interval", async () => {
+    await env.DB.prepare(
+      `INSERT INTO run_admissions (
+        workflow_run_id, commit_sha, decision, reason, requested_at
+      ) VALUES (?, ?, 'admitted', 'admitted', ?)`,
+    ).bind(
+      "31309377785",
+      "d".repeat(40),
+      "2026-08-13T06:00:00Z",
+    ).run();
+
+    const response = await handler.fetch(request(["new_source"]), env);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      admitted: false,
+      reason: "minimum_interval",
+      retry_after_seconds: 14400,
+    });
+  });
+
+  it("leases admission once and replays the decision for the same workflow run", async () => {
+    const first = await handler.fetch(request(["new_source"]), env);
+    const replay = await handler.fetch(request(["new_source"]), env);
+
+    expect(first.status).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ admitted: true, reason: "admitted" });
+    const rows = await env.DB.prepare(
+      "SELECT workflow_run_id, decision FROM run_admissions",
+    ).all<{ workflow_run_id: string; decision: string }>();
+    expect(rows.results).toEqual([{
+      workflow_run_id: "31309377786",
+      decision: "admitted",
+    }]);
+  });
+
+  it("rejects malformed or identity-mismatched plan requests", async () => {
+    const duplicate = await handler.fetch(request(["duplicate", "duplicate"]), env);
+    const mismatch = new Request("https://ingest.example/v1/run/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "999",
+        commit_sha: "d".repeat(40),
+        source_ids: ["new_source"],
+      }),
+    });
+
+    expect(duplicate.status).toBe(422);
+    expect((await handler.fetch(mismatch, env)).status).toBe(403);
+  });
+});
+
+describe("external operational alerts", () => {
+  function alertEnv(): Env {
+    return Object.assign(Object.create(env) as Env, {
+      ALERT_WEBHOOK_URL: "https://alerts.example/hooks/finance-radar",
+    });
+  }
+
+  it("sends one action failure notification and deduplicates its replay", async () => {
+    const deliveries: unknown[] = [];
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async (_input, init) => {
+        deliveries.push(JSON.parse(String(init?.body)));
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = () => new Request("https://ingest.example/v1/alerts/action-failure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "failure",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const first = await handler.fetch(request(), alertEnv());
+    const replay = await handler.fetch(request(), alertEnv());
+
+    expect(first.status).toBe(202);
+    expect(await first.json()).toMatchObject({ delivered: true, transition: "opened" });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ delivered: false, transition: "deduplicated" });
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({
+      schema_version: 1,
+      alert_key: "github_action_failure:31309377786",
+      state: "open",
+      severity: "critical",
+    });
+  });
+
+  it("fails closed when the webhook is absent or rejects delivery", async () => {
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => new Response("rejected", { status: 503 }),
+    });
+    const request = () => new Request("https://ingest.example/v1/alerts/action-failure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "failure",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const missingWebhook = new Proxy(env, {
+      get(target, property, receiver) {
+        if (property === "ALERT_WEBHOOK_URL") return undefined;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    expect((await handler.fetch(request(), missingWebhook)).status).toBe(503);
+    expect((await handler.fetch(request(), alertEnv())).status).toBe(502);
+    const alerts = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM operational_alerts",
+    ).first<{ count: number }>();
+    expect(Number(alerts?.count)).toBe(0);
+  });
+
+  it("opens, deduplicates, and resolves a freshness alert", async () => {
+    await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
+    await publishSnapshot(env, topicSnapshot(), new Date("2026-08-10T02:06:00Z"));
+    const deliveries: Array<Record<string, unknown>> = [];
+    const alertFetch = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      deliveries.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response("ok", { status: 200 });
+    };
+    const alertEnvironment = alertEnv();
+
+    const opened = await runFreshnessWatchdog(
+      alertEnvironment,
+      new Date("2026-08-11T03:00:00Z"),
+      alertFetch,
+    );
+    const duplicate = await runFreshnessWatchdog(
+      alertEnvironment,
+      new Date("2026-08-11T03:05:00Z"),
+      alertFetch,
+    );
+    await env.DB.prepare(
+      "UPDATE topic_snapshots SET as_of = ? WHERE snapshot_id = ?",
+    ).bind("2026-08-11T03:09:00Z", "radar_20260810t020500z").run();
+    const resolved = await runFreshnessWatchdog(
+      alertEnvironment,
+      new Date("2026-08-11T03:10:00Z"),
+      alertFetch,
+    );
+
+    expect(opened).toMatchObject({ delivered: true, transition: "opened" });
+    expect(duplicate).toMatchObject({ delivered: false, transition: "deduplicated" });
+    expect(resolved).toMatchObject({ delivered: true, transition: "resolved" });
+    expect(deliveries).toHaveLength(2);
+    expect(deliveries.map((delivery) => delivery.state)).toEqual(["open", "resolved"]);
+    const alert = await env.DB.prepare(
+      "SELECT state, resolved_at FROM operational_alerts WHERE alert_key = ?",
+    ).bind("topic_radar_freshness").first<{ state: string; resolved_at: string | null }>();
+    expect(alert?.state).toBe("resolved");
+    expect(alert?.resolved_at).toBe("2026-08-11T03:10:00.000Z");
+
+    const reopened = await runFreshnessWatchdog(
+      alertEnvironment,
+      new Date("2026-08-12T04:00:00Z"),
+      alertFetch,
+    );
+    expect(reopened).toMatchObject({ delivered: true, transition: "opened" });
+    expect(deliveries).toHaveLength(3);
+  });
+
+  it("treats missing snapshots as an alert and does not persist rejected delivery", async () => {
+    const rejected = async () => new Response("no", { status: 500 });
+
+    await expect(runFreshnessWatchdog(
+      alertEnv(),
+      new Date("2026-08-13T08:00:00Z"),
+      rejected,
+    )).rejects.toMatchObject({ code: "alert_delivery_rejected" });
+    const alerts = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM operational_alerts",
+    ).first<{ count: number }>();
+    expect(Number(alerts?.count)).toBe(0);
+  });
+});
+
 describe("HTTP routing and error contracts", () => {
   it("separates health, unknown routes, and method errors without authentication", async () => {
     const handler = createHandler({
@@ -639,6 +941,27 @@ describe("authentication boundary", () => {
         eventName: "workflow_dispatch",
       },
     )).not.toThrow();
+  });
+
+  it("accepts only explicitly allowlisted manual or scheduled events", () => {
+    const expected = {
+      repositoryId: "99",
+      ownerId: "42",
+      workflowRef: "owner/repo/.github/workflows/crawl.yml@refs/heads/main",
+      ref: "refs/heads/main",
+      eventName: "workflow_dispatch,schedule",
+    };
+    const claims = {
+      repository_id: "99",
+      repository_owner_id: "42",
+      workflow_ref: "owner/repo/.github/workflows/crawl.yml@refs/heads/main",
+      ref: "refs/heads/main",
+    };
+
+    expect(() => assertGithubClaims({ ...claims, event_name: "schedule" }, expected)).not.toThrow();
+    expect(() => assertGithubClaims({ ...claims, event_name: "push" }, expected)).toThrow(
+      /event_name/,
+    );
   });
 
   it("fails closed before JWT verification when OIDC is unconfigured or absent", async () => {

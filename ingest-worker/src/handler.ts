@@ -10,6 +10,13 @@ import {
   StatusConfigurationError,
   StatusReadError,
 } from "./status";
+import {
+  buildRunPlan,
+  parseRunAdmissionPolicy,
+  RunPlanConfigurationError,
+} from "./run-plan";
+import { AlertDeliveryError, reportActionFailure } from "./alerts";
+import { runFreshnessWatchdog } from "./watchdog";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -19,17 +26,23 @@ type Authenticator = (request: Request, env: Env) => Promise<AuthContext>;
 export interface HandlerDependencies {
   authenticate: Authenticator;
   now: () => Date;
+  alertFetch: typeof fetch;
 }
 
 const defaultDependencies: HandlerDependencies = {
   authenticate: authenticateGithubOidc,
   now: () => new Date(),
+  alertFetch: fetch,
 };
 
 export function createHandler(
-  dependencies: HandlerDependencies = defaultDependencies,
-): Pick<ExportedHandler<Env>, "fetch"> {
+  overrides: Partial<HandlerDependencies> = {},
+): Pick<ExportedHandler<Env>, "fetch" | "scheduled"> {
+  const dependencies: HandlerDependencies = { ...defaultDependencies, ...overrides };
   return {
+    async scheduled(_controller, env): Promise<void> {
+      await runFreshnessWatchdog(env, dependencies.now(), dependencies.alertFetch);
+    },
     async fetch(request: Request, env: Env): Promise<Response> {
       const requestId = crypto.randomUUID();
       const url = new URL(request.url);
@@ -55,7 +68,12 @@ export function createHandler(
           );
         }
       }
-      if (!["/v1/ingest/items", "/v1/ingest/publish"].includes(url.pathname)) {
+      if (![
+        "/v1/ingest/items",
+        "/v1/ingest/publish",
+        "/v1/run/plan",
+        "/v1/alerts/action-failure",
+      ].includes(url.pathname)) {
         return jsonResponse({ error: "route_not_found", request_id: requestId }, 404);
       }
       if (request.method !== "POST") {
@@ -65,6 +83,29 @@ export function createHandler(
       try {
         const auth = await dependencies.authenticate(request, env);
         const payload = await readBoundedJson(request, MAX_JSON_BYTES);
+        if (url.pathname === "/v1/run/plan") {
+          const plan = await buildRunPlan(
+            env.DB,
+            payload,
+            auth,
+            dependencies.now(),
+            parseRunAdmissionPolicy(env),
+          );
+          return jsonResponse({ ...plan, request_id: requestId }, 200);
+        }
+        if (url.pathname === "/v1/alerts/action-failure") {
+          const result = await reportActionFailure(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            dependencies.alertFetch,
+          );
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.delivered ? 202 : 200,
+          );
+        }
         if (url.pathname === "/v1/ingest/items") {
           if (stringField(payload, "workflow_run_id") !== auth.workflowRunId) {
             throw new HttpError(403, "workflow_run_mismatch");
@@ -157,6 +198,15 @@ function normalizeError(error: unknown): HttpError {
   if (error instanceof StatusReadError) return new HttpError(503, "status_unavailable");
   if (error instanceof StatusConfigurationError) {
     return new HttpError(500, "status_configuration_invalid");
+  }
+  if (error instanceof RunPlanConfigurationError) {
+    return new HttpError(500, "run_plan_configuration_invalid");
+  }
+  if (error instanceof AlertDeliveryError) {
+    return new HttpError(
+      error.code === "alert_webhook_not_configured" ? 503 : 502,
+      error.code,
+    );
   }
   console.error(JSON.stringify({
     event: "unhandled_ingest_error",

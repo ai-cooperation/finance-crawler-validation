@@ -26,6 +26,7 @@ test = [
 finance-crawler-probe = "finance_crawler_poc.cli:main"
 finance-news-probe = "finance_crawler_poc.news_cli:main"
 finance-topic-radar = "finance_crawler_poc.radar_cli:main"
+finance-topic-radar-plan = "finance_crawler_poc.radar_run_plan:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/finance_crawler_poc"]

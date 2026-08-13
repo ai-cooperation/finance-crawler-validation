@@ -21,6 +21,10 @@ def test_vertical_slice_manifest_has_balanced_unique_sources() -> None:
         transport: sum(source.transport == transport for source in manifest.sources)
         for transport in ("rss", "json_api", "browser")
     } == {"rss": 5, "json_api": 7, "browser": 3}
+    assert {
+        strategy: sum(source.catchup_strategy == strategy for source in manifest.sources)
+        for strategy in ("rss_window", "api_since", "latest_only")
+    } == {"rss_window": 5, "api_since": 5, "latest_only": 5}
 
 
 def test_manifest_rejects_private_network_targets(tmp_path: Path) -> None:

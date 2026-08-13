@@ -13,6 +13,7 @@ from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.radar import build_topic_snapshot
 from finance_crawler_poc.radar_collect import RadarCollection, collect_radar_sources
 from finance_crawler_poc.radar_manifest import RadarManifest, load_radar_manifest
+from finance_crawler_poc.radar_run_plan import build_catchup_windows, parse_worker_run_plan
 
 
 def build_radar_artifacts(
@@ -95,12 +96,25 @@ async def run_radar(
     workflow_run_id: str,
     commit_sha: str,
     now: datetime | None = None,
+    run_plan_path: Path | None = None,
 ) -> dict[str, Any]:
     manifest_bytes = manifest_path.read_bytes()
     manifest = load_radar_manifest(manifest_path)
     run_time = now or datetime.now(timezone.utc)
     collected_at = run_time.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-    collection = await collect_radar_sources(manifest, collected_at=collected_at)
+    catchup_windows = None
+    if run_plan_path is not None:
+        try:
+            run_plan_payload = json.loads(run_plan_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"cannot read Worker run plan: {exc}") from exc
+        checkpoints = parse_worker_run_plan(run_plan_payload, manifest)
+        catchup_windows = build_catchup_windows(manifest, checkpoints, now=run_time)
+    collection = await collect_radar_sources(
+        manifest,
+        collected_at=collected_at,
+        catchup_windows=catchup_windows,
+    )
     if not collection.items:
         report = {
             "schema_version": 1,
@@ -152,6 +166,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="GitHub run ID; use 0 for a local-only validation run",
     )
     parser.add_argument(
+        "--run-plan",
+        type=Path,
+        help="Authenticated Worker run-plan response used for checkpoint catch-up",
+    )
+    parser.add_argument(
         "--commit-sha",
         default=os.environ.get("GITHUB_SHA", "0" * 40),
         help="GitHub commit SHA; use 40 zeros for a local-only validation run",
@@ -167,6 +186,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.output,
             workflow_run_id=args.workflow_run_id,
             commit_sha=args.commit_sha,
+            run_plan_path=args.run_plan,
         )
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))

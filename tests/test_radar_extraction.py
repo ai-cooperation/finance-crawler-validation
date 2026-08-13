@@ -32,6 +32,11 @@ def source_for(profile: str) -> RadarSource:
             "public_excerpt_chars": 0,
         },
         extractor=profile,
+        catchup_strategy=(
+            "rss_window" if profile == "rss" else
+            "api_since" if profile in {"hn_algolia", "stackexchange", "github_issues"} else
+            "latest_only"
+        ),
         max_items=2,
         timeout_seconds=5,
     )
@@ -144,3 +149,67 @@ def test_failure_result_preserves_delivery_evidence() -> None:
     assert result["status_code"] == 403
     assert result["route"] == "crawl4ai"
     assert "anti-bot challenge" in result["error"]
+
+
+def test_extraction_filters_before_max_items_with_overlap_window() -> None:
+    source = source_for("rss")
+    response = FetchResponse(
+        status_code=200,
+        content="""<rss><channel>
+          <item><title>Old one</title><link>https://example.com/old-1</link>
+            <pubDate>Sun, 09 Aug 2026 01:00:00 GMT</pubDate></item>
+          <item><title>Old two</title><link>https://example.com/old-2</link>
+            <pubDate>Sun, 09 Aug 2026 02:00:00 GMT</pubDate></item>
+          <item><title>New one</title><link>https://example.com/new-1</link>
+            <pubDate>Mon, 10 Aug 2026 02:01:00 GMT</pubDate></item>
+          <item><title>New two</title><link>https://example.com/new-2</link>
+            <pubDate>Mon, 10 Aug 2026 02:02:00 GMT</pubDate></item>
+          <item><title>New three</title><link>https://example.com/new-3</link>
+            <pubDate>Mon, 10 Aug 2026 02:03:00 GMT</pubDate></item>
+        </channel></rss>""",
+        route="synthetic_test",
+        final_url=source.canonical_url,
+    )
+
+    items = extract_source_items(
+        source,
+        response,
+        COLLECTED_AT,
+        published_since="2026-08-10T02:00:00Z",
+    )
+
+    assert [item["title"] for item in items] == ["New one", "New two"]
+
+
+def test_valid_feed_with_no_items_in_window_is_not_an_extraction_failure() -> None:
+    source = source_for("rss")
+    response = FetchResponse(
+        status_code=200,
+        content=RSS,
+        route="synthetic_test",
+        final_url=source.canonical_url,
+    )
+
+    assert extract_source_items(
+        source,
+        response,
+        COLLECTED_AT,
+        published_since="2026-08-11T00:00:00Z",
+    ) == []
+
+
+def test_valid_empty_incremental_api_response_is_not_a_source_failure() -> None:
+    source = source_for("hn_algolia")
+    response = FetchResponse(
+        status_code=200,
+        content=json.dumps({"hits": []}),
+        route="synthetic_test",
+        final_url=source.canonical_url,
+    )
+
+    assert extract_source_items(
+        source,
+        response,
+        COLLECTED_AT,
+        published_since="2026-08-10T02:00:00Z",
+    ) == []

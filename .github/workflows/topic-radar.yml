@@ -35,16 +35,50 @@ jobs:
       - name: Install collector
         run: python -m pip install --disable-pip-version-check -e .
 
+      - name: Request OIDC admission and persisted checkpoints
+        id: admission
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          mkdir -p artifacts/topic-radar
+          finance-topic-radar-plan \
+            --manifest radar-sources.yaml \
+            --output "$RUNNER_TEMP/run-plan-request.json"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/run-plan-request.json" \
+            "$INGEST_WORKER_URL/v1/run/plan" \
+            >artifacts/topic-radar/run-plan.json
+          admitted="$(jq -er '.admitted' artifacts/topic-radar/run-plan.json)"
+          echo "admitted=$admitted" >>"$GITHUB_OUTPUT"
+          if [[ "$admitted" != "true" ]]; then
+            reason="$(jq -er '.reason' artifacts/topic-radar/run-plan.json)"
+            retry="$(jq -er '.retry_after_seconds' artifacts/topic-radar/run-plan.json)"
+            echo "::notice title=Topic radar quota guard::Skipped before Browser setup: $reason; retry after ${retry}s"
+          fi
+
       - name: Install Chromium and system dependencies
+        if: steps.admission.outputs.admitted == 'true'
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
+        if: steps.admission.outputs.admitted == 'true'
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
+          --run-plan artifacts/topic-radar/run-plan.json
           --output artifacts/topic-radar
 
       - name: Ingest and publish through GitHub OIDC
+        if: steps.admission.outputs.admitted == 'true'
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -67,7 +101,7 @@ jobs:
             "$INGEST_WORKER_URL/v1/ingest/publish"
 
       - name: Verify replay and last-good resilience
-        if: ${{ inputs.verify_resilience }}
+        if: steps.admission.outputs.admitted == 'true' && inputs.verify_resilience
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -120,6 +154,35 @@ jobs:
           path: artifacts/topic-radar/run-report.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Deliver external failure alert through OIDC
+        if: failure()
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg run_url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{
+              schema_version: 1,
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha,
+              conclusion: "failure",
+              run_url: $run_url
+            }' >"$RUNNER_TEMP/action-failure.json"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/action-failure.json" \
+            "$INGEST_WORKER_URL/v1/alerts/action-failure"
 
       - name: Open a failure alert issue
         if: failure()
