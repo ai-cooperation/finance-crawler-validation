@@ -68,6 +68,8 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "gh issue create" in workflow
     assert "Inject alert delivery validation failure" in workflow
     assert "Run authenticated freshness watchdog" in workflow
+    assert "Resolve prior action failure alerts" in workflow
+    assert '"$INGEST_WORKER_URL/v1/alerts/action-recovery"' in workflow
     assert (
         workflow.index("Inject alert delivery validation failure")
         < workflow.index("Check out repository")
@@ -99,6 +101,11 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert (
         workflow.index("Record schedule-only soak observation")
         < workflow.index("Deliver external failure alert through OIDC")
+    )
+    assert (
+        workflow.index("Ingest and publish through GitHub OIDC")
+        < workflow.index("Resolve prior action failure alerts")
+        < workflow.index("Record schedule-only soak observation")
     )
     assert (
         workflow.index("Verify manual identity cannot write soak evidence")
