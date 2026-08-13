@@ -118,6 +118,8 @@ gh workflow run topic-radar.yml \
 
 該 run 必須成功，`Verify manual identity cannot write soak evidence` 必須確認 endpoint 回傳 HTTP 403 `schedule_identity_required`，其餘 checkout／admission／Chromium／collect／ingest 全部 skipped，D1 `soak_observations` 不新增 row。真正正向路徑只能由啟用後的第一個 `schedule` OIDC token 驗證，不能為方便測試而放寬 event claim。
 
+2026-08-13 已以 production [run 31698746139](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31698746139) 完成這項負向驗證：workflow 成功，只有 boundary step 執行；D1 soak/admission 前後維持 0／5，health/status HTTP 200，freshness healthy，secret 空且 schedule／Cron 仍關閉。機器證據見 [`../experiments/p0-alerts/soak-boundary-validation-20260813.json`](../experiments/p0-alerts/soak-boundary-validation-20260813.json)。這不替代真正 schedule token 的正向路徑、真人收件或七日 soak。
+
 排程必須透過 PR 啟用，並在合併後重新部署 Worker。不在 runbook 中隱藏建立 schedule 的側寫 API。任一下列情況發生時，先以 PR 移除 GitHub `schedule` 與 Worker `crons`，部署無 Cron 設定，再排查：
 
 - 真人未收到已完成 provider delivery 的告警。
