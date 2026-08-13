@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "validated_at": "2026-08-13T12:10:55Z",
+  "scope": "zero-crawl production schedule-only soak boundary validation",
+  "accounts": {
+    "github_repository": "ai-cooperation/finance-crawler-validation",
+    "github_active_account": "ai-cooperation",
+    "cloudflare_account_email": "o970117818@gmail.com",
+    "cloudflare_account_id": "ca985c195ab218488fc0744692dbde21"
+  },
+  "software_under_test": {
+    "git_commit_sha": "a8829a8211d1a294375d3efdd2c8983952b5b14b",
+    "pull_request": 28,
+    "worker_version": "fb2ade46-2ebd-4897-b258-ff63fdb7e58d",
+    "d1_migration": "0004_soak_observations.sql"
+  },
+  "manual_boundary_validation": {
+    "run_id": 31698746139,
+    "run_attempt": 1,
+    "event_name": "workflow_dispatch",
+    "conclusion": "success",
+    "expected_endpoint_status": 403,
+    "expected_error": "schedule_identity_required",
+    "boundary_step_conclusion": "success",
+    "checkout_skipped": true,
+    "admission_skipped": true,
+    "chromium_skipped": true,
+    "collection_skipped": true,
+    "ingest_skipped": true,
+    "schedule_observation_step_skipped": true
+  },
+  "remote_state_after": {
+    "d1_soak_observation_count_before": 0,
+    "d1_soak_observation_count_after": 0,
+    "d1_run_admission_count_before": 5,
+    "d1_run_admission_count_after": 5,
+    "cloudflare_secret_names": [],
+    "github_schedule_enabled": false,
+    "worker_cron_enabled": false,
+    "worker_health_http": 200,
+    "worker_status_http": 200,
+    "production_freshness_state": "healthy",
+    "production_warning_after_seconds": 21600,
+    "production_stale_after_seconds": 86400
+  },
+  "evidence_classification": {
+    "real": [
+      "GitHub Actions OIDC workflow_dispatch identity and step conclusions",
+      "production Worker HTTP 403 schedule-only rejection",
+      "remote D1 migration schema and before/after row counts",
+      "Cloudflare deployment, secret list, and production health/status responses"
+    ],
+    "synthetic": [],
+    "unverified": [
+      "positive schedule OIDC observation path",
+      "delivery to human-subscribed primary and fallback destinations",
+      "read-only Cloudflare Analytics token and daily telemetry collection",
+      "seven-day scheduled soak"
+    ]
+  }
+}
