@@ -57,7 +57,8 @@ jobs:
             --data-binary @"$RUNNER_TEMP/run-plan-request.json" \
             "$INGEST_WORKER_URL/v1/run/plan" \
             >artifacts/topic-radar/run-plan.json
-          admitted="$(jq -er '.admitted' artifacts/topic-radar/run-plan.json)"
+          jq -er '.admitted | type == "boolean"' artifacts/topic-radar/run-plan.json >/dev/null
+          admitted="$(jq -r '.admitted' artifacts/topic-radar/run-plan.json)"
           echo "admitted=$admitted" >>"$GITHUB_OUTPUT"
           if [[ "$admitted" != "true" ]]; then
             reason="$(jq -er '.reason' artifacts/topic-radar/run-plan.json)"
