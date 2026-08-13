@@ -198,3 +198,23 @@ def test_repository_news_catalog_freezes_the_120_brand_denominator() -> None:
         for brand in catalog.brands
         for endpoint in brand.endpoints
     } == {"browser", "json_api", "rss", "static_html"}
+
+
+def test_robots_blocked_brands_use_explicit_first_party_podcast_feeds() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert [endpoint.id for endpoint in brands["reuters"].endpoints] == [
+        "reuters_morning_bid_podcast_rss",
+        "reuters_browser",
+    ]
+    assert brands["reuters"].endpoints[0].url == (
+        "https://feeds.megaphone.fm/THRH7907651499"
+    )
+    assert [endpoint.id for endpoint in brands["barrons"].endpoints] == [
+        "barrons_streetwise_podcast_rss",
+        "barrons_browser",
+    ]
+    assert brands["barrons"].endpoints[0].url == (
+        "https://video-api.shdsvc.dowjones.io/api/podcasts/feed/streetwise"
+    )
