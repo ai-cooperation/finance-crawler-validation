@@ -28,6 +28,7 @@ finance-news-probe = "finance_crawler_poc.news_cli:main"
 finance-topic-radar = "finance_crawler_poc.radar_cli:main"
 finance-topic-radar-plan = "finance_crawler_poc.radar_run_plan:main"
 finance-soak-verify = "finance_crawler_poc.soak_verify:main"
+finance-soak-usage-collect = "finance_crawler_poc.soak_usage_collect:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/finance_crawler_poc"]

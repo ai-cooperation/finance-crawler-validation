@@ -154,11 +154,25 @@ finance-soak-verify private-soak-evidence.json \
 
 驗收器要求恰好七個連續 UTC 日與七個不同 schedule run；denied、failed、stale、open alert、來源集合不完整、D1 counter 倒退、R2 metadata 不一致、任何一項 telemetry 缺失或超出 ceiling 均失敗。測試 fixture 均標示 `Synthetic for testing only`，不可當成實際 soak 或免費額度證據。
 
+每日 UTC 日結束後，由 operator 在不受版本控制的私有目錄執行：
+
+```bash
+export CF_ANALYTICS_API_TOKEN='由 o970117818@gmail.com 建立的 Analytics 唯讀 token'
+finance-soak-usage-collect \
+  --workflow-run-id RUN_ID \
+  --day YYYY-MM-DD \
+  --output /absolute/private/path/usage-YYYY-MM-DD.json
+```
+
+公開 repo 的 GitHub metadata 可匿名讀取；若遇 API rate limit，可另在 operator 環境設定 `GITHUB_TOKEN`。輸出檔以建立後硬連結的方式發布、拒絕覆寫既有證據並強制為 mode `0600`，不得放入 repo、GitHub artifact 或 CI log。collector 會核對固定 repository、公開 visibility、workflow path、schedule、run attempt、commit SHA 與 standard GitHub-hosted Ubuntu runner；Cloudflare 查詢固定帳號 `ca985c195ab218488fc0744692dbde21`、Worker、D1 database ID、R2 bucket 與單一 UTC 日。任何 API/GraphQL error、空資料、未知 R2 action 或身份不符都 fail closed，不補零。
+
 ### 官方用量來源
 
-- GitHub Actions 秒數取自 GitHub REST workflow-run usage/timing 的各平台 `billable.total_ms` 加總並向上轉為秒；run metadata另核對 `event=schedule`、`conclusion=success`、run ID、attempt 與 commit SHA。`run_started_at`／`updated_at` 只驗證時序，不冒充計費用量。
+- GitHub Actions 實際 runner 秒數取自該 run attempt 的 GitHub REST jobs `started_at`／`completed_at` 加總；run metadata另核對 `event=schedule`、`conclusion=success`、run ID、attempt 與 commit SHA。公開 repository 且所有 job 都是 standard GitHub-hosted runner 時，另記 `github_actions_billable_seconds=0`；這項免費資格不由已進入關閉程序、且公開 repo 本來就回傳 0 的 workflow-run timing endpoint推論。
 - Workers requests 使用 Cloudflare GraphQL `workersInvocationsAdaptive`，固定 script name 與單一 UTC 日。
 - D1 rows read/written 使用 `d1AnalyticsAdaptiveGroups`，固定 database ID 與單一 UTC 日。
 - R2 operations 使用 `r2OperationsAdaptiveGroups`，固定 bucket 與單一 UTC 日；分類表依官方 pricing 的 Class A／Class B／free action 名稱。未知 action fail closed。
+
+Cloudflare GraphQL 是 Dashboard 使用的觀測資料，不是 Cloudflare 計費帳本；每日證據必須標示 `cloudflare_analytics_scope=observed_not_billing`。因此本 gate 能證明「觀測用量低於預先 ceiling」，不能把它包裝成 Cloudflare 官方帳單。若未來驗證帳號可取得官方 billing export，應另存為獨立證據，不得覆寫 GraphQL 原始語意。
 
 GraphQL 自動採集必須使用 Cloudflare 建立的只讀 Analytics token，放在 operator 環境變數或 GitHub environment secret，不可使用可部署 Worker 的高權限 token，也不可寫進 repo、artifact 或 log。未取得此 token前可以部署 observation API，但不能宣稱用量驗收完成，也不能關閉 P0。
