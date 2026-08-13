@@ -61,7 +61,7 @@ Runner 將 checkpoint 轉成三種有限追補：
 
 Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。Worker 對 `ALERT_WEBHOOK_URL` 送出通用 HTTPS JSON，目的地可由 Slack／Telegram adapter 或自有 webhook 轉接。非 HTTPS、redirect、network error 或非 2xx 都是明確失敗，不留下「已通知」receipt。
 
-Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_freshness`；重複異常只更新偵測時間，不重送；恢復到 `healthy`／`warning` 時發送 resolved，再更新 D1。Cloudflare Cron 在 webhook secret 與實際送達驗證前保持關閉。
+Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_freshness`；重複異常只更新偵測時間，不重送；恢復到 `healthy`／`warning` 時發送 resolved，再更新 D1。外部 generic JSON transport 已以臨時 sink 驗證 open 與 replay 去重；正式 soak 使用只含公開 operational metadata 的隨機 ntfy push topic。GitHub 每日 03:17 UTC 跑一次，Worker 每六小時於第 17 分執行 watchdog；不啟用 email、商業出口或付費功能。
 
 ## 狀態與不變量
 

@@ -1,6 +1,9 @@
 name: Finance topic radar vertical slice
 
 on:
+  schedule:
+    # Once daily keeps the 24-hour stale threshold meaningful while bounding Actions use.
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       verify_resilience:
@@ -76,15 +79,21 @@ jobs:
           fi
 
       - name: Install full collector
-        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
         run: python -m pip install --disable-pip-version-check -e .
 
       - name: Install Chromium and system dependencies
-        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
-        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
@@ -92,7 +101,9 @@ jobs:
           --output artifacts/topic-radar
 
       - name: Ingest and publish through GitHub OIDC
-        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -173,7 +184,7 @@ jobs:
           retention-days: 14
 
       - name: Inject alert delivery validation failure
-        if: inputs.verify_alert_delivery
+        if: github.event_name == 'workflow_dispatch' && inputs.verify_alert_delivery
         run: |
           echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
           exit 1
