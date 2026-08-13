@@ -1,5 +1,6 @@
 import {
   deliverAlertWebhook,
+  readAlertWebhookFormat,
   requireAlertWebhookUrl,
 } from "./alerts";
 import { parseFreshnessPolicy, readStatus } from "./status";
@@ -24,6 +25,7 @@ export async function runFreshnessWatchdog(
   alertFetch: typeof fetch = fetch,
 ): Promise<WatchdogResult> {
   const webhookUrl = requireAlertWebhookUrl(env);
+  const webhookFormat = readAlertWebhookFormat(env);
   const status = await readStatus(env.DB, now, parseFreshnessPolicy(env));
   const existing = await env.DB.prepare(
     "SELECT state, fingerprint, first_detected_at FROM operational_alerts WHERE alert_key = ?",
@@ -51,6 +53,7 @@ export async function runFreshnessWatchdog(
       `${ALERT_KEY}:resolved:${existing.first_detected_at}`,
       notification,
       alertFetch,
+      webhookFormat,
     );
     await env.DB.prepare(
       `UPDATE operational_alerts
@@ -93,6 +96,7 @@ export async function runFreshnessWatchdog(
     `${ALERT_KEY}:open:${now.toISOString()}`,
     notification,
     alertFetch,
+    webhookFormat,
   );
   const timestamp = now.toISOString();
   await env.DB.prepare(

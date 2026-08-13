@@ -54,6 +54,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert '"$INGEST_WORKER_URL/v1/ingest/publish"' in workflow
     assert "finance-topic-radar-${{ github.run_id }}" in workflow
     assert "verify_resilience" in workflow
+    assert "verify_alert_delivery" in workflow
     assert "default: false" in workflow
     assert "Verify replay and last-good resilience" in workflow
     assert "jq -er '.admitted | type == \"boolean\"'" in workflow
@@ -63,6 +64,8 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert 'replayed == true' in workflow
     assert 'invalid_payload' in workflow
     assert "gh issue create" in workflow
+    assert "Inject alert delivery validation failure" in workflow
+    assert "failure_issue_number" in workflow
 
 
 def test_ingest_worker_is_locked_to_the_validation_repository() -> None:
