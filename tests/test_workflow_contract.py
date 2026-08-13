@@ -56,6 +56,9 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "verify_resilience" in workflow
     assert "default: false" in workflow
     assert "Verify replay and last-good resilience" in workflow
+    assert "jq -er '.admitted | type == \"boolean\"'" in workflow
+    assert "jq -r '.admitted'" in workflow
+    assert "jq -er '.admitted'" not in workflow
     assert '"$INGEST_WORKER_URL/v1/status"' in workflow
     assert 'replayed == true' in workflow
     assert 'invalid_payload' in workflow
