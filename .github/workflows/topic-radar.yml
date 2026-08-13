@@ -1,9 +1,6 @@
 name: Finance topic radar vertical slice
 
 on:
-  schedule:
-    # Once daily keeps the 24-hour stale threshold meaningful while bounding Actions use.
-    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       verify_resilience:
@@ -81,19 +78,19 @@ jobs:
       - name: Install full collector
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
+          !inputs.verify_alert_delivery
         run: python -m pip install --disable-pip-version-check -e .
 
       - name: Install Chromium and system dependencies
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
+          !inputs.verify_alert_delivery
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
+          !inputs.verify_alert_delivery
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
@@ -103,7 +100,7 @@ jobs:
       - name: Ingest and publish through GitHub OIDC
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          (github.event_name == 'schedule' || !inputs.verify_alert_delivery)
+          !inputs.verify_alert_delivery
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
