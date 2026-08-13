@@ -66,6 +66,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "gh issue create" in workflow
     assert "Inject alert delivery validation failure" in workflow
     assert "failure_issue_number" in workflow
+    assert "steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery" in workflow
 
 
 def test_ingest_worker_is_locked_to_the_validation_repository() -> None:

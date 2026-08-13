@@ -72,11 +72,11 @@ jobs:
           fi
 
       - name: Install Chromium and system dependencies
-        if: steps.admission.outputs.admitted == 'true'
+        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
-        if: steps.admission.outputs.admitted == 'true'
+        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
@@ -84,7 +84,7 @@ jobs:
           --output artifacts/topic-radar
 
       - name: Ingest and publish through GitHub OIDC
-        if: steps.admission.outputs.admitted == 'true'
+        if: steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -107,7 +107,10 @@ jobs:
             "$INGEST_WORKER_URL/v1/ingest/publish"
 
       - name: Verify replay and last-good resilience
-        if: steps.admission.outputs.admitted == 'true' && inputs.verify_resilience
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          !inputs.verify_alert_delivery &&
+          inputs.verify_resilience
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
