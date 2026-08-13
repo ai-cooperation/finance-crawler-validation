@@ -15,6 +15,7 @@ ISOLATED_SUMMARY_PATH = (
 ACCEPTANCE_PATH = (
     REPOSITORY_ROOT / "experiments/news-120/p2-acceptance-20260813.json"
 )
+ARCHITECTURE_PATH = REPOSITORY_ROOT / "docs/resource-aware-news-architecture.md"
 
 
 def test_strict_news_run_summary_matches_the_frozen_catalog() -> None:
@@ -83,3 +84,13 @@ def test_p2_acceptance_has_exact_run_hashes_and_unique_brand_denominator() -> No
     assert len(set(merged["failed_brand_ids"])) == 6
     assert merged["brand_success_rate"] == merged["acceptance_threshold"] == 0.95
     assert merged["accepted"] is True
+
+
+def test_p2_architecture_documents_the_accepted_endpoint_count() -> None:
+    evidence = json.loads(ACCEPTANCE_PATH.read_text(encoding="utf-8"))
+    architecture = ARCHITECTURE_PATH.read_text(encoding="utf-8")
+
+    assert (
+        f"共有 {evidence['catalog']['endpoint_paths_at_acceptance']} 個巢狀 endpoints"
+        in architecture
+    )
