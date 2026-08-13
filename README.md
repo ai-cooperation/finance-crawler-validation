@@ -17,7 +17,7 @@
 - Private R2：`finance-crawler-validation-raw`；已直接讀回 topic object 與 raw object，topic SHA-256 與 D1 索引一致。
 - Ingest Worker：`finance-crawler-validation-ingest`，只接受固定 repository、owner、workflow、`main` ref、event、run ID 與 commit SHA 的 GitHub OIDC。
 
-這次證明手動垂直切片可行，不代表長期穩定性驗收已完成。正式排程、外部失敗通知、staleness watchdog、遠端重放去重與故障注入仍保持關閉或待驗證。
+這次證明手動垂直切片可行，不代表長期穩定性驗收已完成。checkpoint catch-up、D1 原子 admission、遠端重放／last-good、staleness watchdog、外部 webhook transport 與去重已實作與遠端注入驗證；正式排程仍保持關閉，只等有人訂閱的告警目的地完成真人收件驗收。操作契約見 [`docs/p0-alert-and-soak-runbook.md`](docs/p0-alert-and-soak-runbook.md)。
 
 ## 驗收契約
 
@@ -33,7 +33,7 @@
 
 ## 來源矩陣
 
-新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 160 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
+新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 162 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
 
 資料保存、Crawl4AI＋OpenBB＋TradingAgents 背景分析、Cloudflare 權限分離、MCP 與 GitHub Actions 失效恢復的後續工作，統一追蹤於 [`docs/cf-gh-mcp-implementation-plan.md`](docs/cf-gh-mcp-implementation-plan.md)。
 

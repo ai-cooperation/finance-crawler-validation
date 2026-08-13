@@ -86,5 +86,5 @@ def test_ingest_worker_is_locked_to_the_validation_repository() -> None:
         in config
     )
     assert '"GITHUB_OIDC_AUDIENCE": "finance-crawler-validation-ingest"' in config
-    assert '"ALERT_WEBHOOK_FORMAT": "ntfy"' in config
+    assert '"ALERT_WEBHOOK_FORMAT": "auto"' in config
     assert '"crons"' not in config

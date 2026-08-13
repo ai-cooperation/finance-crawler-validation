@@ -2,6 +2,7 @@ import { HttpError } from "./storage";
 
 
 const GITHUB_RUN_URL_PATTERN = /^https:\/\/github\.com\/ai-cooperation\/finance-crawler-validation\/actions\/runs\/(\d+)$/;
+const ALERT_DELIVERY_TIMEOUT_MS = 10_000;
 
 interface ActionFailurePayload {
   schema_version: 1;
@@ -17,6 +18,14 @@ interface AlertRow {
 }
 
 type AlertFetch = typeof fetch;
+
+export type AlertWebhookFormat = "auto" | "generic_json" | "ntfy" | "slack" | "telegram";
+
+interface AlertDelivery {
+  url: string;
+  body: object;
+  provider: Exclude<AlertWebhookFormat, "auto">;
+}
 
 export class AlertDeliveryError extends Error {
   readonly code: string;
@@ -137,11 +146,13 @@ export function requireAlertWebhookUrl(env: Env): string {
   return parsed.toString();
 }
 
-export function readAlertWebhookFormat(env: Env): "generic_json" | "ntfy" {
+export function readAlertWebhookFormat(env: Env): AlertWebhookFormat {
   const raw: string | undefined = (env as unknown as {
     ALERT_WEBHOOK_FORMAT?: string;
   }).ALERT_WEBHOOK_FORMAT;
-  if (raw === "generic_json" || raw === "ntfy") return raw;
+  if (["auto", "generic_json", "ntfy", "slack", "telegram"].includes(raw ?? "")) {
+    return raw as AlertWebhookFormat;
+  }
   throw new AlertDeliveryError("alert_webhook_format_invalid");
 }
 
@@ -150,11 +161,9 @@ export async function deliverAlertWebhook(
   alertKey: string,
   payload: object,
   alertFetch: AlertFetch,
-  format: "generic_json" | "ntfy" = "generic_json",
+  format: AlertWebhookFormat = "generic_json",
 ): Promise<void> {
-  const delivery = format === "ntfy"
-    ? ntfyDelivery(webhookUrl, payload)
-    : { url: webhookUrl, body: payload };
+  const delivery = buildDelivery(webhookUrl, payload, format);
   let response: Response;
   try {
     response = await alertFetch(delivery.url, {
@@ -167,18 +176,47 @@ export async function deliverAlertWebhook(
         "Idempotency-Key": alertKey,
       },
       body: JSON.stringify(delivery.body),
+      signal: AbortSignal.timeout(ALERT_DELIVERY_TIMEOUT_MS),
     });
   } catch (error) {
     console.error(JSON.stringify({
       event: "alert_delivery_network_error",
-      error: error instanceof Error ? error.message : String(error),
+      // Fetch errors may echo the request URL, which is itself a bearer secret
+      // for Slack/Telegram. Log only the stable error class, never the message.
+      error_type: error instanceof Error ? error.name : "NonError",
     }));
     throw new AlertDeliveryError("alert_delivery_failed");
   }
-  if (!response.ok) throw new AlertDeliveryError("alert_delivery_rejected");
+  if (!response.ok || !await providerAccepted(delivery.provider, response)) {
+    throw new AlertDeliveryError("alert_delivery_rejected");
+  }
 }
 
-function ntfyDelivery(webhookUrl: string, payload: object): { url: string; body: object } {
+function buildDelivery(
+  webhookUrl: string,
+  payload: object,
+  format: AlertWebhookFormat,
+): AlertDelivery {
+  const resolved = format === "auto" ? detectWebhookFormat(webhookUrl) : format;
+  if (resolved === "ntfy") return ntfyDelivery(webhookUrl, payload);
+  if (resolved === "slack") return slackDelivery(webhookUrl, payload);
+  if (resolved === "telegram") return telegramDelivery(webhookUrl, payload);
+  return { url: webhookUrl, body: payload, provider: "generic_json" };
+}
+
+function detectWebhookFormat(webhookUrl: string): Exclude<AlertWebhookFormat, "auto"> {
+  const parsed = new URL(webhookUrl);
+  if (parsed.hostname === "ntfy.sh") return "ntfy";
+  if (parsed.hostname === "hooks.slack.com") return "slack";
+  if (parsed.hostname === "api.telegram.org") return "telegram";
+  if (parsed.hostname.includes("slack.com") || parsed.hostname.includes("telegram.org")
+    || parsed.hostname.includes("ntfy.sh")) {
+    throw new AlertDeliveryError("alert_webhook_invalid");
+  }
+  return "generic_json";
+}
+
+function ntfyDelivery(webhookUrl: string, payload: object): AlertDelivery {
   const parsed = new URL(webhookUrl);
   if (parsed.hostname !== "ntfy.sh" || parsed.search || parsed.hash) {
     throw new AlertDeliveryError("alert_webhook_invalid");
@@ -200,7 +238,72 @@ function ntfyDelivery(webhookUrl: string, payload: object): { url: string; body:
     tags: record.state === "resolved" ? ["white_check_mark"] : ["warning"],
   };
   if (click !== undefined) body.click = click;
-  return { url: "https://ntfy.sh/", body };
+  return { url: "https://ntfy.sh/", body, provider: "ntfy" };
+}
+
+function slackDelivery(webhookUrl: string, payload: object): AlertDelivery {
+  const parsed = new URL(webhookUrl);
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  if (parsed.hostname !== "hooks.slack.com" || parsed.search || parsed.hash
+    || segments.length !== 4 || segments[0] !== "services"
+    || segments.slice(1).some((segment) => !/^[A-Za-z0-9_-]+$/.test(segment))) {
+    throw new AlertDeliveryError("alert_webhook_invalid");
+  }
+  return {
+    url: parsed.toString(),
+    body: { text: publicAlertText(payload) },
+    provider: "slack",
+  };
+}
+
+function telegramDelivery(webhookUrl: string, payload: object): AlertDelivery {
+  const parsed = new URL(webhookUrl);
+  const pathMatch = /^\/bot([0-9]+:[A-Za-z0-9_-]+)\/sendMessage$/.exec(parsed.pathname);
+  const chatId = parsed.searchParams.get("chat_id");
+  if (parsed.hostname !== "api.telegram.org" || !pathMatch || parsed.hash
+    || parsed.searchParams.size !== 1 || chatId === null
+    || !/^(?:-?[0-9]+|@[A-Za-z][A-Za-z0-9_]{4,31})$/.test(chatId)) {
+    throw new AlertDeliveryError("alert_webhook_invalid");
+  }
+  return {
+    url: `https://api.telegram.org/bot${pathMatch[1]}/sendMessage`,
+    body: {
+      chat_id: chatId,
+      text: publicAlertText(payload),
+      link_preview_options: { is_disabled: true },
+    },
+    provider: "telegram",
+  };
+}
+
+function publicAlertText(payload: object): string {
+  const record = payload as Record<string, unknown>;
+  const details = typeof record.details === "object" && record.details !== null
+    ? record.details as Record<string, unknown>
+    : {};
+  const icon = record.state === "resolved" ? "✅" : "🚨";
+  const lines = [
+    `${icon} ${String(record.summary ?? "Finance crawler state changed")}`,
+    String(record.alert_key ?? "unknown"),
+  ];
+  if (typeof details.run_url === "string") lines.push(details.run_url);
+  return lines.join("\n");
+}
+
+async function providerAccepted(
+  provider: Exclude<AlertWebhookFormat, "auto">,
+  response: Response,
+): Promise<boolean> {
+  if (provider === "slack") return (await response.text()).trim() === "ok";
+  if (provider === "telegram") {
+    try {
+      const body = await response.json() as { ok?: unknown };
+      return body.ok === true;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 async function sha256(value: string): Promise<string> {

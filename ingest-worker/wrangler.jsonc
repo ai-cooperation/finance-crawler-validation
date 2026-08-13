@@ -23,7 +23,7 @@
     "FRESHNESS_STALE_SECONDS": "86400",
     "RUN_DAILY_LIMIT": "2",
     "RUN_MIN_INTERVAL_SECONDS": "21600",
-    "ALERT_WEBHOOK_FORMAT": "ntfy"
+    "ALERT_WEBHOOK_FORMAT": "auto"
   },
   "d1_databases": [
     {
