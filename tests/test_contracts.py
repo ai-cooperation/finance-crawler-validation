@@ -185,6 +185,7 @@ def test_all_versioned_contracts_are_loadable() -> None:
             "research-report",
             "source-record",
             "soak-observation",
+            "soak-usage",
             "status-response",
             "topic-snapshot",
         }

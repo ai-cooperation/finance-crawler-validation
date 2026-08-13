@@ -109,7 +109,8 @@ Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失
 21. 同一 GitHub `(workflow_run_id, run_attempt)` 只能建立一個 soak receipt；GitHub Re-run 的新 attempt 可以留下獨立 receipt，並檢查該 workflow 最新的業務 run。
 22. soak observation 必須由 schedule identity 產生；手動 dispatch 必須在 checkout／admission／crawl 前以 HTTP 403 拒絕。
 23. 已 admission 但沒有 published current run 必須記為 `not_started`／`incomplete`，不得借用舊 snapshot 冒充成功。
-24. 七日用量只接受 GitHub API 與 Cloudflare GraphQL 真實資料；不允許估算或補零，未知 R2 action 必須拒絕分類。
+24. 七日用量只接受 GitHub API 與 Cloudflare GraphQL 真實觀測資料；不允許估算或補零，未知 R2 action 必須拒絕分類。GitHub runner duration 與公開 repo 的零計費資格分開記錄；Cloudflare GraphQL 必須標為 `observed_not_billing`，不得宣稱為官方帳單。
+25. 每日 usage evidence 必須綁定同日 GitHub run ID、attempt 與 commit SHA；固定 Cloudflare account、Worker、D1 與 R2 scope，私有輸出不得進入 public repo 或 artifact。
 
 ## Given／When／Then 驗收
 

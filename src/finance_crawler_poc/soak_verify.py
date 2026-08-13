@@ -12,7 +12,7 @@ from finance_crawler_poc.contracts import ContractValidationError, validate_cont
 EXPECTED_REPOSITORY = "ai-cooperation/finance-crawler-validation"
 EXPECTED_WORKFLOW = ".github/workflows/topic-radar.yml"
 USAGE_FIELDS = (
-    "github_actions_seconds",
+    "github_actions_runner_seconds",
     "worker_requests",
     "d1_rows_read",
     "d1_rows_written",
@@ -90,7 +90,14 @@ def verify_soak_window(payload: object) -> dict[str, int | bool]:
         previous_counts = counts
         _verify_source_report(report, observation, source_ids)
         source_observations += len(source_ids)
-        _verify_usage(usage, ceilings, expected_day)
+        _verify_usage(
+            usage,
+            ceilings,
+            expected_day,
+            workflow_run_id,
+            commit_sha,
+            run_attempt,
+        )
 
     return {
         "accepted": True,
@@ -283,11 +290,28 @@ def _verify_usage(
     value: Mapping[str, object],
     ceilings: Mapping[str, int],
     expected_day: date,
+    workflow_run_id: str,
+    commit_sha: str,
+    run_attempt: int,
 ) -> None:
     if value.get("github_source") != "github_api":
         raise SoakVerificationError("usage GitHub source must be github_api")
     if value.get("cloudflare_source") != "cloudflare_graphql":
         raise SoakVerificationError("usage Cloudflare source must be cloudflare_graphql")
+    if value.get("github_repository") != EXPECTED_REPOSITORY:
+        raise SoakVerificationError("usage GitHub repository must match the soak bundle")
+    if value.get("github_repo_visibility") != "public":
+        raise SoakVerificationError("usage GitHub repository must be public")
+    if value.get("workflow_run_id") != workflow_run_id:
+        raise SoakVerificationError("usage workflow_run_id must match GitHub")
+    if value.get("commit_sha") != commit_sha:
+        raise SoakVerificationError("usage commit_sha must match GitHub")
+    if value.get("run_attempt") != run_attempt:
+        raise SoakVerificationError("usage run_attempt must match GitHub")
+    if value.get("github_actions_billable_seconds") != 0:
+        raise SoakVerificationError("GitHub Actions billable seconds must be zero")
+    if value.get("cloudflare_analytics_scope") != "observed_not_billing":
+        raise SoakVerificationError("Cloudflare GraphQL must be labeled observed_not_billing")
     started = _timestamp(value.get("window_started_at"), "usage window_started_at")
     ended = _timestamp(value.get("window_ended_at"), "usage window_ended_at")
     captured = _timestamp(value.get("captured_at"), "usage captured_at")
@@ -296,9 +320,15 @@ def _verify_usage(
     if captured < ended:
         raise SoakVerificationError("usage evidence must be captured after its UTC day")
     values = _usage_values(value, "usage evidence")
+    if values["github_actions_runner_seconds"] < 1:
+        raise SoakVerificationError("GitHub Actions runner seconds must be positive")
     for field in USAGE_FIELDS:
         if values[field] > ceilings[field]:
             raise SoakVerificationError(f"resource ceiling exceeded: {field}")
+    try:
+        validate_contract("soak-usage", dict(value))
+    except ContractValidationError as exc:
+        raise SoakVerificationError(f"invalid soak usage contract: {exc}") from exc
 
 
 def _usage_values(value: object, name: str) -> dict[str, int]:
