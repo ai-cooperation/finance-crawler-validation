@@ -113,6 +113,7 @@ beforeEach(async () => {
     env.DB.prepare("DELETE FROM audit_events"),
     env.DB.prepare("DELETE FROM ingest_receipts"),
     env.DB.prepare("DELETE FROM operational_alerts"),
+    env.DB.prepare("DELETE FROM soak_observations"),
     env.DB.prepare("DELETE FROM run_admissions"),
     env.DB.prepare("DELETE FROM runs"),
   ]);
@@ -120,6 +121,219 @@ beforeEach(async () => {
   if (objects.objects.length > 0) {
     await env.RAW_OBJECTS.delete(objects.objects.map((object) => object.key));
   }
+});
+
+describe("scheduled soak evidence", () => {
+  async function arrangePublishedScheduledRun(): Promise<void> {
+    await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
+    await publishSnapshot(env, topicSnapshot(), new Date("2026-08-10T02:06:00Z"));
+    await env.DB.prepare(
+      `INSERT INTO run_admissions (
+        workflow_run_id, commit_sha, decision, reason, requested_at
+      ) VALUES (?, ?, 'admitted', 'admitted', ?)`,
+    ).bind(
+      "31309377786",
+      "d".repeat(40),
+      "2026-08-10T02:04:00Z",
+    ).run();
+  }
+
+  function observationRequest(): Request {
+    return new Request("https://ingest.example/v1/soak/observe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        run_attempt: 1,
+        commit_sha: "d".repeat(40),
+      }),
+    });
+  }
+
+  it("records bounded D1/R2 evidence once and replays without R2 access", async () => {
+    await arrangePublishedScheduledRun();
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+        runAttempt: 1,
+        eventName: "schedule",
+      }),
+      now: () => new Date("2026-08-10T02:10:00Z"),
+    });
+
+    const first = await handler.fetch(observationRequest(), env);
+    expect(first.status).toBe(201);
+    const evidence = await first.json<Record<string, unknown>>();
+    const { request_id: _requestId, ...contractEvidence } = evidence;
+    expect(STATUS_VALIDATOR.validate(contractEvidence.status).valid).toBe(true);
+    expect(contractEvidence).toMatchObject({
+      workflow_run_id: "31309377786",
+      replayed: false,
+      admission: { decision: "admitted", reason: "admitted" },
+      scheduled_run: {
+        state: "published",
+        run_id: "run_20260810t020500z",
+        snapshot_id: "radar_20260810t020500z",
+        item_count: 1,
+        current_snapshot_matches: true,
+      },
+      d1_counts: {
+        runs: 1,
+        published_runs: 1,
+        topic_snapshots: 1,
+        run_admissions: 1,
+        operational_alerts: 0,
+      },
+      r2_integrity: {
+        checked_objects: 2,
+        max_checked_objects: 4,
+        all_metadata_match: true,
+      },
+    });
+    const samples = (contractEvidence.r2_integrity as { samples: Array<{ object_key: string }> })
+      .samples;
+    await env.RAW_OBJECTS.delete(samples.map((sample) => sample.object_key));
+
+    const replay = await handler.fetch(observationRequest(), env);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ replayed: true });
+    const rows = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM soak_observations WHERE workflow_run_id = ?",
+    ).bind("31309377786").first<{ count: number }>();
+    expect(Number(rows?.count)).toBe(1);
+  });
+
+  it("rejects manual identities and never receipts mismatched R2 metadata", async () => {
+    await arrangePublishedScheduledRun();
+    const manualHandler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+        runAttempt: 1,
+        eventName: "workflow_dispatch",
+      }),
+      now: () => new Date("2026-08-10T02:10:00Z"),
+    });
+    expect((await manualHandler.fetch(observationRequest(), env)).status).toBe(403);
+
+    await env.RAW_OBJECTS.put("topics/radar_20260810t020500z.json", "{}", {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: {
+        content_sha256: "f".repeat(64),
+        run_id: "run_20260810t020500z",
+      },
+    });
+    const scheduleHandler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+        runAttempt: 1,
+        eventName: "schedule",
+      }),
+      now: () => new Date("2026-08-10T02:10:00Z"),
+    });
+    const mismatch = await scheduleHandler.fetch(observationRequest(), env);
+    expect(mismatch.status).toBe(409);
+    expect(await mismatch.json()).toMatchObject({ error: "soak_r2_integrity_failed" });
+    const rows = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM soak_observations",
+    ).first<{ count: number }>();
+    expect(Number(rows?.count)).toBe(0);
+  });
+
+  it("distinguishes a denied schedule from an admitted run that never started", async () => {
+    await arrangePublishedScheduledRun();
+    await env.DB.prepare(
+      `INSERT INTO run_admissions (
+        workflow_run_id, commit_sha, decision, reason, requested_at
+      ) VALUES (?, ?, 'denied', 'minimum_interval', ?)`,
+    ).bind(
+      "31309377787",
+      "e".repeat(40),
+      "2026-08-10T02:09:00Z",
+    ).run();
+    await env.DB.prepare(
+      `INSERT INTO run_admissions (
+        workflow_run_id, commit_sha, decision, reason, requested_at
+      ) VALUES (?, ?, 'admitted', 'admitted', ?)`,
+    ).bind(
+      "31309377788",
+      "f".repeat(40),
+      "2026-08-10T02:09:30Z",
+    ).run();
+
+    for (const expected of [
+      { workflowRunId: "31309377787", commitSha: "e".repeat(40), state: "not_admitted" },
+      { workflowRunId: "31309377788", commitSha: "f".repeat(40), state: "not_started" },
+    ]) {
+      const handler = createHandler({
+        authenticate: async () => ({
+          workflowRunId: expected.workflowRunId,
+          commitSha: expected.commitSha,
+          runAttempt: 1,
+          eventName: "schedule",
+        }),
+        now: () => new Date("2026-08-10T02:10:00Z"),
+      });
+      const request = new Request("https://ingest.example/v1/soak/observe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          workflow_run_id: expected.workflowRunId,
+          run_attempt: 1,
+          commit_sha: expected.commitSha,
+        }),
+      });
+      const response = await handler.fetch(request, env);
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({
+        scheduled_run: {
+          state: expected.state,
+          run_id: null,
+          snapshot_id: null,
+          item_count: null,
+          published_at: null,
+          current_snapshot_matches: false,
+        },
+      });
+    }
+  });
+
+  it("keeps replay idempotency within an attempt but records a later rerun attempt", async () => {
+    await arrangePublishedScheduledRun();
+    const request = (attempt: number) => new Request("https://ingest.example/v1/soak/observe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        run_attempt: attempt,
+        commit_sha: "d".repeat(40),
+      }),
+    });
+    const handler = (attempt: number) => createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+        runAttempt: attempt,
+        eventName: "schedule",
+      }),
+      now: () => new Date(`2026-08-10T02:${10 + attempt}:00Z`),
+    });
+
+    expect((await handler(1).fetch(request(1), env)).status).toBe(201);
+    expect((await handler(1).fetch(request(1), env)).status).toBe(200);
+    const secondAttempt = await handler(2).fetch(request(2), env);
+    expect(secondAttempt.status).toBe(201);
+    expect(await secondAttempt.json()).toMatchObject({ run_attempt: 2, replayed: false });
+    const rows = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM soak_observations WHERE workflow_run_id = ?",
+    ).bind("31309377786").first<{ count: number }>();
+    expect(Number(rows?.count)).toBe(2);
+  });
 });
 
 describe("ingest items", () => {
@@ -664,10 +878,19 @@ describe("OIDC run planning", () => {
 });
 
 describe("external operational alerts", () => {
-  function alertEnv(): Env {
-    return Object.assign(Object.create(env) as Env, {
+  function alertEnv(overrides: Record<string, unknown> = {}): Env {
+    const bindings: Record<string, unknown> = {
       ALERT_WEBHOOK_URL: "https://alerts.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
+      ...overrides,
+    };
+    return new Proxy(env, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && Object.hasOwn(bindings, property)) {
+          return bindings[property];
+        }
+        return Reflect.get(target, property, receiver);
+      },
     });
   }
 
@@ -728,7 +951,7 @@ describe("external operational alerts", () => {
         return new Response("ok", { status: 200 });
       },
     });
-    const ntfyEnv = Object.assign(Object.create(env) as Env, {
+    const ntfyEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://ntfy.sh/finance-radar-synthetic-topic",
       ALERT_WEBHOOK_FORMAT: "ntfy",
     });
@@ -807,7 +1030,7 @@ describe("external operational alerts", () => {
           : new Response("ok", { status: 200 });
       },
     });
-    const redundantEnv = Object.assign(Object.create(env) as Env, {
+    const redundantEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
       ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
@@ -845,7 +1068,7 @@ describe("external operational alerts", () => {
       now: () => new Date("2026-08-13T08:00:00Z"),
       alertFetch: async () => new Response("rejected", { status: 503 }),
     });
-    const redundantEnv = Object.assign(Object.create(env) as Env, {
+    const redundantEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
       ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
@@ -975,6 +1198,63 @@ describe("external operational alerts", () => {
       "SELECT COUNT(*) AS count FROM operational_alerts",
     ).first<{ count: number }>();
     expect(Number(alerts?.count)).toBe(0);
+  });
+
+  it("externally reports a scheduled watchdog execution failure and still rejects", async () => {
+    const deliveries: Array<Record<string, unknown>> = [];
+    await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
+    await publishSnapshot(env, topicSnapshot(), new Date("2026-08-10T02:06:00Z"));
+    await env.DB.prepare(
+      "UPDATE topic_snapshots SET as_of = 'Synthetic invalid timestamp for testing only'",
+    ).run();
+    const handler = createHandler({
+      now: () => new Date("2026-08-13T12:00:00Z"),
+      alertFetch: async (_input, init) => {
+        deliveries.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const controller = {
+      scheduledTime: Date.parse("2026-08-13T12:00:00Z"),
+      cron: "17 */6 * * *",
+      noRetry: () => undefined,
+    } as ScheduledController;
+
+    await expect(handler.scheduled!(controller, alertEnv(), {} as ExecutionContext))
+      .rejects.toThrow("invalid snapshot as_of in D1");
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({
+      schema_version: 1,
+      alert_key: "cloudflare_watchdog_failure:2026-08-13T12:00:00.000Z",
+      state: "open",
+      severity: "critical",
+      summary: "Finance topic radar Cloudflare freshness watchdog failed",
+      details: {
+        scheduled_at: "2026-08-13T12:00:00.000Z",
+        cron: "17 */6 * * *",
+        error_code: "watchdog_execution_failed",
+      },
+    });
+  });
+
+  it("does not recursively alert when the scheduled watchdog alert transport fails", async () => {
+    let attempts = 0;
+    const handler = createHandler({
+      now: () => new Date("2026-08-13T12:00:00Z"),
+      alertFetch: async () => {
+        attempts += 1;
+        return new Response("rejected", { status: 503 });
+      },
+    });
+    const controller = {
+      scheduledTime: Date.parse("2026-08-13T12:00:00Z"),
+      cron: "17 */6 * * *",
+      noRetry: () => undefined,
+    } as ScheduledController;
+
+    await expect(handler.scheduled!(controller, alertEnv(), {} as ExecutionContext))
+      .rejects.toMatchObject({ code: "alert_delivery_rejected" });
+    expect(attempts).toBe(1);
   });
 });
 

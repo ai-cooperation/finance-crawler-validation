@@ -17,7 +17,7 @@
 - Private R2：`finance-crawler-validation-raw`；已直接讀回 topic object 與 raw object，topic SHA-256 與 D1 索引一致。
 - Ingest Worker：`finance-crawler-validation-ingest`，只接受固定 repository、owner、workflow、`main` ref、event、run ID 與 commit SHA 的 GitHub OIDC。
 
-這次證明手動垂直切片可行，不代表長期穩定性驗收已完成。checkpoint catch-up、D1 原子 admission、遠端重放／last-good、staleness watchdog、外部 webhook transport 與去重已實作與遠端注入驗證；正式排程仍保持關閉，只等有人訂閱的告警目的地完成真人收件驗收。操作契約見 [`docs/p0-alert-and-soak-runbook.md`](docs/p0-alert-and-soak-runbook.md)。
+這次證明手動垂直切片可行，不代表長期穩定性驗收已完成。checkpoint catch-up、D1 原子 admission、遠端重放／last-good、staleness watchdog、外部 webhook transport 與去重已實作與遠端注入驗證；schedule-only soak observation 與七日 fail-closed 驗收器已完成 TDD，仍待真人 primary/fallback 收件與七日實跑。正式排程保持關閉。操作契約見 [`docs/p0-alert-and-soak-runbook.md`](docs/p0-alert-and-soak-runbook.md)。
 
 ## 驗收契約
 

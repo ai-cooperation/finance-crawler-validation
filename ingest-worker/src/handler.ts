@@ -15,11 +15,16 @@ import {
   parseRunAdmissionPolicy,
   RunPlanConfigurationError,
 } from "./run-plan";
-import { AlertDeliveryError, reportActionFailure } from "./alerts";
+import {
+  AlertDeliveryError,
+  reportActionFailure,
+  reportScheduledWatchdogFailure,
+} from "./alerts";
 import {
   runAuthenticatedFreshnessWatchdog,
   runFreshnessWatchdog,
 } from "./watchdog";
+import { observeScheduledSoak } from "./soak";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -43,8 +48,29 @@ export function createHandler(
 ): Pick<ExportedHandler<Env>, "fetch" | "scheduled"> {
   const dependencies: HandlerDependencies = { ...defaultDependencies, ...overrides };
   return {
-    async scheduled(_controller, env): Promise<void> {
-      await runFreshnessWatchdog(env, dependencies.now(), dependencies.alertFetch);
+    async scheduled(controller, env): Promise<void> {
+      try {
+        await runFreshnessWatchdog(env, dependencies.now(), dependencies.alertFetch);
+      } catch (error) {
+        if (!(error instanceof AlertDeliveryError)) {
+          try {
+            await reportScheduledWatchdogFailure(
+              env,
+              controller,
+              dependencies.now(),
+              dependencies.alertFetch,
+            );
+          } catch (alertError) {
+            console.error(JSON.stringify({
+              event: "scheduled_watchdog_failure_alert_failed",
+              error_code: alertError instanceof AlertDeliveryError
+                ? alertError.code
+                : "unknown",
+            }));
+          }
+        }
+        throw error;
+      }
     },
     async fetch(request: Request, env: Env): Promise<Response> {
       const requestId = crypto.randomUUID();
@@ -77,6 +103,7 @@ export function createHandler(
         "/v1/run/plan",
         "/v1/alerts/action-failure",
         "/v1/alerts/freshness-check",
+        "/v1/soak/observe",
       ].includes(url.pathname)) {
         return jsonResponse({ error: "route_not_found", request_id: requestId }, 404);
       }
@@ -121,6 +148,18 @@ export function createHandler(
           return jsonResponse(
             { ...result, request_id: requestId },
             result.delivered ? 202 : 200,
+          );
+        }
+        if (url.pathname === "/v1/soak/observe") {
+          const result = await observeScheduledSoak(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+          );
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
           );
         }
         if (url.pathname === "/v1/ingest/items") {

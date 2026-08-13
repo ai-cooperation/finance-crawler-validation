@@ -105,9 +105,25 @@ gh workflow run topic-radar.yml \
 - GitHub `topic-radar.yml`：每日一次，且仍受 D1 每 UTC 日 2 次、最小間隔 21,600 秒的 admission 限制。
 - Worker Cron：每 6 小時只執行 freshness watchdog，不執行 Crawl4AI。
 
+啟用前先以不取 admission、不 checkout、不安裝 Chromium的手動 control-plane run 驗證 production schedule boundary：
+
+```bash
+gh workflow run topic-radar.yml \
+  --repo ai-cooperation/finance-crawler-validation \
+  -f verify_soak_boundary=true \
+  -f verify_alert_delivery=false \
+  -f verify_freshness_watchdog=false \
+  -f verify_resilience=false
+```
+
+該 run 必須成功，`Verify manual identity cannot write soak evidence` 必須確認 endpoint 回傳 HTTP 403 `schedule_identity_required`，其餘 checkout／admission／Chromium／collect／ingest 全部 skipped，D1 `soak_observations` 不新增 row。真正正向路徑只能由啟用後的第一個 `schedule` OIDC token 驗證，不能為方便測試而放寬 event claim。
+
+2026-08-13 已以 production [run 31698746139](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31698746139) 完成這項負向驗證：workflow 成功，只有 boundary step 執行；D1 soak/admission 前後維持 0／5，health/status HTTP 200，freshness healthy，secret 空且 schedule／Cron 仍關閉。機器證據見 [`../experiments/p0-alerts/soak-boundary-validation-20260813.json`](../experiments/p0-alerts/soak-boundary-validation-20260813.json)。這不替代真正 schedule token 的正向路徑、真人收件或七日 soak。
+
 排程必須透過 PR 啟用，並在合併後重新部署 Worker。不在 runbook 中隱藏建立 schedule 的側寫 API。任一下列情況發生時，先以 PR 移除 GitHub `schedule` 與 Worker `crons`，部署無 Cron 設定，再排查：
 
 - 真人未收到已完成 provider delivery 的告警。
+- Cloudflare scheduled watchdog 出現 failed invocation，或 `cloudflare_watchdog_failure:SCHEDULED_AT` 未送達真人目的地。
 - scheduled run 連續失敗，或沒有從 checkpoint 續跑。
 - `current_snapshot` 倒退、partial 被誤報 healthy，或重放產生重複業務事件。
 - Actions、Workers、D1 或 R2 任一用量超出本期設定的受控上限。
@@ -118,9 +134,31 @@ gh workflow run topic-radar.yml \
 
 - GitHub run ID、commit SHA、conclusion、duration 與 admission decision。
 - 每個來源的 status、route、實際 request URL、item count 與 checkpoint。
-- D1 current snapshot、freshness state、source counts、run/admission/alert receipt 計數。
-- R2 object 數與抽樣 SHA-256 一致性。
+- 私有 D1 soak receipt：current snapshot、freshness、source counts、該 schedule run 狀態、run/admission/alert 計數。
+- R2 current topic 加最多三個 raw object 的 `head` size／SHA-256 metadata 一致性；不列舉 bucket。
 - GitHub Actions、Workers、D1 與 R2 的實際用量記錄。
 - 所有 open、deduplicated 與 resolved 告警的真人收件證據。
 
 只有連續七日驗收證據齊全，才將 P0 關閉。P2 的 120 品牌驗收不重跑，已有的 114/120（95.00%）品牌級結果保持獨立證據。
+
+### 私有 observation 與公開 artifact
+
+`Record schedule-only soak observation` 只將回應做當場契約檢查，完整 observation 保存在 D1 `soak_observations`。它包含 object key、hash、D1 計數與稽核狀態，因此不得上傳到 public repository artifact。GitHub artifact 只保存 `run-report.json`；該報表包含 15 個來源的 status、route、實際 request URL、item count 與 checkpoint，不含 raw content。
+
+operator 於 soak 結束後在 Cloudflare 驗證帳號匯出 receipt；命令的 SQL 必須限制指定的 7 個 workflow run ID，不可匯出整庫。再將 GitHub REST API 的 run metadata、每日 source-health artifact、Cloudflare GraphQL telemetry 與真人收件的 private reference 組成 private evidence bundle，執行：
+
+```bash
+finance-soak-verify private-soak-evidence.json \
+  --output private-soak-verdict.json
+```
+
+驗收器要求恰好七個連續 UTC 日與七個不同 schedule run；denied、failed、stale、open alert、來源集合不完整、D1 counter 倒退、R2 metadata 不一致、任何一項 telemetry 缺失或超出 ceiling 均失敗。測試 fixture 均標示 `Synthetic for testing only`，不可當成實際 soak 或免費額度證據。
+
+### 官方用量來源
+
+- GitHub Actions 秒數取自 GitHub REST workflow-run usage/timing 的各平台 `billable.total_ms` 加總並向上轉為秒；run metadata另核對 `event=schedule`、`conclusion=success`、run ID、attempt 與 commit SHA。`run_started_at`／`updated_at` 只驗證時序，不冒充計費用量。
+- Workers requests 使用 Cloudflare GraphQL `workersInvocationsAdaptive`，固定 script name 與單一 UTC 日。
+- D1 rows read/written 使用 `d1AnalyticsAdaptiveGroups`，固定 database ID 與單一 UTC 日。
+- R2 operations 使用 `r2OperationsAdaptiveGroups`，固定 bucket 與單一 UTC 日；分類表依官方 pricing 的 Class A／Class B／free action 名稱。未知 action fail closed。
+
+GraphQL 自動採集必須使用 Cloudflare 建立的只讀 Analytics token，放在 operator 環境變數或 GitHub environment secret，不可使用可部署 Worker 的高權限 token，也不可寫進 repo、artifact 或 log。未取得此 token前可以部署 observation API，但不能宣稱用量驗收完成，也不能關閉 P0。

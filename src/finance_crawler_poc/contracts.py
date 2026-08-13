@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
 
 
 CONTRACT_NAMES = frozenset(
@@ -18,6 +19,7 @@ CONTRACT_NAMES = frozenset(
         "raw-item",
         "research-report",
         "source-record",
+        "soak-observation",
         "status-response",
         "topic-snapshot",
     }
@@ -43,9 +45,22 @@ def load_contract(name: str) -> dict[str, Any]:
     return schema
 
 
+@lru_cache(maxsize=1)
+def contract_registry() -> Registry[Any]:
+    resources: list[tuple[str, Resource[Any]]] = []
+    for name in CONTRACT_NAMES:
+        schema = load_contract(name)
+        schema_id = schema.get("$id")
+        if not isinstance(schema_id, str) or not schema_id:
+            raise ContractValidationError(f"contract {name} must declare a non-empty $id")
+        resources.append((schema_id, Resource.from_contents(schema)))
+    return Registry().with_resources(resources)
+
+
 def validate_contract(name: str, payload: object) -> None:
     validator = Draft202012Validator(
         load_contract(name),
+        registry=contract_registry(),
         format_checker=FormatChecker(),
     )
     errors = sorted(validator.iter_errors(payload), key=lambda error: list(error.path))

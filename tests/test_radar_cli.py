@@ -84,5 +84,7 @@ def test_artifact_builder_outputs_ingest_ready_contracts() -> None:
     assert report["accepted"] is True
     assert report["successful_sources"] == 15
     assert report["topics"] == 3
+    assert len(report["checkpoints"]) == 15
+    assert report["checkpoints"][0]["source_id"] == manifest.sources[0].source_id
     assert envelope["snapshot_id"] == snapshot["snapshot_id"]
     assert envelope["commit_sha"] == "d" * 40

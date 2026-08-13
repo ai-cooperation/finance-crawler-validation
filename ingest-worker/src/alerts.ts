@@ -164,6 +164,30 @@ export async function deliverConfiguredAlert(
   }
 }
 
+export async function reportScheduledWatchdogFailure(
+  env: Env,
+  controller: Pick<ScheduledController, "scheduledTime" | "cron">,
+  now: Date,
+  alertFetch: AlertFetch,
+): Promise<void> {
+  const scheduledAt = new Date(controller.scheduledTime).toISOString();
+  const alertKey = `cloudflare_watchdog_failure:${scheduledAt}`;
+  await deliverConfiguredAlert(env, alertKey, {
+    schema_version: 1,
+    alert_key: alertKey,
+    state: "open",
+    severity: "critical",
+    detected_at: now.toISOString(),
+    service: "finance-crawler-validation",
+    summary: "Finance topic radar Cloudflare freshness watchdog failed",
+    details: {
+      scheduled_at: scheduledAt,
+      cron: controller.cron,
+      error_code: "watchdog_execution_failed",
+    },
+  }, alertFetch);
+}
+
 export function readAlertWebhookFormat(env: Env): AlertWebhookFormat {
   const raw: string | undefined = (env as unknown as {
     ALERT_WEBHOOK_FORMAT?: string;
