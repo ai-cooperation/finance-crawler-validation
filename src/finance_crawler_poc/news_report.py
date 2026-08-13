@@ -20,6 +20,7 @@ def write_news_reports(
     *,
     generated_at: str,
     target_total: int,
+    selected_brand_ids: tuple[str, ...] | None = None,
 ) -> NewsReportPaths:
     output_dir.mkdir(parents=True, exist_ok=True)
     successes = sum(result.success for result in results)
@@ -46,6 +47,13 @@ def write_news_reports(
         "by_executor": _attempt_breakdown(endpoint_attempts, "executor_id"),
         "results": [result.to_dict() for result in results],
     }
+    if selected_brand_ids is not None:
+        payload["selection"] = {
+            "mode": "explicit_brand_ids",
+            "selected_brands": len(selected_brand_ids),
+            "target_brands": target_total,
+            "brand_ids": list(selected_brand_ids),
+        }
     json_path = output_dir / "news-report.json"
     markdown_path = output_dir / "news-report.md"
     json_path.write_text(

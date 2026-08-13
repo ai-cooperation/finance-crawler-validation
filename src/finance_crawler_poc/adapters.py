@@ -3,6 +3,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import urllib.robotparser
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -13,8 +14,8 @@ from finance_crawler_poc.models import FetchResponse, FetchSnapshot, Source
 
 
 USER_AGENT = (
-    "FinanceCrawlerCapabilityProbe/0.2 "
-    "(+https://github.com/AlanChen75/finance-crawler-poc)"
+    "FinanceCrawlerCapabilityProbe/0.3 "
+    "(+https://github.com/ai-cooperation/finance-crawler-validation)"
 )
 ACCEPT_HEADERS = {
     "json_api": "application/json, application/problem+json;q=0.9, */*;q=0.1",
@@ -113,6 +114,17 @@ class HttpAdapter:
                     final_url=str(response.url),
                 )
             content = json.dumps(parsed, ensure_ascii=False, sort_keys=True)
+        elif source.transport == "rss" and 200 <= response.status_code < 400:
+            feed_error = _rss_feed_error(content)
+            if feed_error:
+                return FetchResponse(
+                    status_code=response.status_code,
+                    content=content,
+                    error=feed_error,
+                    route=route,
+                    content_type=_content_type(response),
+                    final_url=str(response.url),
+                )
         elif source.transport == "static_html":
             content = _visible_html_text(content)
         return FetchResponse(
@@ -122,6 +134,7 @@ class HttpAdapter:
             content_type=_content_type(response),
             final_url=str(response.url),
         )
+
 
     def _can_relay(self, source: Source) -> bool:
         return bool(self._relay_base_url and source.relay_path)
@@ -134,6 +147,17 @@ class HttpAdapter:
 
     async def close(self) -> None:
         await self._client.aclose()
+
+
+def _rss_feed_error(content: str) -> str:
+    try:
+        root = ET.fromstring(content)
+    except ET.ParseError as exc:
+        return f"invalid RSS/Atom feed: {exc}"
+    local_name = root.tag.rsplit("}", 1)[-1].casefold()
+    if local_name not in {"rss", "feed", "rdf"}:
+        return f"invalid RSS/Atom feed: root element is {local_name}"
+    return ""
 
 
 class Crawl4AIAdapter:

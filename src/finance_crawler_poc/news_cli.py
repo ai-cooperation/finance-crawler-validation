@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from finance_crawler_poc.adapters import Crawl4AIAdapter, HttpAdapter
-from finance_crawler_poc.news_catalog import NewsCatalogError, load_news_catalog
+from finance_crawler_poc.news_catalog import NewsBrand, NewsCatalogError, load_news_catalog
 from finance_crawler_poc.news_probe import NewsBrandResult, probe_news_brand
 from finance_crawler_poc.news_report import write_news_reports
 from finance_crawler_poc.resource_router import (
@@ -26,6 +26,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--executors", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--current-executor", required=True)
+    parser.add_argument(
+        "--brand-ids",
+        help="Comma-separated unique brand IDs; omit only for an intentional full run",
+    )
+    parser.add_argument("--max-brands", type=int, default=30)
     return parser
 
 
@@ -35,10 +40,13 @@ async def run(
     output_dir: Path,
     *,
     current_executor_id: str,
+    brand_ids: tuple[str, ...] | None = None,
+    max_brands: int | None = None,
 ) -> list[NewsBrandResult]:
     catalog = load_news_catalog(catalog_path)
     if not catalog.is_complete:
         raise ValueError("news catalog must be complete before a full run")
+    selected_brands = _select_brands(catalog.brands, brand_ids, max_brands)
     executors = load_executors(executor_path)
     current = next(
         (executor for executor in executors if executor.id == current_executor_id),
@@ -53,7 +61,9 @@ async def run(
         current.id: ExecutorState(
             available=True,
             credential_available=credential_available,
-            remaining_jobs=max(1, catalog.endpoint_count),
+            remaining_jobs=max(
+                1, sum(len(brand.endpoints) for brand in selected_brands)
+            ),
         )
     }
 
@@ -67,13 +77,13 @@ async def run(
     }
     results: list[NewsBrandResult] = []
     try:
-        for index, brand in enumerate(catalog.brands, start=1):
+        for index, brand in enumerate(selected_brands, start=1):
             print(
                 json.dumps(
                     {
                         "event": "news_brand_started",
                         "brand_index": index,
-                        "brand_total": catalog.brand_count,
+                        "brand_total": len(selected_brands),
                         "brand_id": brand.id,
                         "current_executor": current.id,
                     },
@@ -106,13 +116,53 @@ async def run(
         await http_adapter.close()
 
     generated_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    report_kwargs: dict[str, object] = {}
+    if brand_ids is not None:
+        report_kwargs["selected_brand_ids"] = tuple(
+            brand.id for brand in selected_brands
+        )
     write_news_reports(
         results,
         output_dir,
         generated_at=generated_at,
         target_total=catalog.target.total_brands,
+        **report_kwargs,
     )
     return results
+
+
+def _select_brands(
+    brands: tuple[NewsBrand, ...],
+    brand_ids: tuple[str, ...] | None,
+    max_brands: int | None,
+) -> tuple[NewsBrand, ...]:
+    if max_brands is not None and max_brands <= 0:
+        raise ValueError("max_brands must be positive")
+    if brand_ids is None:
+        selected = brands
+    else:
+        if len(brand_ids) != len(set(brand_ids)):
+            raise ValueError("brand ids must be unique")
+        by_id = {brand.id: brand for brand in brands}
+        unknown = sorted(set(brand_ids) - set(by_id))
+        if unknown:
+            raise ValueError(f"unknown brand ids: {', '.join(unknown)}")
+        requested = set(brand_ids)
+        selected = tuple(brand for brand in brands if brand.id in requested)
+    if max_brands is not None and len(selected) > max_brands:
+        raise ValueError(
+            f"brand batch exceeds max_brands: {len(selected)} > {max_brands}"
+        )
+    return selected
+
+
+def _parse_brand_ids(value: str | None) -> tuple[str, ...] | None:
+    if value is None:
+        return None
+    ids = tuple(part.strip() for part in value.split(",") if part.strip())
+    if not ids:
+        raise ValueError("brand_ids must contain at least one brand id")
+    return ids
 
 
 def main() -> None:
@@ -124,6 +174,8 @@ def main() -> None:
                 args.executors,
                 args.output,
                 current_executor_id=args.current_executor,
+                brand_ids=_parse_brand_ids(args.brand_ids),
+                max_brands=args.max_brands,
             )
         )
     except (NewsCatalogError, ExecutorConfigError, ValueError) as exc:

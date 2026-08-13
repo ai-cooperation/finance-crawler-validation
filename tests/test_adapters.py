@@ -69,6 +69,23 @@ def test_http_adapter_reports_invalid_json_without_throwing() -> None:
     assert response.content == "not json"
 
 
+def test_http_adapter_rejects_html_redirected_from_an_rss_endpoint() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            text="<html><body>Market finance news</body></html>",
+            headers={"content-type": "text/html; charset=utf-8"},
+            request=request,
+        )
+
+    adapter = HttpAdapter(transport=httpx.MockTransport(handler))
+    response = asyncio.run(adapter.fetch(source("rss")))
+    asyncio.run(adapter.close())
+
+    assert response.status_code == 200
+    assert response.error == "invalid RSS/Atom feed: root element is html"
+
+
 def test_http_adapter_uses_feed_accept_header_and_cloudflare_relay_after_403() -> None:
     requests: list[httpx.Request] = []
 
