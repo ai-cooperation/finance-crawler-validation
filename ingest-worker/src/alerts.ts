@@ -166,7 +166,11 @@ export async function deliverAlertWebhook(
       },
       body: JSON.stringify(delivery.body),
     });
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "alert_delivery_network_error",
+      error: error instanceof Error ? error.message : String(error),
+    }));
     throw new AlertDeliveryError("alert_delivery_failed");
   }
   if (!response.ok) throw new AlertDeliveryError("alert_delivery_rejected");
