@@ -147,19 +147,19 @@ P0、P2、P1 是既有 backlog 標籤，不直接代表施工先後。本專案�
 | Gate 3 | P1 應用整合 | 先以 OpenBB 建立市場快照與時間軸對齊，再以 TradingAgents 產生 bull／bear／risk 可溯源「第二意見」 | 實際來源資料可完成 topic↔market↔evidence 關聯；報告可重跑、可中斷續跑、有預算關卡，且不將模型輸出宣稱為交易事實 |
 | Gate 4 | 使用者裁示 | 決定 MCP／Chat Agent 的用戶任務、tools、OAuth scopes、讀寫邊界、回應形態與客戶端 | 使用者批准介面 SDD 與驗收用例後，才開始 MCP Server 與 Agent 實作 |
 
-Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120；這些是待驗證的驗收目標，不是已實測結果。現有 99／120 基準來自舊 GitHub 帳號的單輪實驗，只當失敗分群與優先重驗的起點，不取代 `ai-cooperation` 與 Cloudflare 隔離驗證帳號下的驗收證據。
+Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120。隔離帳號已以 1 個 baseline 與 3 個 bounded fallback batches 實測 120 個唯一品牌、162 條 endpoint paths，合併後 114／120 成功（95.00%），達成驗收上限。機器可讀證據、run ID、artifact SHA-256 與剩餘 6 個邊界保存於 [`p2-acceptance-20260813.json`](../experiments/news-120/p2-acceptance-20260813.json)。
 
 ### 現有能力狀態（不代表施工順序）
 
 | 階段 | 狀態 | 交付與驗證 |
 |---|---|---|
-| 0. 來源與路由 POC | 部分完成 | 已完成來源矩陣、120 品牌單一 GitHub executor 擴大樣本與 15 來源垂直切片；跨時間 observation state 與同 URL 多 executor A/B 待辦 |
+| 0. 來源與路由 POC | Gate 2 驗收完成 | 120 個唯一品牌、162 條 endpoint paths 已以 baseline 與 bounded fallback batches 實測；114 品牌成功（95.00%），6 品牌保留為合規／技術邊界 |
 | 1. 資料契約 | 本機完成 | 八份 version 1 JSON Schema（含只讀 status response）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
-| 3. GH 批次管線 | 手動 OIDC／重放實接完成 | ingest envelope、immutable repo／owner／workflow／ref claims、commit SHA／workflow run 綁定、checkpoint、staging→publish、遠端 ingest／publish replay 與 invalid publish 保留 last-good 已實辦；catch-up、真正外部告警與 staleness 待辦 |
+| 3. GH 批次管線 | 手動 OIDC 韌性實接完成 | ingest／publish replay、invalid publish 保留 last-good、checkpoint catch-up、D1 原子 admission、action failure webhook、watchdog 與去重已實作；正式排程等有人訂閱的告警目的地後才開啟 |
 | 4. 議題雷達與研究 | 遠端垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
 | 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
-| 6. 穩定性驗收 | 待辦 | 故障注入、額度觀測、連續一週正常排程與補跑紀錄 |
+| 6. 穩定性驗收 | 部分完成 | 故障注入、外部 transport 與去重、額度拒絕的廉價路徑已遠端實測；有人訂閱的告警與連續 soak 尚未完成 |
 
 不以「已送出 workflow」視為完成。每一階段必須有可重現測試、實際輸出或 health response 才能改成已完成。
 
@@ -196,7 +196,7 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 - Python coverage：81.27%，pyproject 80% 門檻通過。
 - Ingest Worker coverage：statements 86.89%、branches 81.30%、functions 94.64%、lines 88.14%；四項 80% 門檻已寫入 Vitest config。
 - Wrangler type check、TypeScript typecheck、workflow YAML 語法與 deploy dry-run 通過。
-- 遠端部署與驗收證據如下；Gate 1 的「遠端重放／last-good 故障注入／D1 status」子項已完成，但 catch-up、外部告警、額度保護與 soak 仍未完成，因此 P0 整體尚未關閉。
+- 遠端部署與驗收證據如下；本段的重放／last-good／status 子項已完成。checkpoint catch-up、admission、告警 transport 與額度拒絕後續亦已實測，另見下方紀錄；P0 整體只剩有人訂閱告警後的低頻 soak。
 
 #### 遠端部署與單次額度驗證
 
@@ -207,6 +207,14 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 - D1 run `run_20260813t071516z` 為 `published`，`item_count=37` 且 `run_items=37`；只有 1 筆 `completed` ingest receipt、1 個新 snapshot，以及 `raw_collected`／`published` audit 各 1 筆，證明 replay 沒有增加 run、snapshot、link 或 audit 業務事件。
 - invalid publish 回傳 422 `invalid_payload` 後，current 仍指向 `radar_20260813t071516z`；status 顯示 freshness `healthy`、整體 `warning`，原因為 2 個來源失敗與 partial snapshot。
 - R2 直接讀回 topic object（4,195 bytes）與一個 raw object（1,073 bytes）；topic SHA-256 `807b851c2c062307da79dccde1349b3e4461a8d785416bc4990bacd633f7d5be` 與 D1、status 完全一致。公開 artifact 仍只有 source-health `run-report.json`。
+
+#### Checkpoint catch-up、admission 與告警實測
+
+- D1 migration `0003_operational_alerts.sql` 已於隔離 Cloudflare 帳號套用，增加 `run_admissions` 與 `operational_alerts`。`POST /v1/run/plan` 與 ingest 共用固定 GitHub OIDC identity，每 UTC 日最多 2 個 admission、成功租約間隔至少 21,600 秒。
+- [Actions run 31684943198](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31684943198) 取得 admission 並完成一次真實 catch-up，耗時 1 分 52 秒。來源 14／15 成功：RSS 5／5、Public API 7／7、Browser 2／3；checkpoint 篩選後產生 19 items，Bogleheads 以 Cloudflare JS challenge／403 合規終止。`run-report.json` SHA-256 為 `a6aed887b92a7d73a4e34d07216c3fae80c7cf2a9e1da54478e72c1bbdc11d75`，報表保留 RSS window、HN `numericFilters`、Stack Exchange `fromdate` 與 GitHub `since` 的實際 request URL。
+- [Actions run 31685137981](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31685137981) 正確拿到 `minimum_interval` denial，但暴露 workflow 將合法 `false` 誤當成 jq 失敗；[PR #10](https://github.com/ai-cooperation/finance-crawler-validation/pull/10) 修正後，run [31685320719](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31685320719) 已正常跳過。後續 run [31687414440](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31687414440) 只花 19 秒，在 admission denial 後跳過完整 collector、Chromium、collect 與 ingest，證明額度被拒絕時不消耗高成本路徑。
+- [Actions run 31685905458](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31685905458) 以手動 `verify_alert_delivery` 在收集前注入預期失敗。修正 Workers runtime 不支援 `redirect: "error"` 的問題後，臨時 HTTPS sink 實際收到 1 筆不含 secret 的公開告警；D1 只有 1 筆 `github_action_failure:31685905458` receipt，GitHub issue 也只有 1 筆。重放同一 run 後三者仍各為 1，去重成立。臨時 sink 已移除，Cloudflare `ALERT_WEBHOOK_URL` secret 已清空。
+- [PR #17](https://github.com/ai-cooperation/finance-crawler-validation/pull/17) 曾將有界的 schedule／Cron 寫入設定，但在第一次觸發前即由 [PR #18](https://github.com/ai-cooperation/finance-crawler-validation/pull/18) 回退。目前 GitHub workflow 無 `schedule`、Worker 設定無 `crons`、Cloudflare 無告警 secret；在 Slack／Telegram／自有 webhook 或 ntfy topic 有人訂閱並收到測試告警前，不開啟 soak。
 
 ## 九、驗收條件
 
