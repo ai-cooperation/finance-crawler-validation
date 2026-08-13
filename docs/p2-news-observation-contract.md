@@ -65,3 +65,6 @@ Public repository 的標準 GitHub-hosted runner 分鐘依 GitHub 官方文件�
 - RSS fallback batch `31679578795`：12 個 baseline 失敗品牌中 9 個成功；artifact `news-report.json` SHA-256 為 `42198ebba221070dad28898f52bf1024cc438785ac9df17e426684b63be8559c`。按品牌 ID 合併後為 110/120（91.67%），不是將 9 直接加到任意其他分母。
 - Cloudflare relay staging version `7d9fc09e-710d-44b9-8393-909017b8a75d`：Private Banker International 與 AdvisorHub 的官方 RSS 實際回 200、XML root=`rss` 且通過財經語意檢查；Benzinga 實際為 timeout／upstream 500 截斷 XML，不列成功。
 - Cloudflare relay 只能實際證明該出口可讀；仍必須由 `ai-cooperation` GitHub runner 完成「直連失敗 → relay 成功」的小批次證據。
+- Relay batch `31680725396`：Private Banker International 與 AdvisorHub 在 GitHub runner 上都完整記錄 `direct 403 → cloudflare_relay 200`；Benzinga 是 `direct 403 → relay timeout`，不列成功。artifact JSON SHA-256 為 `f28b8a0903e7c327845c6e6fb8308bc3e8491b2c1273d40d097cdc44f1cc3d04`。
+- 第一方財經 podcast RSS batch `31681280554`：Reuters Morning Bid 與 Barron's Streetwise 皆成功，同時保留 Reuters／Barron's 網頁 Browser robots 禁止的獨立邊界。artifact JSON SHA-256 為 `962e7ae35692df6d65d2e1d4123afaa5806a46a3881c347e6249e8075fbcf221`。
+- 以程式重新下載四個 artifact 並按 brand ID 合併後，結果為 120 個唯一品牌、114 成功、6 失敗、95.00%；已達 P2 95% 驗收門檻。

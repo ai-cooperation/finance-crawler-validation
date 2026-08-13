@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "observation_unit": "unique_news_brand_latest",
+  "catalog": {
+    "unique_brands": 120,
+    "finance_specialists": 100,
+    "general_finance_desks": 20,
+    "endpoint_paths_at_acceptance": 162
+  },
+  "merge_contract": {
+    "baseline_must_match_catalog_brand_ids": true,
+    "batches_must_declare_exact_selected_brand_ids": true,
+    "latest_explicit_batch_replaces_same_brand_only": true
+  },
+  "runs": [
+    {
+      "run_id": 31677822771,
+      "role": "baseline",
+      "head_sha": "21a26a1a2987ce515b93252a6cb043cfec51a678",
+      "conclusion": "success",
+      "brands_observed": 120,
+      "brands_successful": 101,
+      "artifact_json_sha256": "077f95616657fb1c9d3f38c9a3b07cbf57ab7dcc2fa3830d1904388977679cf4"
+    },
+    {
+      "run_id": 31679578795,
+      "role": "official_rss_fallback_batch",
+      "head_sha": "4ca11b4c825e38de36c5e531a770d1cc9ed185ff",
+      "conclusion": "success",
+      "brands_observed": 12,
+      "brands_successful": 9,
+      "artifact_json_sha256": "42198ebba221070dad28898f52bf1024cc438785ac9df17e426684b63be8559c"
+    },
+    {
+      "run_id": 31680725396,
+      "role": "fixed_cloudflare_relay_batch",
+      "head_sha": "40d836cb38dcdb2481223350b55c5afd92746a7a",
+      "conclusion": "success",
+      "brands_observed": 3,
+      "brands_successful": 2,
+      "artifact_json_sha256": "f28b8a0903e7c327845c6e6fb8308bc3e8491b2c1273d40d097cdc44f1cc3d04"
+    },
+    {
+      "run_id": 31681280554,
+      "role": "first_party_finance_podcast_rss_batch",
+      "head_sha": "237fc954956bca22aeaf109fe19c7659eab4a70d",
+      "conclusion": "success",
+      "brands_observed": 2,
+      "brands_successful": 2,
+      "artifact_json_sha256": "962e7ae35692df6d65d2e1d4123afaa5806a46a3881c347e6249e8075fbcf221"
+    }
+  ],
+  "merged_result": {
+    "observed_brands": 120,
+    "unique_brand_ids": 120,
+    "successful_brands": 114,
+    "failed_brands": 6,
+    "brand_success_rate": 0.95,
+    "acceptance_threshold": 0.95,
+    "accepted": true,
+    "failed_brand_ids": [
+      "benzinga",
+      "financial_advisor_magazine",
+      "etf_stream",
+      "citywire",
+      "livewire_markets",
+      "financial_express"
+    ]
+  },
+  "boundary_notes": {
+    "benzinga": "GitHub direct RSS and HTML returned 403; fixed Cloudflare relay timed out or returned truncated upstream XML.",
+    "financial_advisor_magazine": "Static HTML and Browser reached a Cloudflare challenge.",
+    "etf_stream": "Static HTML and Browser reached a Cloudflare challenge.",
+    "citywire": "HTTP 200 contained only an Incapsula denial page and failed the semantic/content contract.",
+    "livewire_markets": "Static HTML and Browser reached a Cloudflare challenge.",
+    "financial_express": "Static HTML was blocked by CloudFront with HTTP 403. A candidate feed URL redirected to HTML and was rejected by strict RSS validation."
+  }
+}
