@@ -67,6 +67,9 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "Inject alert delivery validation failure" in workflow
     assert "failure_issue_number" in workflow
     assert "steps.admission.outputs.admitted == 'true' && !inputs.verify_alert_delivery" in workflow
+    assert "Install admission client only" in workflow
+    assert "--no-deps -e ." in workflow
+    assert "Install full collector" in workflow
 
 
 def test_ingest_worker_is_locked_to_the_validation_repository() -> None:
