@@ -159,7 +159,9 @@ export async function deliverAlertWebhook(
   try {
     response = await alertFetch(delivery.url, {
       method: "POST",
-      redirect: "error",
+      // Cloudflare Workers supports only follow/manual. Manual preserves the
+      // fail-closed invariant because every 3xx remains a non-ok response.
+      redirect: "manual",
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": alertKey,

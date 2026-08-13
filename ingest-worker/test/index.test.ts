@@ -673,6 +673,7 @@ describe("external operational alerts", () => {
 
   it("sends one action failure notification and deduplicates its replay", async () => {
     const deliveries: unknown[] = [];
+    const deliveryOptions: RequestInit[] = [];
     const handler = createHandler({
       authenticate: async () => ({
         workflowRunId: "31309377786",
@@ -681,6 +682,7 @@ describe("external operational alerts", () => {
       now: () => new Date("2026-08-13T08:00:00Z"),
       alertFetch: async (_input, init) => {
         deliveries.push(JSON.parse(String(init?.body)));
+        deliveryOptions.push(init ?? {});
         return new Response("ok", { status: 200 });
       },
     });
@@ -710,6 +712,7 @@ describe("external operational alerts", () => {
       state: "open",
       severity: "critical",
     });
+    expect(deliveryOptions[0]?.redirect).toBe("manual");
   });
 
   it("formats ntfy delivery without exposing private evidence", async () => {
