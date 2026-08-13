@@ -116,7 +116,7 @@ brands:
     canonical_domain: benzinga.com
     region: US
     endpoints:
-      - {id: benzinga_rss, transport: rss, url: https://www.benzinga.com/feed, required_capabilities: [http, rss]}
+      - {id: benzinga_rss, transport: rss, url: https://www.benzinga.com/feed, relay_path: /v1/feed/benzinga_rss, required_capabilities: [http, rss]}
       - {id: benzinga_html, transport: static_html, url: https://www.benzinga.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: the_street
@@ -278,7 +278,7 @@ brands:
     canonical_domain: privatebankerinternational.com
     region: UK
     endpoints:
-      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/feed/, required_capabilities: [http, rss]}
+      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
       - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investment_week
@@ -315,7 +315,7 @@ brands:
     canonical_domain: advisorhub.com
     region: US
     endpoints:
-      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/category/news/feed/, required_capabilities: [http, rss]}
+      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/category/news/feed/, relay_path: /v1/feed/advisor_hub_rss, required_capabilities: [http, rss]}
       - {id: advisor_hub_html, transport: static_html, url: https://www.advisorhub.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: financial_advisor_magazine

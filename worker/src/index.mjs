@@ -3,11 +3,17 @@ const FEED_ACCEPT =
 const MAX_DECLARED_BYTES = 2_000_000;
 
 export const TARGETS = Object.freeze({
+  advisor_hub_rss: Object.freeze({
+    url: "https://www.advisorhub.com/category/news/feed/",
+  }),
   aussie_stock_forums_rss: Object.freeze({
     url: "https://www.aussiestockforums.com/forums/-/index.rss",
   }),
   bitcoin_stackexchange_feed: Object.freeze({
     url: "https://bitcoin.stackexchange.com/feeds",
+  }),
+  benzinga_rss: Object.freeze({
+    url: "https://www.benzinga.com/feed",
   }),
   bogleheads_forum_feed: Object.freeze({
     url: "https://www.bogleheads.org/forum/app.php/feed",
@@ -23,6 +29,9 @@ export const TARGETS = Object.freeze({
   }),
   quant_stackexchange_feed: Object.freeze({
     url: "https://quant.stackexchange.com/feeds",
+  }),
+  private_banker_international_rss: Object.freeze({
+    url: "https://www.privatebankerinternational.com/feed/",
   }),
 });
 
@@ -63,7 +72,7 @@ export function createHandler(fetchUpstream) {
         headers: {
           Accept: FEED_ACCEPT,
           "User-Agent":
-            "FinanceCrawlerCapabilityProbe/0.2 (+https://github.com/AlanChen75/finance-crawler-poc)",
+            "FinanceCrawlerCapabilityProbe/0.3 (+https://github.com/ai-cooperation/finance-crawler-validation)",
         },
         redirect: "manual",
         cf: {

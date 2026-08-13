@@ -18,6 +18,15 @@ test("health exposes only the fixed feed allowlist", async () => {
     TARGETS.financial_wisdom_forum_feed.url,
     "https://www.financialwisdomforum.org/forum/app.php/feed",
   );
+  assert.equal(TARGETS.benzinga_rss.url, "https://www.benzinga.com/feed");
+  assert.equal(
+    TARGETS.private_banker_international_rss.url,
+    "https://www.privatebankerinternational.com/feed/",
+  );
+  assert.equal(
+    TARGETS.advisor_hub_rss.url,
+    "https://www.advisorhub.com/category/news/feed/",
+  );
 });
 
 

@@ -109,6 +109,8 @@ jobs:
 
       - name: Probe 120-brand news catalog
         if: inputs.scope == 'news_120'
+        env:
+          CF_RELAY_BASE_URL: ${{ vars.CF_RELAY_BASE_URL }}
         run: |
           set -euo pipefail
           test -n "${{ inputs.brand_ids }}"

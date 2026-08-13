@@ -69,6 +69,7 @@ class NewsEndpointAttempt:
     error: str
     final_url: str = ""
     content_type: str = ""
+    delivery_attempts: tuple[dict[str, object], ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -160,6 +161,7 @@ def _source_for_endpoint(brand: NewsBrand, endpoint: NewsEndpoint) -> Source:
         region=brand.region,
         access_tier=ACCESS_TIER[endpoint.transport],
         route_group=brand.id,
+        relay_path=endpoint.relay_path,
     )
 
 
@@ -180,6 +182,9 @@ def _endpoint_attempt(
         error=result.error,
         final_url=result.final_url,
         content_type=result.content_type,
+        delivery_attempts=tuple(
+            delivery.to_dict() for delivery in result.delivery_attempts
+        ),
     )
 
 

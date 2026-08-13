@@ -1,6 +1,6 @@
 import asyncio
 
-from finance_crawler_poc.models import Outcome, ProbeResult
+from finance_crawler_poc.models import DeliveryAttempt, Outcome, ProbeResult
 from pathlib import Path
 
 from finance_crawler_poc.news_catalog import NewsBrand, NewsEndpoint, load_news_catalog
@@ -26,6 +26,7 @@ def endpoint(endpoint_id: str, transport: str, *capabilities: str) -> NewsEndpoi
         transport=transport,
         url=f"https://finance.example/{endpoint_id}",
         required_capabilities=frozenset(capabilities),
+        relay_path=(f"/v1/feed/{endpoint_id}" if transport == "rss" else ""),
     )
 
 
@@ -47,6 +48,17 @@ def result_for(source, outcome: Outcome) -> ProbeResult:
         route_group=source.route_group,
         final_url="https://finance.example/final",
         content_type="text/html",
+        delivery_attempts=(
+            DeliveryAttempt(
+                route="cloudflare_relay" if outcome is Outcome.SUCCESS else "direct",
+                outcome=outcome,
+                status_code=200 if outcome is Outcome.SUCCESS else 403,
+                content_chars=500 if outcome is Outcome.SUCCESS else 0,
+                content_sha256="a" * 64 if outcome is Outcome.SUCCESS else "",
+                preview="finance news" if outcome is Outcome.SUCCESS else "",
+                error="" if outcome is Outcome.SUCCESS else "blocked",
+            ),
+        ),
     )
 
 
@@ -81,6 +93,8 @@ def test_brand_probe_falls_back_between_endpoints_but_counts_one_brand() -> None
     outcomes = iter((Outcome.BLOCKED, Outcome.SUCCESS))
 
     async def fake_probe(source, adapter, *, run_index):
+        if source.id == "finance_rss":
+            assert source.relay_path == "/v1/feed/finance_rss"
         return result_for(source, next(outcomes))
 
     result = asyncio.run(
@@ -103,6 +117,17 @@ def test_brand_probe_falls_back_between_endpoints_but_counts_one_brand() -> None
     assert result.endpoint_attempts[0].outcome == "blocked"
     assert result.endpoint_attempts[1].final_url == "https://finance.example/final"
     assert result.endpoint_attempts[1].content_type == "text/html"
+    assert result.endpoint_attempts[1].delivery_attempts == (
+        {
+            "route": "cloudflare_relay",
+            "outcome": "success",
+            "status_code": 200,
+            "content_chars": 500,
+            "content_sha256": "a" * 64,
+            "preview": "finance news",
+            "error": "",
+        },
+    )
 
 
 def test_brand_probe_records_routing_failure_instead_of_dropping_brand() -> None:

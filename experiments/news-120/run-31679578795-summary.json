@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "run_id": 31679578795,
+  "repository": "ai-cooperation/finance-crawler-validation",
+  "head_sha": "4ca11b4c825e38de36c5e531a770d1cc9ed185ff",
+  "created_at": "2026-08-13T07:52:17Z",
+  "completed_at": "2026-08-13T07:53:44Z",
+  "conclusion": "success",
+  "selection": {
+    "mode": "explicit_brand_ids",
+    "selected_brands": 12,
+    "target_brands": 120,
+    "brand_ids": [
+      "bloomberg",
+      "wall_street_journal",
+      "investing_com",
+      "benzinga",
+      "money_com",
+      "private_banker_international",
+      "advisor_hub",
+      "the_trade",
+      "hedgeweek",
+      "stockhead",
+      "moneycontrol",
+      "bitcoin_magazine"
+    ]
+  },
+  "summary": {
+    "successful_brands": 9,
+    "failed_brands": 3,
+    "endpoint_attempts": 15,
+    "batch_success_rate": 0.75,
+    "baseline_successful_brands": 101,
+    "merged_successful_brands": 110,
+    "merged_target_brands": 120,
+    "merged_success_rate": 0.9167
+  },
+  "successful_brand_ids": [
+    "bloomberg",
+    "wall_street_journal",
+    "investing_com",
+    "money_com",
+    "the_trade",
+    "hedgeweek",
+    "stockhead",
+    "moneycontrol",
+    "bitcoin_magazine"
+  ],
+  "failed_brand_ids": [
+    "benzinga",
+    "private_banker_international",
+    "advisor_hub"
+  ],
+  "artifact": {
+    "name": "finance-crawler-capability-report-news_120",
+    "news_report_json_sha256": "42198ebba221070dad28898f52bf1024cc438785ac9df17e426684b63be8559c",
+    "news_report_markdown_sha256": "66231930a2080d48041c99e0d8f5953de7980a7376cb5d3f2be01774d5a0c1fb"
+  }
+}

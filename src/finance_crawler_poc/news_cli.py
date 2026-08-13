@@ -67,7 +67,9 @@ async def run(
         )
     }
 
-    http_adapter = HttpAdapter()
+    http_adapter = HttpAdapter(
+        relay_base_url=os.environ.get("CF_RELAY_BASE_URL")
+    )
     browser_adapter = Crawl4AIAdapter()
     adapters = {
         "json_api": http_adapter,
