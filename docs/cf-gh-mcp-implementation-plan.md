@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
-更新日期：2026-08-10  
-狀態：資料契約、Ingest Worker、D1／R2 與 15 來源議題雷達已在隔離驗證帳號完成單次 GitHub OIDC 垂直切片；正式排程、長期穩定性、外部告警與故障恢復尚未驗收。
+更新日期：2026-08-13
+狀態：資料契約、Ingest Worker、D1／R2 與 15 來源議題雷達已在隔離驗證帳號完成單次 GitHub OIDC 垂直切片；實作順序已固定為 P0 基礎關卡 → P2 120 來源關卡 → P1 應用整合 → MCP／Agent 使用者介面裁示。正式排程、長期穩定性、外部告警與故障恢復尚未驗收。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -14,6 +14,8 @@
 - chat.ai 透過 MCP 讀取已整理的資料，負責後續追問與即時推理。
 - 免費額度優先；Workers Paid、Container、商業 proxy／web unlocker 與雙雲高可用都不是第一階段必要條件。OpenBB provider 與 TradingAgents 模型費用另設獨立 budget gate，不併入 GitHub／Cloudflare 免費額度宣稱。
 - 爬取維持 Browser＋API＋RSS 分層，並按來源、資源與失敗類型選擇執行平台。
+- 交付順序以資料供應能力為先：P0 完成後先驗收 120 個不重複新聞品牌，再串接 OpenBB 與 TradingAgents；MCP 與 Agent 對外介面留到最後由使用者裁示。
+- P0 只預留穩定的 ID、schema、權限邊界與版本策略，不因預留 MCP 契約而提前實作 MCP Server 或 Chat Agent UI。
 
 ## 二、目標資料流
 
@@ -107,7 +109,9 @@ Cloudflare 端以目前時間減去 `last_successful_crawl` 判斷 freshness。�
 - `robots_denied`、`auth_required`、paywall 是終止狀態，不切換 IP、browser 或 unlocker 規避。
 - 商業 executor、residential proxy 或 web unlocker 只有在明確授權與成本預算開啟後才能使用。
 
-## 七、MCP 介面
+## 七、MCP 介面候選契約（待最終裁示）
+
+本節只作為 P0 資料邊界與權限設計的候選契約，不代表已批准實作的使用者介面。必須先完成 120 來源驗收與 OpenBB／TradingAgents 應用層，再由使用者裁示 MCP tools、Chat Agent 形態、對外權限與是否開放寫入型 tool。
 
 OAuth scope 預計分為：
 
@@ -119,7 +123,7 @@ OAuth scope 預計分為：
 - `refresh:write`（選配）
 - `admin`
 
-第一階段 MCP tools：
+候選 MCP tools：
 
 - `search_topics`
 - `get_topic_evidence`
@@ -132,16 +136,29 @@ OAuth scope 預計分為：
 
 公開介面不得取得研究報告、私有證據、稽核明細或私有文件；完整資料只經過授權 MCP scope 存取。
 
-## 八、分階段里程碑
+## 八、交付順序與驗收關卡
+
+P0、P2、P1 是既有 backlog 標籤，不直接代表施工先後。本專案以下表的 Gate 順序為唯一執行順序；前一關未驗收，不開始後一關的主體實作。
+
+| 順序 | Backlog | 交付範圍 | 進入下一關前的驗收證據 |
+|---:|---|---|---|
+| Gate 1 | P0 | 補齊 SDD／TDD、遠端重放與故障注入、checkpoint／catch-up、D1 status／freshness、外部告警、額度保護與低頻 soak | 契約可追溯，失敗不破壞 last-good，重放不產生重複資料，過期與 workflow 失敗會產生外部告警，並有實際用量記錄 |
+| Gate 2 | P2 提前執行 | 120 個不重複新聞品牌的 Browser＋API＋RSS 路由、fallback、來源健康、跨時間 observation state 與同 URL executor A／B | 120／120 都有品牌級實測記錄；成功分子只計不重複品牌；每個失敗都有可追溯原因與合規終止／fallback 判定；使用按需、分批、優先重驗失敗或證據過期來源，不固定全量重跑三輪 |
+| Gate 3 | P1 應用整合 | 先以 OpenBB 建立市場快照與時間軸對齊，再以 TradingAgents 產生 bull／bear／risk 可溯源「第二意見」 | 實際來源資料可完成 topic↔market↔evidence 關聯；報告可重跑、可中斷續跑、有預算關卡，且不將模型輸出宣稱為交易事實 |
+| Gate 4 | 使用者裁示 | 決定 MCP／Chat Agent 的用戶任務、tools、OAuth scopes、讀寫邊界、回應形態與客戶端 | 使用者批准介面 SDD 與驗收用例後，才開始 MCP Server 與 Agent 實作 |
+
+Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120；這些是待驗證的驗收目標，不是已實測結果。現有 99／120 基準來自舊 GitHub 帳號的單輪實驗，只當失敗分群與優先重驗的起點，不取代 `ai-cooperation` 與 Cloudflare 隔離驗證帳號下的驗收證據。
+
+### 現有能力狀態（不代表施工順序）
 
 | 階段 | 狀態 | 交付與驗證 |
 |---|---|---|
 | 0. 來源與路由 POC | 部分完成 | 已完成來源矩陣、120 品牌單一 GitHub executor 擴大樣本與 15 來源垂直切片；跨時間 observation state 與同 URL 多 executor A/B 待辦 |
-| 1. 資料契約 | 本機完成 | 七份 version 1 JSON Schema、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
+| 1. 資料契約 | 本機完成 | 八份 version 1 JSON Schema（含只讀 status response）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain 與 Ingest Worker 已部署；run `31369726174` 寫入 38 items 與 1 個 current snapshot，並直讀 R2 object 驗證 hash |
 | 3. GH 批次管線 | 手動 OIDC 實接完成 | ingest envelope、immutable repo／owner／workflow／ref claims、commit SHA／workflow run 綁定、checkpoint 與單次 staging→publish 已實辦；遠端重放、catch-up、真正外部告警與 staleness 待辦 |
 | 4. 議題雷達與研究 | 遠端垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
-| 5. OAuth MCP | 待辦 | scope、查詢 tools、freshness／partial 揭露、公開與私有權限測試 |
+| 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
 | 6. 穩定性驗收 | 待辦 | 故障注入、額度觀測、連續一週正常排程與補跑紀錄 |
 
 不以「已送出 workflow」視為完成。每一階段必須有可重現測試、實際輸出或 health response 才能改成已完成。
@@ -169,7 +186,17 @@ OAuth scope 預計分為：
 - R2：直接讀回 topic JSON（4,085 bytes）與一個 raw JSON（66,104 bytes）；topic SHA-256 `4aff9ea563bf190ab4bee9bd9e187b92b9cbbd7f5a118c138d0f358978fc7093` 與 D1 完全一致。R2 bucket usage 彙總當時仍顯示 0，因此驗收以直接 object get 為準，不以延遲的彙總指標推定。
 - 公開 artifact 只有 source-health `run-report.json`；raw items 與 topic snapshot 沒有上傳為 GitHub artifact。
 
-進入 OpenBB 前仍須完成：遠端重放去重、故障注入確認 last-good、catch-up 視窗、外部失敗通知與 staleness watchdog。正式 schedule 仍保持關閉。
+進入 OpenBB 前仍須依序完成 Gate 1 與 Gate 2：遠端重放去重、故障注入確認 last-good、catch-up 視窗、外部失敗通知、staleness watchdog，以及 120 個不重複新聞品牌的隔離帳號實測與失敗分群。正式 schedule 仍保持關閉。
+
+### 2026-08-13 P0 重放與 status 本機實作
+
+本機已完成 canonical ingest receipt migration、同 ID 異 payload 409 衝突、publish replay 不重設 current、D1-backed `GET /v1/status`，以及手動 workflow 的選配 `verify_resilience`。驗證選項預設關閉；開啟時使用同一輪 15 來源垂直切片的真實 payload，在同一 job 內完成 replay、invalid publish，再比對 status 的 snapshot ID 與 content hash，不另外多跑第二輪爬取。
+
+- 本機回歸：Python 121、Ingest Worker 31、RSS Relay 5、Crawlee 9、Browser Run 12，合計 178 項通過。
+- Python coverage：81.27%，pyproject 80% 門檻通過。
+- Ingest Worker coverage：statements 86.89%、branches 81.30%、functions 94.64%、lines 88.14%；四項 80% 門檻已寫入 Vitest config。
+- Wrangler type check、TypeScript typecheck、workflow YAML 語法與 deploy dry-run 通過。
+- 上述全部是本機證據；`0002_ingest_receipts.sql`、Worker 新版、`/v1/status` 與 resilience workflow 尚未遠端部署，因此 Gate 1 的「遠端重放／last-good 故障注入」仍未驗收完成。
 
 ## 九、驗收條件
 

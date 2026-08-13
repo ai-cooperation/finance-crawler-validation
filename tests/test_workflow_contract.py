@@ -48,6 +48,12 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert '"$INGEST_WORKER_URL/v1/ingest/items"' in workflow
     assert '"$INGEST_WORKER_URL/v1/ingest/publish"' in workflow
     assert "finance-topic-radar-${{ github.run_id }}" in workflow
+    assert "verify_resilience" in workflow
+    assert "default: false" in workflow
+    assert "Verify replay and last-good resilience" in workflow
+    assert '"$INGEST_WORKER_URL/v1/status"' in workflow
+    assert 'replayed == true' in workflow
+    assert 'invalid_payload' in workflow
     assert "gh issue create" in workflow
 
 

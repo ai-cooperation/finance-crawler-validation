@@ -2,6 +2,12 @@ name: Finance topic radar vertical slice
 
 on:
   workflow_dispatch:
+    inputs:
+      verify_resilience:
+        description: Replay the published payload and inject one invalid publish
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -59,6 +65,52 @@ jobs:
             --header "Content-Type: application/json" \
             --data-binary @artifacts/topic-radar/topic-snapshot.json \
             "$INGEST_WORKER_URL/v1/ingest/publish"
+
+      - name: Verify replay and last-good resilience
+        if: ${{ inputs.verify_resilience }}
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          status_before="$(curl --fail-with-body --silent --show-error \
+            "$INGEST_WORKER_URL/v1/status")"
+          items_replay="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/ingest-envelope.json \
+            "$INGEST_WORKER_URL/v1/ingest/items")"
+          jq -e '.replayed == true' <<<"$items_replay"
+          publish_replay="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/topic-snapshot.json \
+            "$INGEST_WORKER_URL/v1/ingest/publish")"
+          jq -e '.replayed == true' <<<"$publish_replay"
+          jq '.unexpected_failure_injection = true' \
+            artifacts/topic-radar/topic-snapshot.json \
+            >"$RUNNER_TEMP/invalid-topic-snapshot.json"
+          failure_status="$(curl --silent --show-error \
+            --output "$RUNNER_TEMP/invalid-publish-response.json" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/invalid-topic-snapshot.json" \
+            "$INGEST_WORKER_URL/v1/ingest/publish")"
+          test "$failure_status" = "422"
+          jq -e '.error == "invalid_payload"' \
+            "$RUNNER_TEMP/invalid-publish-response.json"
+          status_after="$(curl --fail-with-body --silent --show-error \
+            "$INGEST_WORKER_URL/v1/status")"
+          test "$(jq -r '.current_snapshot.snapshot_id' <<<"$status_after")" = \
+            "$(jq -r '.current_snapshot.snapshot_id' <<<"$status_before")"
+          test "$(jq -r '.current_snapshot.content_sha256' <<<"$status_after")" = \
+            "$(jq -r '.current_snapshot.content_sha256' <<<"$status_before")"
 
       - name: Upload public source-health report
         if: always() && hashFiles('artifacts/topic-radar/run-report.json') != ''
