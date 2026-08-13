@@ -1,6 +1,9 @@
 name: Finance topic radar vertical slice
 
 on:
+  schedule:
+    # One daily collection bounds Actions use; D1 admission remains the hard gate.
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       verify_resilience:
@@ -40,15 +43,19 @@ jobs:
     steps:
       - name: Reject mutually exclusive control-plane validation modes
         if: >-
+          github.event_name == 'workflow_dispatch' &&
+          (
           (inputs.verify_alert_delivery && inputs.verify_freshness_watchdog) ||
           (inputs.verify_alert_delivery && inputs.verify_soak_boundary) ||
           (inputs.verify_freshness_watchdog && inputs.verify_soak_boundary)
+          )
         run: |
           echo "::error title=Invalid alert validation::Select only one alert validation mode."
           exit 2
 
       - name: Inject alert delivery validation failure
         if: >-
+          github.event_name == 'workflow_dispatch' &&
           inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
           !inputs.verify_soak_boundary
@@ -58,6 +65,7 @@ jobs:
 
       - name: Run authenticated freshness watchdog
         if: >-
+          github.event_name == 'workflow_dispatch' &&
           inputs.verify_freshness_watchdog &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_soak_boundary
@@ -91,6 +99,7 @@ jobs:
 
       - name: Verify manual identity cannot write soak evidence
         if: >-
+          github.event_name == 'workflow_dispatch' &&
           inputs.verify_soak_boundary &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog

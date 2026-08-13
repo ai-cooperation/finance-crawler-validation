@@ -41,7 +41,8 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     )
 
     assert "workflow_dispatch:" in workflow
-    assert "schedule:" not in workflow
+    assert "schedule:" in workflow
+    assert 'cron: "17 3 * * *"' in workflow
     assert "id-token: write" in workflow
     assert "contents: read" in workflow
     assert "issues: write" in workflow
@@ -68,6 +69,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "gh issue create" in workflow
     assert "Inject alert delivery validation failure" in workflow
     assert "Run authenticated freshness watchdog" in workflow
+    assert "github.event_name == 'workflow_dispatch'" in workflow
     assert "Resolve prior action failure alerts" in workflow
     assert '"$INGEST_WORKER_URL/v1/alerts/action-recovery"' in workflow
     assert (
@@ -129,4 +131,4 @@ def test_ingest_worker_is_locked_to_the_validation_repository() -> None:
     assert '"GITHUB_OIDC_AUDIENCE": "finance-crawler-validation-ingest"' in config
     assert '"ALERT_WEBHOOK_FORMAT": "auto"' in config
     assert '"traces": { "enabled": false }' in config
-    assert '"crons"' not in config
+    assert '"crons": ["17 */6 * * *"]' in config
