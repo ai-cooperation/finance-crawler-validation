@@ -4,7 +4,7 @@
 
 ## 範圍與成功標準
 
-本批只處理 Ingest Worker 的三個 P0 風險：同一 GitHub run 安全重放、發布失敗保留 last-good、以及從 D1 讀取可驗證的 snapshot freshness。不啟用 schedule、不建立 MCP Server、不接任何商業 proxy，也不在這批實作 120 來源排程。
+本契約先完成 Ingest Worker 的安全重放、發布失敗保留 last-good 與 D1 snapshot freshness，再補上 checkpoint catch-up、原子額度租約、外部告警與 freshness watchdog。不建立 MCP Server、不接商業 proxy；Cron 必須等外部 webhook 實際送達後才可啟用。
 
 完成必須同時滿足：
 
@@ -14,6 +14,9 @@
 - 同一 `snapshot_id` 但內容不同時回傳 HTTP 409 `snapshot_payload_conflict`。
 - 無論有無 current snapshot，`GET /v1/status` 都只從 D1 回傳 version 1 的狀態契約，不暴露 raw content、token 或私有證據。
 - 手動 workflow 的 resilience 驗證是預設關閉的選配項；開啟時使用同一輪 15 來源垂直切片的真實 payload，在同一個 run 內完成 replay 與 invalid publish，不另外多跑第二輪爬取。禁止使用會覆蓋 current snapshot 或汙染來源健康分母的 synthetic publish。
+- 收集前以同一 GitHub OIDC identity 呼叫 `POST /v1/run/plan`；未獲 admission 不安裝 Chromium、不爬取、不寫入 ingest。
+- 每 UTC 日最多租出 2 個 run admission，成功租約至少間隔 21,600 秒；同一 workflow run 重放相同決策，不重複占用額度。
+- Action failure 與 freshness stale／empty 只在外部 webhook 回應 2xx 後寫入告警 receipt；同一事件去重，freshness 恢復時發送 recovery。
 
 ## 契約與資料擁有權
 
@@ -42,6 +45,24 @@ D1 以 `run_id` 擁有 run identity 與 canonical payload SHA-256；R2 只保存
 
 D1 讀取失敗回傳 HTTP 503 `status_unavailable`。
 
+### POST `/v1/run/plan`
+
+只接受 `topic-radar.yml` 的 GitHub OIDC。request 必須綁定 token 的 workflow run ID 與 commit SHA，並包含與 manifest 同序的 1–20 個唯一 `source_id`。回應包含 admission 決策、重試秒數、每日與最短間隔政策，以及 D1 `source_state` 的 checkpoint metadata；不回傳 raw content。
+
+Runner 將 checkpoint 轉成三種有限追補：
+
+- `rss_window`：feed URL 不變，先依 last article／crawl 時間減五分鐘 overlap 過濾，再套 `max_items`。
+- `api_since`：HN Algolia 注入 `numericFilters=created_at_i>`、Stack Exchange 注入 `fromdate`、GitHub Issues 注入 `since`。
+- `latest_only`：CoinGecko、World Bank 與 Browser 不宣稱可追補歷史，只保存當期 snapshot。
+
+所有可追補窗最多回看七天，未有 checkpoint 或過舊 checkpoint 都 clamp 到七天；未來 checkpoint clamp 到本輪時間。
+
+### POST `/v1/alerts/action-failure` 與 scheduled watchdog
+
+Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。Worker 對 `ALERT_WEBHOOK_URL` 送出通用 HTTPS JSON，目的地可由 Slack／Telegram adapter 或自有 webhook 轉接。非 HTTPS、redirect、network error 或非 2xx 都是明確失敗，不留下「已通知」receipt。
+
+Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_freshness`；重複異常只更新偵測時間，不重送；恢復到 `healthy`／`warning` 時發送 resolved，再更新 D1。Cloudflare Cron 在 webhook secret 與實際送達驗證前保持關閉。
+
 ## 狀態與不變量
 
 1. `current_snapshot` 只能指向已驗證且已持久化的 topic snapshot。
@@ -64,6 +85,11 @@ D1 讀取失敗回傳 HTTP 503 `status_unavailable`。
 10. 舊 run 無 receipt 時拒絕，不自動補寫不可驗證的 hash。
 11. warning／stale 設定非正整數或 stale 不大於 warning 時拒絕啟動 status 判定。
 12. status 不接受 POST，ingest 不接受 GET，未知路徑保持 404。
+13. admission 使用 D1 條件式 insert，兩個並行 run 不得同時穿透每日或最短間隔限制。
+14. 同一 workflow run 只能對應一個 commit SHA 與一個 admission 決策。
+15. RSS／API catch-up 的實際 request URL 與 filter 必須保存於 run report，不只保存 checkpoint。
+16. 外部 webhook 成功前不得寫入 open／resolved receipt；失敗必須向上拋出。
+17. `operational_alerts` 同一 key 只允許 open → deduplicated → resolved 的可稽核轉移。
 
 ## Given／When／Then 驗收
 
@@ -74,6 +100,10 @@ D1 讀取失敗回傳 HTTP 503 `status_unavailable`。
 - Given 無 snapshot，When 查詢 status，Then 回傳 version 1 `empty` response。
 - Given snapshot 已過 stale 門檻，When 查詢 status，Then 回傳 `stale` 與 `freshness_stale`。
 - Given 手動 workflow 開啟 resilience 選項，When 資料發布完成，Then 同一 job 驗證 ingest replay、publish replay、invalid publish 與 status pointer 不變。
+- Given 已有 checkpoint，When 建立 catch-up window，Then RSS 先過濾再截斷，支援 since 的 API 實際改寫 URL，latest-only 來源不偽裝歷史追補。
+- Given quota 已滿或 quiet interval 未過，When workflow 取得 run plan，Then 在安裝 Chromium 前正常跳過昂貴步驟。
+- Given GitHub run 失敗，When webhook 回應 2xx，Then D1 只保存一次 open receipt；回應非 2xx 時不保存。
+- Given freshness 已 stale 且後續恢復，When watchdog 連續檢查，Then 外部只收到 open 與 resolved 各一次。
 
 ## 遠端驗收紀錄
 

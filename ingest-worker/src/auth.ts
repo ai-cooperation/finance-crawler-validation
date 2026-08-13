@@ -79,12 +79,16 @@ export function assertGithubClaims(
     ["repository_owner_id", expected.ownerId],
     ["workflow_ref", expected.workflowRef],
     ["ref", expected.ref],
-    ["event_name", expected.eventName],
   ];
   for (const [claimName, expectedValue] of checks) {
     if (stringClaim(claims, claimName) !== expectedValue) {
       throw new AuthenticationError(403, `oidc_claim_mismatch:${claimName}`);
     }
+  }
+  const eventName = stringClaim(claims, "event_name");
+  const allowedEvents = expected.eventName.split(",").map((value) => value.trim());
+  if (!allowedEvents.includes(eventName)) {
+    throw new AuthenticationError(403, "oidc_claim_mismatch:event_name");
   }
 }
 

@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
 更新日期：2026-08-13
-狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；實作順序固定為 P0 基礎關卡 → P2 120 來源關卡 → P1 應用整合 → MCP／Agent 使用者介面裁示。正式排程仍關閉，P0 尚待 catch-up、外部 staleness／失敗告警、額度保護與低頻 soak。
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、114 成功（95.00%）驗收。P0 的 catch-up、D1 原子 admission、Action failure webhook 與 watchdog 已進入部署驗證；正式 Cron 仍須等外部 webhook 目的地實際送達後啟用。後續順序固定為關閉 P0 → P1 OpenBB／TradingAgents → MCP／Agent 使用者介面裁示。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -186,7 +186,7 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 - R2：直接讀回 topic JSON（4,085 bytes）與一個 raw JSON（66,104 bytes）；topic SHA-256 `4aff9ea563bf190ab4bee9bd9e187b92b9cbbd7f5a118c138d0f358978fc7093` 與 D1 完全一致。R2 bucket usage 彙總當時仍顯示 0，因此驗收以直接 object get 為準，不以延遲的彙總指標推定。
 - 公開 artifact 只有 source-health `run-report.json`；raw items 與 topic snapshot 沒有上傳為 GitHub artifact。
 
-進入 OpenBB 前仍須依序完成 Gate 1 與 Gate 2：catch-up 視窗、外部失敗通知、staleness watchdog、額度保護與低頻 soak，以及 120 個不重複新聞品牌的隔離帳號實測與失敗分群。正式 schedule 仍保持關閉。
+進入 OpenBB 前須關閉 Gate 1：完成 catch-up／admission 的遠端實測、配置並驗證外部 webhook、啟用低頻 schedule 與累積 soak 證據。Gate 2 已完成 120 個不重複新聞品牌的隔離帳號驗收；正式 schedule 在告警出口就緒前保持關閉。
 
 ### 2026-08-13 P0 重放與 status 實作
 

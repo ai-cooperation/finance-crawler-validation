@@ -15,6 +15,7 @@ from finance_crawler_poc.adapters import Crawl4AIAdapter, HttpAdapter
 from finance_crawler_poc.contracts import build_item_id, validate_contract
 from finance_crawler_poc.models import FetchResponse, Source
 from finance_crawler_poc.radar_manifest import RadarManifest, RadarSource
+from finance_crawler_poc.radar_run_plan import CatchupWindow
 
 
 Extractor = Callable[[RadarSource, str], Iterable[dict[str, Any]]]
@@ -44,6 +45,8 @@ def extract_source_items(
     source: RadarSource,
     response: FetchResponse,
     collected_at: str,
+    *,
+    published_since: str | None = None,
 ) -> list[dict[str, Any]]:
     if response.error:
         raise ValueError(response.error)
@@ -52,9 +55,19 @@ def extract_source_items(
     if not response.content.strip():
         raise ValueError("empty response content")
     extractor = EXTRACTORS[source.extractor]
-    records = list(extractor(source, response.content))[: source.max_items]
+    records = list(extractor(source, response.content))
+    if not records and published_since is not None:
+        return []
     if not records:
         raise ValueError("extractor returned no items")
+    if published_since is not None:
+        records = [
+            record for record in records
+            if _record_is_in_window(record, published_since)
+        ]
+        if not records:
+            return []
+    records = records[: source.max_items]
 
     items: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
@@ -74,6 +87,7 @@ async def collect_radar_sources(
     manifest: RadarManifest,
     *,
     collected_at: str,
+    catchup_windows: tuple[CatchupWindow, ...] | None = None,
 ) -> RadarCollection:
     http_adapter = HttpAdapter()
     browser_adapter = Crawl4AIAdapter()
@@ -81,15 +95,28 @@ async def collect_radar_sources(
     checkpoints: list[dict[str, Any]] = []
     results: list[dict[str, Any]] = []
     try:
-        for source in manifest.sources:
+        windows = catchup_windows or tuple(
+            CatchupWindow(source.source_id, "latest_only", source.canonical_url, None)
+            for source in manifest.sources
+        )
+        if [window.source_id for window in windows] != [
+            source.source_id for source in manifest.sources
+        ]:
+            raise ValueError("catch-up windows do not match manifest source order")
+        for source, window in zip(manifest.sources, windows, strict=True):
             adapter = browser_adapter if source.transport == "browser" else http_adapter
             response: FetchResponse | None = None
             try:
-                response = await adapter.fetch(_as_probe_source(source))
-                source_items = extract_source_items(source, response, collected_at)
+                response = await adapter.fetch(_as_probe_source(source, window.request_url))
+                source_items = extract_source_items(
+                    source,
+                    response,
+                    collected_at,
+                    published_since=window.published_since,
+                )
                 remaining = manifest.maximum_items_per_run - len(items)
                 source_items = source_items[:remaining]
-                if not source_items:
+                if remaining <= 0:
                     raise ValueError("maximum_items_per_run reached")
                 items.extend(source_items)
                 published = [
@@ -114,6 +141,8 @@ async def collect_radar_sources(
                         "status_code": response.status_code,
                         "route": response.route,
                         "item_count": len(source_items),
+                        "catchup_strategy": window.strategy,
+                        "published_since": window.published_since,
                         "error": "",
                     }
                 )
@@ -127,7 +156,10 @@ async def collect_radar_sources(
                         "cursor": None,
                     }
                 )
-                results.append(_source_failure_result(source, response, exc))
+                failure = _source_failure_result(source, response, exc)
+                failure["catchup_strategy"] = window.strategy
+                failure["published_since"] = window.published_since
+                results.append(failure)
     finally:
         await http_adapter.close()
         await browser_adapter.close()
@@ -154,18 +186,30 @@ def _source_failure_result(
     }
 
 
-def _as_probe_source(source: RadarSource) -> Source:
+def _as_probe_source(source: RadarSource, request_url: str) -> Source:
     return Source(
         id=source.source_id,
         name=source.name,
         topic="topic_radar",
         transport=source.transport,
-        url=source.canonical_url,
+        url=request_url,
         min_content_chars=1,
         timeout_seconds=source.timeout_seconds,
         retries=0,
         kind=source.kind,
     )
+
+
+def _record_is_in_window(record: dict[str, Any], published_since: str) -> bool:
+    normalized = _normalize_datetime(record.get("published_at"))
+    if normalized is None:
+        return True
+    try:
+        published = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+        boundary = datetime.fromisoformat(published_since.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("published_since must be RFC 3339") from exc
+    return published >= boundary
 
 
 def _build_item(
@@ -255,7 +299,7 @@ def _extract_hn(source: RadarSource, content: str) -> Iterable[dict[str, Any]]:
             "canonical_url": url or source.canonical_url,
             "summary": "",
             "content": title,
-            "published_at": item.get("created_at"),
+            "published_at": item.get("updated_at") or item.get("created_at"),
             "engagement": {"score": item.get("points"), "comments": item.get("num_comments")},
         }
 

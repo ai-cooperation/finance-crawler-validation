@@ -34,6 +34,8 @@ SOURCE_SCHEMA_KEYS = frozenset(
     }
 )
 SOURCE_KEYS = SOURCE_SCHEMA_KEYS | {"extractor", "max_items", "timeout_seconds"}
+CATCHUP_STRATEGIES = frozenset({"rss_window", "api_since", "latest_only"})
+SOURCE_KEYS = SOURCE_KEYS | {"catchup_strategy"}
 
 
 class RadarManifestError(ValueError):
@@ -52,6 +54,7 @@ class RadarSource:
     freshness_sla_minutes: int
     rights: dict[str, object]
     extractor: str
+    catchup_strategy: str
     max_items: int
     timeout_seconds: int
 
@@ -119,6 +122,14 @@ def _parse_source(raw: Any, index: int) -> RadarSource:
         raise RadarManifestError(f"source {source_id} has unknown extractor")
     if raw["transport"] != EXTRACTOR_TRANSPORTS[extractor]:
         raise RadarManifestError(f"source {source_id} extractor and transport disagree")
+    catchup_strategy = raw["catchup_strategy"]
+    if catchup_strategy not in CATCHUP_STRATEGIES:
+        raise RadarManifestError(f"source {source_id} has unknown catchup strategy")
+    expected_catchup = _expected_catchup_strategy(extractor)
+    if catchup_strategy != expected_catchup:
+        raise RadarManifestError(
+            f"source {source_id} extractor requires catchup strategy {expected_catchup}"
+        )
     max_items = _bounded_integer(raw["max_items"], f"source {source_id} max_items", 1, 10)
     timeout = _bounded_integer(
         raw["timeout_seconds"], f"source {source_id} timeout_seconds", 5, 60
@@ -134,9 +145,18 @@ def _parse_source(raw: Any, index: int) -> RadarSource:
         freshness_sla_minutes=int(raw["freshness_sla_minutes"]),
         rights=dict(raw["rights"]),
         extractor=str(extractor),
+        catchup_strategy=str(catchup_strategy),
         max_items=max_items,
         timeout_seconds=timeout,
     )
+
+
+def _expected_catchup_strategy(extractor: str) -> str:
+    if extractor == "rss":
+        return "rss_window"
+    if extractor in {"hn_algolia", "stackexchange", "github_issues"}:
+        return "api_since"
+    return "latest_only"
 
 
 def _bounded_integer(value: object, field: str, minimum: int, maximum: int) -> int:

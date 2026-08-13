@@ -15,6 +15,7 @@ sources:
     freshness_sla_minutes: 360
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: rss
+    catchup_strategy: rss_window
     max_items: 3
     timeout_seconds: 30
 
@@ -28,6 +29,7 @@ sources:
     freshness_sla_minutes: 360
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: rss
+    catchup_strategy: rss_window
     max_items: 3
     timeout_seconds: 30
 
@@ -41,6 +43,7 @@ sources:
     freshness_sla_minutes: 120
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: rss
+    catchup_strategy: rss_window
     max_items: 3
     timeout_seconds: 30
 
@@ -54,6 +57,7 @@ sources:
     freshness_sla_minutes: 120
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: rss
+    catchup_strategy: rss_window
     max_items: 3
     timeout_seconds: 30
 
@@ -67,6 +71,7 @@ sources:
     freshness_sla_minutes: 120
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: rss
+    catchup_strategy: rss_window
     max_items: 3
     timeout_seconds: 30
 
@@ -80,6 +85,7 @@ sources:
     freshness_sla_minutes: 120
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: hn_algolia
+    catchup_strategy: api_since
     max_items: 3
     timeout_seconds: 20
 
@@ -93,6 +99,7 @@ sources:
     freshness_sla_minutes: 180
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: stackexchange
+    catchup_strategy: api_since
     max_items: 3
     timeout_seconds: 20
 
@@ -106,6 +113,7 @@ sources:
     freshness_sla_minutes: 180
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: stackexchange
+    catchup_strategy: api_since
     max_items: 3
     timeout_seconds: 20
 
@@ -119,6 +127,7 @@ sources:
     freshness_sla_minutes: 30
     rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
     extractor: coingecko_markets
+    catchup_strategy: latest_only
     max_items: 3
     timeout_seconds: 20
 
@@ -132,6 +141,7 @@ sources:
     freshness_sla_minutes: 10080
     rights: {redistribution: metadata_only, retention_days: 365, public_excerpt_chars: 0}
     extractor: world_bank
+    catchup_strategy: latest_only
     max_items: 3
     timeout_seconds: 20
 
@@ -145,6 +155,7 @@ sources:
     freshness_sla_minutes: 180
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: github_issues
+    catchup_strategy: api_since
     max_items: 3
     timeout_seconds: 20
 
@@ -158,6 +169,7 @@ sources:
     freshness_sla_minutes: 180
     rights: {redistribution: metadata_only, retention_days: 30, public_excerpt_chars: 0}
     extractor: github_issues
+    catchup_strategy: api_since
     max_items: 3
     timeout_seconds: 20
 
@@ -171,6 +183,7 @@ sources:
     freshness_sla_minutes: 360
     rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
     extractor: browser_document
+    catchup_strategy: latest_only
     max_items: 1
     timeout_seconds: 40
 
@@ -184,6 +197,7 @@ sources:
     freshness_sla_minutes: 120
     rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
     extractor: browser_document
+    catchup_strategy: latest_only
     max_items: 1
     timeout_seconds: 40
 
@@ -197,5 +211,6 @@ sources:
     freshness_sla_minutes: 360
     rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
     extractor: browser_document
+    catchup_strategy: latest_only
     max_items: 1
     timeout_seconds: 40
