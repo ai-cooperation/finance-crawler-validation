@@ -141,6 +141,7 @@ async def collect_radar_sources(
                         "status_code": response.status_code,
                         "route": response.route,
                         "item_count": len(source_items),
+                        "request_url": window.request_url,
                         "catchup_strategy": window.strategy,
                         "published_since": window.published_since,
                         "error": "",
@@ -159,6 +160,7 @@ async def collect_radar_sources(
                 failure = _source_failure_result(source, response, exc)
                 failure["catchup_strategy"] = window.strategy
                 failure["published_since"] = window.published_since
+                failure["request_url"] = window.request_url
                 results.append(failure)
     finally:
         await http_adapter.close()
@@ -182,6 +184,7 @@ def _source_failure_result(
         "status_code": response.status_code if response is not None else None,
         "route": response.route if response is not None else "unknown",
         "item_count": 0,
+        "request_url": source.canonical_url,
         "error": f"{type(error).__name__}: {error}"[:1000],
     }
 

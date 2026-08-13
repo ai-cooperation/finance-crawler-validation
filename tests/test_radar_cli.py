@@ -61,6 +61,9 @@ def test_artifact_builder_outputs_ingest_ready_contracts() -> None:
             "status_code": 200,
             "route": "synthetic_test",
             "item_count": 1,
+            "request_url": source.canonical_url,
+            "catchup_strategy": source.catchup_strategy,
+            "published_since": None,
             "error": "",
         }
         for source in manifest.sources
