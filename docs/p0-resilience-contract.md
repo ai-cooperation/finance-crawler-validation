@@ -59,7 +59,7 @@ Runner 將 checkpoint 轉成三種有限追補：
 
 ### POST `/v1/alerts/action-failure` 與 scheduled watchdog
 
-Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。Worker 對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；`auto` 格式依精確官方 hostname 選擇 Slack Incoming Webhook、Telegram Bot API、ntfy，其他目的地使用 version 1 generic JSON。外送有 10 秒 timeout，非 HTTPS、redirect、network error、非 2xx 或 provider-level rejection 都是明確失敗，不留下「已通知」receipt。日誌不記錄可能回顯 webhook URL／token 的 fetch error message。
+Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。Worker 對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；`auto` 格式依精確官方 hostname 選擇 Slack Incoming Webhook、Telegram Bot API、ntfy，其他目的地使用 version 1 generic JSON。外送有 10 秒 timeout，非 HTTPS、redirect、network error、非 2xx 或 provider-level rejection 都是明確失敗，不留下「已通知」receipt。日誌不記錄可能回顯 webhook URL／token 的 fetch error message。Workers fetch traces 會保存 `url.full`、`url.path` 與 `url.query`，而 Slack／Telegram URL 含 bearer secret，因此本 Worker 必須關閉 traces，只開啟已去除 secret 的結構化 logs。
 
 已有 D1 receipt 的一般 workflow replay 不重送。但 provider 與 D1 之間無法建立跨系統交易；若 Worker 在 provider 已收件、D1 receipt 尚未落盤的極小 crash window 中斷，後續重試可能重複告警。因此契約是 at-least-once 與可識別 `alert_key`，不宣稱跨系統 exactly-once；告警必須偏向重複而不得靜默遺失。
 

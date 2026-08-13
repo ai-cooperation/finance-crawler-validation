@@ -10,7 +10,9 @@
   "observability": {
     "enabled": true,
     "logs": { "head_sampling_rate": 1 },
-    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+    // Fetch traces include url.full/path/query. Alert provider URLs are bearer
+    // secrets (Slack path, Telegram token/query), so tracing must stay off.
+    "traces": { "enabled": false }
   },
   "vars": {
     "GITHUB_OIDC_AUDIENCE": "finance-crawler-validation-ingest",

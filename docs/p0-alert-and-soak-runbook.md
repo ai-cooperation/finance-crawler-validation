@@ -48,7 +48,7 @@ unset ALERT_ENDPOINT
 npx wrangler secret list
 ```
 
-`secret list` 只應出現 secret 名稱，不應顯示值。Worker 的 outbound request 有 10 秒 timeout、`redirect: manual`；任何 3xx、非 2xx、Slack 非 `ok` 或 Telegram JSON `ok != true` 都是失敗，且不寫入 D1 「已通知」receipt。外部 provider 已收件但 D1 尚未落盤時若 Worker 中斷，重試可能重複送達；這是 at-least-once 的安全取捨，收件端應以 `alert_key` 識別同一事件。
+`secret list` 只應出現 secret 名稱，不應顯示值。Worker 的 outbound request 有 10 秒 timeout、`redirect: manual`；任何 3xx、非 2xx、Slack 非 `ok` 或 Telegram JSON `ok != true` 都是失敗，且不寫入 D1 「已通知」receipt。Workers tracing 必須保持關閉，因為官方自動 fetch spans 會收集完整 URL，可暴露 Slack／Telegram bearer secret；結構化 logs 不得寫入 fetch error message。外部 provider 已收件但 D1 尚未落盤時若 Worker 中斷，重試可能重複送達；這是 at-least-once 的安全取捨，收件端應以 `alert_key` 識別同一事件。
 
 ## 手動故障注入驗收
 
