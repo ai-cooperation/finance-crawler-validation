@@ -80,6 +80,12 @@ gh workflow run topic-radar.yml \
 
 [Actions run 31692456847](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31692456847) 隨後對真實 D1 `healthy` freshness 執行 OIDC watchdog，workflow 成功、昂貴步驟仍全部 skipped，sink request count 維持 1。測試後 primary／fallback secret 清空、臨時 sink 刪除，Worker `/health` 與 `/v1/status` 均為 HTTP 200。結構化證據見 [`../experiments/p0-alerts/fallback-validation-20260813.json`](../experiments/p0-alerts/fallback-validation-20260813.json)。這次只證明機器 fallback、replay 去重與健康控制路徑，不取代真人收件，也尚未驗證真實 stale 的 open／deduplicated／resolved。
 
+### 2026-08-13 freshness 狀態機實測
+
+未修改 D1 snapshot，僅以 `Synthetic for testing only` 的 1／2 秒暫時門檻讓正式 status 可逆地進入 stale。[run 31693420412](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693420412) 產生 open 與 sink 第 1 筆；[run 31693443611](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693443611) 去重後 sink 仍為 1，D1 只更新 `last_detected_at`；重新 deploy 正式 21,600／86,400 秒門檻後，[run 31693496333](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693496333) 送出 resolved，sink 最終事件序列恰為 `open, resolved`。三個 run 均跳過 checkout／admission／Chromium／collect／ingest，D1 admission 前後均為 5。
+
+清理後 status freshness 為 healthy、正式門檻已還原、D1 告警為 resolved、secret 清單為空、臨時 sink 已刪除，兩個端點均為 HTTP 200，且仍無 schedule／Cron。結構化證據見 [`../experiments/p0-alerts/freshness-state-machine-20260813.json`](../experiments/p0-alerts/freshness-state-machine-20260813.json)。這完成機器狀態機證明，但不等於真人目的地已收件。
+
 再手動執行一次真實 D1 freshness watchdog：
 
 ```bash
@@ -90,7 +96,7 @@ gh workflow run topic-radar.yml \
   -f verify_resilience=false
 ```
 
-這條路徑也必須跳過 checkout／Python／admission／Chromium／collect／ingest，只以 OIDC 綁定的 request 執行與 Cron 相同的 watchdog。使用者必須驗證 stale／empty 時的 open、重複檢查的 deduplicated 與恢復後的 resolved。
+這條路徑也必須跳過 checkout／Python／admission／Chromium／collect／ingest，只以 OIDC 綁定的 request 執行與 Cron 相同的 watchdog。機器端 stale 的 open、重複檢查的 deduplicated 與恢復後的 resolved 已驗證；正式啟用前仍須在真人目的地重做收件確認。
 
 ## 啟用與回退 soak
 

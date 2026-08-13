@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "validated_at": "2026-08-13T10:59:32Z",
+  "scope": "zero-crawl remote freshness alert state-machine validation",
+  "accounts": {
+    "github_repository": "ai-cooperation/finance-crawler-validation",
+    "github_active_account": "ai-cooperation",
+    "cloudflare_account_email": "o970117818@gmail.com",
+    "cloudflare_account_id": "ca985c195ab218488fc0744692dbde21"
+  },
+  "software_under_test": {
+    "git_commit_sha": "7194bea237767d50783b4e02a13038fb49466727",
+    "temporary_stale_worker_version": "177c86c9-1a4a-4ee9-b7eb-1aef2e542980",
+    "restored_policy_worker_version": "117c5be2-57bc-48de-bb62-9be3bb644dc6",
+    "active_worker_version_after_secret_cleanup": "a1b09341-c39b-4cd2-a63a-6e5cb5ecbc4a"
+  },
+  "test_setup": {
+    "classification": "Synthetic for testing only",
+    "snapshot_mutated": false,
+    "temporary_warning_after_seconds": 1,
+    "temporary_stale_after_seconds": 2,
+    "production_warning_after_seconds": 21600,
+    "production_stale_after_seconds": 86400,
+    "temporary_destination": "one-time generic HTTPS sink"
+  },
+  "transitions": [
+    {
+      "expected": "opened",
+      "run_id": 31693420412,
+      "conclusion": "success",
+      "checkout_skipped": true,
+      "admission_skipped": true,
+      "sink_delivery_count_after": 1,
+      "d1_state_after": "open"
+    },
+    {
+      "expected": "deduplicated",
+      "run_id": 31693443611,
+      "conclusion": "success",
+      "checkout_skipped": true,
+      "admission_skipped": true,
+      "sink_delivery_count_after": 1,
+      "d1_state_after": "open",
+      "first_detected_at_unchanged": true,
+      "last_notified_at_unchanged": true,
+      "last_detected_at_advanced": true
+    },
+    {
+      "expected": "resolved",
+      "run_id": 31693496333,
+      "conclusion": "success",
+      "checkout_skipped": true,
+      "admission_skipped": true,
+      "sink_delivery_count_after": 2,
+      "d1_state_after": "resolved",
+      "resolved_at_present": true
+    }
+  ],
+  "final_state": {
+    "sink_event_states": [
+      "open",
+      "resolved"
+    ],
+    "d1_run_admission_count_before": 5,
+    "d1_run_admission_count_after": 5,
+    "d1_freshness_alert_state": "resolved",
+    "production_freshness_state": "healthy",
+    "production_warning_after_seconds": 21600,
+    "production_stale_after_seconds": 86400,
+    "cloudflare_secret_names_after": [],
+    "temporary_sink_deleted": true,
+    "github_schedule_enabled": false,
+    "worker_cron_enabled": false,
+    "worker_health_http_after_cleanup": 200,
+    "worker_status_http_after_cleanup": 200
+  },
+  "evidence_classification": {
+    "real": [
+      "three GitHub Actions run and step conclusions",
+      "temporary HTTPS sink event count and open/resolved state sequence",
+      "remote D1 alert timestamps, state, and admission count",
+      "Cloudflare deployment history, secret list, and production status response"
+    ],
+    "synthetic": [
+      "freshness warning/stale thresholds were temporarily reduced without mutating the snapshot"
+    ],
+    "unverified": [
+      "delivery to a human-subscribed destination",
+      "seven-day scheduled soak"
+    ]
+  }
+}
