@@ -1,7 +1,15 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Mapping, Sequence
+
+from finance_crawler_poc.contracts import ContractValidationError, validate_contract
+
+
+EXPECTED_REPOSITORY = "ai-cooperation/finance-crawler-validation"
+EXPECTED_WORKFLOW = ".github/workflows/topic-radar.yml"
+SHA_PATTERN = re.compile(r"^[a-f0-9]{40}$")
 
 
 R2_CLASS_A_ACTIONS = frozenset(
@@ -45,13 +53,18 @@ class UsageCollectionError(ValueError):
 def build_daily_usage(
     *,
     github_run: object,
-    github_timing: object,
+    github_repository: object,
+    github_jobs: object,
     worker_groups: object,
     d1_groups: object,
     r2_groups: object,
     window_start: datetime,
     window_end: datetime,
     captured_at: datetime,
+    cloudflare_account_id: str,
+    worker_script: str,
+    d1_database_id: str,
+    r2_bucket: str,
 ) -> dict[str, object]:
     _verify_window(window_start, window_end, captured_at)
     github = _mapping(github_run, "GitHub run")
@@ -64,18 +77,22 @@ def build_daily_usage(
     if not isinstance(github.get("id"), int) or isinstance(github.get("id"), bool):
         raise UsageCollectionError("GitHub run id must be an integer")
     commit_sha = github.get("head_sha")
-    if not isinstance(commit_sha, str) or len(commit_sha) != 40:
-        raise UsageCollectionError("GitHub head_sha must be a 40-character SHA")
+    if not isinstance(commit_sha, str) or SHA_PATTERN.fullmatch(commit_sha) is None:
+        raise UsageCollectionError("GitHub head_sha must be a 40-character lowercase hexadecimal SHA")
     run_attempt = github.get("run_attempt")
     if not isinstance(run_attempt, int) or isinstance(run_attempt, bool) or run_attempt < 1:
         raise UsageCollectionError("GitHub run_attempt must be positive")
-    timing = _mapping(github_timing, "GitHub timing")
-    billable = _mapping(timing.get("billable"), "GitHub billable")
-    billable_ms = 0
-    for operating_system, value in billable.items():
-        platform = _mapping(value, f"GitHub billable {operating_system}")
-        billable_ms += _metric(platform.get("total_ms"), "GitHub billable total_ms")
-    _metric(timing.get("run_duration_ms"), "GitHub run_duration_ms")
+    if github.get("path") != EXPECTED_WORKFLOW:
+        raise UsageCollectionError(f"GitHub workflow path must be {EXPECTED_WORKFLOW}")
+    if github.get("head_branch") != "main":
+        raise UsageCollectionError("GitHub scheduled run must use the main branch")
+    embedded_repository = _mapping(github.get("repository"), "GitHub run repository")
+    repository = _mapping(github_repository, "GitHub repository")
+    if embedded_repository.get("full_name") != EXPECTED_REPOSITORY:
+        raise UsageCollectionError(f"GitHub run repository must be {EXPECTED_REPOSITORY}")
+    if repository.get("full_name") != EXPECTED_REPOSITORY or repository.get("private") is not False:
+        raise UsageCollectionError(f"GitHub repository must be public {EXPECTED_REPOSITORY}")
+    runner_seconds = _runner_seconds(github_jobs, github["id"])
 
     worker_requests = sum(
         _metric(_mapping(_mapping(group, "Worker group").get("sum"), "Worker sum").get("requests"),
@@ -107,19 +124,79 @@ def build_daily_usage(
         elif action in R2_CLASS_B_ACTIONS:
             r2_class_b += requests
 
-    return {
+    if worker_requests < 1:
+        raise UsageCollectionError("Worker requests must be positive")
+    if d1_rows_read < 1 or d1_rows_written < 1:
+        raise UsageCollectionError("D1 rows must be positive")
+    if r2_class_a < 1 or r2_class_b < 1:
+        raise UsageCollectionError("R2 Class A and Class B operations must be positive")
+
+    result = {
+        "schema_version": 1,
         "captured_at": _utc_text(captured_at),
         "window_started_at": _utc_text(window_start),
         "window_ended_at": _utc_text(window_end),
         "github_source": "github_api",
+        "github_repository": EXPECTED_REPOSITORY,
+        "github_repo_visibility": "public",
+        "workflow_run_id": str(github["id"]),
+        "run_attempt": run_attempt,
+        "commit_sha": commit_sha,
+        "github_actions_runner_seconds": runner_seconds,
+        # Standard GitHub-hosted runners in public repositories are free. Bind
+        # that assertion to both repository visibility and runner labels above.
+        "github_actions_billable_seconds": 0,
         "cloudflare_source": "cloudflare_graphql",
-        "github_actions_seconds": (billable_ms + 999) // 1000,
+        # Cloudflare explicitly says GraphQL analytics is observed usage, not
+        # its billing ledger. Keep that limitation machine-readable.
+        "cloudflare_analytics_scope": "observed_not_billing",
+        "cloudflare_account_id": _non_empty_text(cloudflare_account_id, "account id"),
+        "worker_script": _non_empty_text(worker_script, "worker script"),
+        "d1_database_id": _non_empty_text(d1_database_id, "D1 database id"),
+        "r2_bucket": _non_empty_text(r2_bucket, "R2 bucket"),
         "worker_requests": worker_requests,
         "d1_rows_read": d1_rows_read,
         "d1_rows_written": d1_rows_written,
         "r2_class_a_operations": r2_class_a,
         "r2_class_b_operations": r2_class_b,
     }
+    try:
+        validate_contract("soak-usage", result)
+    except ContractValidationError as exc:
+        raise UsageCollectionError(f"invalid soak usage contract: {exc}") from exc
+    return result
+
+
+def _runner_seconds(value: object, workflow_run_id: object) -> int:
+    jobs_payload = _mapping(value, "GitHub jobs")
+    jobs = _sequence(jobs_payload.get("jobs"), "GitHub jobs")
+    if jobs_payload.get("total_count") != len(jobs) or not jobs:
+        raise UsageCollectionError("GitHub jobs response must be complete and non-empty")
+    total_seconds = 0
+    job_ids: set[int] = set()
+    for value in jobs:
+        job = _mapping(value, "GitHub job")
+        job_id = job.get("id")
+        if not isinstance(job_id, int) or isinstance(job_id, bool) or job_id in job_ids:
+            raise UsageCollectionError("GitHub job ids must be unique integers")
+        job_ids.add(job_id)
+        if job.get("run_id") != workflow_run_id:
+            raise UsageCollectionError("GitHub job run_id must match workflow run")
+        if job.get("status") != "completed" or job.get("conclusion") != "success":
+            raise UsageCollectionError("GitHub jobs must be completed successfully")
+        labels = _sequence(job.get("labels"), "GitHub job labels")
+        runner_name = job.get("runner_name")
+        if "ubuntu-latest" not in labels or not isinstance(runner_name, str) or not runner_name.startswith(
+            "GitHub Actions "
+        ):
+            raise UsageCollectionError("GitHub job must use the standard GitHub-hosted Ubuntu runner")
+        job_started = _timestamp(job.get("started_at"), "GitHub job started_at")
+        job_completed = _timestamp(job.get("completed_at"), "GitHub job completed_at")
+        seconds = int((job_completed - job_started).total_seconds())
+        if seconds < 1:
+            raise UsageCollectionError("GitHub job duration must be positive")
+        total_seconds += seconds
+    return total_seconds
 
 
 def _verify_window(start: datetime, end: datetime, captured: datetime) -> None:
@@ -150,6 +227,12 @@ def _metric(value: object, name: str) -> int:
     if int(value) != value:
         raise UsageCollectionError(f"{name} must be a whole number")
     return int(value)
+
+
+def _non_empty_text(value: object, name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise UsageCollectionError(f"{name} must be a non-empty string")
+    return value
 
 
 def _timestamp(value: object, name: str) -> datetime:

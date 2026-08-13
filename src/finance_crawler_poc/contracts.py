@@ -20,6 +20,7 @@ CONTRACT_NAMES = frozenset(
         "research-report",
         "source-record",
         "soak-observation",
+        "soak-usage",
         "status-response",
         "topic-snapshot",
     }

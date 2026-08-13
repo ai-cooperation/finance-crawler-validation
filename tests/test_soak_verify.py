@@ -165,12 +165,24 @@ def _day(day: date, run_number: int, counters: int) -> dict[str, object]:
             ],
         },
         "usage": {
+            "schema_version": 1,
             "captured_at": _iso(day + timedelta(days=1), 1),
             "window_started_at": _iso(day, 0),
             "window_ended_at": _iso(day + timedelta(days=1), 0),
             "github_source": "github_api",
+            "github_repository": "ai-cooperation/finance-crawler-validation",
+            "github_repo_visibility": "public",
+            "workflow_run_id": str(40000000000 + run_number),
+            "run_attempt": 1,
+            "commit_sha": observation["commit_sha"],
+            "github_actions_runner_seconds": 240,
+            "github_actions_billable_seconds": 0,
             "cloudflare_source": "cloudflare_graphql",
-            "github_actions_seconds": 240,
+            "cloudflare_analytics_scope": "observed_not_billing",
+            "cloudflare_account_id": "ca985c195ab218488fc0744692dbde21",
+            "worker_script": "finance-crawler-validation-ingest",
+            "d1_database_id": "476bd84f-e924-4b9b-a9d9-dfca9ea29a1a",
+            "r2_bucket": "finance-crawler-validation-raw",
             "worker_requests": 8,
             "d1_rows_read": 200,
             "d1_rows_written": 100,
@@ -190,7 +202,7 @@ def valid_bundle() -> dict[str, object]:
         "window_ended_at": _iso(start + timedelta(days=7), 0),
         "expected_source_ids": list(SOURCE_IDS),
         "resource_ceilings": {
-            "github_actions_seconds": 2700,
+            "github_actions_runner_seconds": 2700,
             "worker_requests": 100,
             "d1_rows_read": 5000,
             "d1_rows_written": 1000,
@@ -287,6 +299,18 @@ def test_accepts_seven_consecutive_machine_and_human_verified_days() -> None:
         (
             lambda bundle: bundle["days"][2]["usage"].__setitem__("worker_requests", 101),
             "resource ceiling exceeded: worker_requests",
+        ),
+        (
+            lambda bundle: bundle["days"][2]["usage"].__setitem__(
+                "workflow_run_id", "49999999999"
+            ),
+            "usage workflow_run_id must match GitHub",
+        ),
+        (
+            lambda bundle: bundle["days"][2]["usage"].__setitem__(
+                "github_actions_billable_seconds", 1
+            ),
+            "GitHub Actions billable seconds must be zero",
         ),
         (
             lambda bundle: bundle["human_alert_validation"].__setitem__(
