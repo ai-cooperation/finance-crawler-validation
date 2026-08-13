@@ -19,6 +19,7 @@ import {
   AlertDeliveryError,
   reportActionFailure,
   reportScheduledWatchdogFailure,
+  resolveActionFailures,
 } from "./alerts";
 import {
   runAuthenticatedFreshnessWatchdog,
@@ -102,6 +103,7 @@ export function createHandler(
         "/v1/ingest/publish",
         "/v1/run/plan",
         "/v1/alerts/action-failure",
+        "/v1/alerts/action-recovery",
         "/v1/alerts/freshness-check",
         "/v1/soak/observe",
       ].includes(url.pathname)) {
@@ -126,6 +128,19 @@ export function createHandler(
         }
         if (url.pathname === "/v1/alerts/action-failure") {
           const result = await reportActionFailure(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            dependencies.alertFetch,
+          );
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.delivered ? 202 : 200,
+          );
+        }
+        if (url.pathname === "/v1/alerts/action-recovery") {
+          const result = await resolveActionFailures(
             env,
             payload,
             auth,

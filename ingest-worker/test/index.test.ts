@@ -894,6 +894,41 @@ describe("external operational alerts", () => {
     });
   }
 
+  async function arrangePublishedRecoveryRun(): Promise<void> {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO runs (
+          run_id, workflow_run_id, commit_sha, snapshot_id, source_manifest_hash,
+          status, collected_at, published_at, item_count
+        ) VALUES (?, ?, ?, ?, ?, 'published', ?, ?, 1)`,
+      ).bind(
+        "run_20260813t080000z",
+        "31309377786",
+        "d".repeat(40),
+        "radar_20260813t080000z",
+        "c".repeat(64),
+        "2026-08-13T07:59:00Z",
+        "2026-08-13T08:00:00Z",
+      ),
+      env.DB.prepare(
+        `INSERT INTO topic_snapshots (
+          snapshot_id, run_id, as_of, partial, failed_sources_json, object_key,
+          content_sha256, topic_count, created_at
+        ) VALUES (?, ?, ?, 0, '[]', ?, ?, 1, ?)`,
+      ).bind(
+        "radar_20260813t080000z",
+        "run_20260813t080000z",
+        "2026-08-13T08:00:00Z",
+        "topics/radar_20260813t080000z.json",
+        "b".repeat(64),
+        "2026-08-13T08:00:00Z",
+      ),
+      env.DB.prepare(
+        "INSERT INTO current_snapshot (singleton_id, snapshot_id, updated_at) VALUES (1, ?, ?)",
+      ).bind("radar_20260813t080000z", "2026-08-13T08:00:00Z"),
+    ]);
+  }
+
   it("sends one action failure notification and deduplicates its replay", async () => {
     const deliveries: unknown[] = [];
     const deliveryOptions: RequestInit[] = [];
@@ -936,6 +971,290 @@ describe("external operational alerts", () => {
       severity: "critical",
     });
     expect(deliveryOptions[0]?.redirect).toBe("manual");
+  });
+
+  it("resolves prior action failures only after a verified successful run", async () => {
+    const deliveries: Array<Record<string, unknown>> = [];
+    await arrangePublishedRecoveryRun();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO operational_alerts (
+          alert_key, state, fingerprint, summary, first_detected_at,
+          last_detected_at, last_notified_at, resolved_at
+        ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+      ).bind(
+        "github_action_failure:31309370001",
+        "a".repeat(64),
+        "Synthetic action failure for testing only",
+        "2026-08-13T07:00:00Z",
+        "2026-08-13T07:00:00Z",
+        "2026-08-13T07:00:00Z",
+      ),
+      env.DB.prepare(
+        `INSERT INTO operational_alerts (
+          alert_key, state, fingerprint, summary, first_detected_at,
+          last_detected_at, last_notified_at, resolved_at
+        ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+      ).bind(
+        "github_action_failure:31309370002",
+        "b".repeat(64),
+        "Synthetic action failure for testing only",
+        "2026-08-13T07:05:00Z",
+        "2026-08-13T07:05:00Z",
+        "2026-08-13T07:05:00Z",
+      ),
+      env.DB.prepare(
+        `INSERT INTO operational_alerts (
+          alert_key, state, fingerprint, summary, first_detected_at,
+          last_detected_at, last_notified_at, resolved_at
+        ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+      ).bind(
+        "topic_radar_freshness",
+        "c".repeat(64),
+        "Synthetic freshness failure for testing only",
+        "2026-08-13T07:10:00Z",
+        "2026-08-13T07:10:00Z",
+        "2026-08-13T07:10:00Z",
+      ),
+    ]);
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async (_input, init) => {
+        deliveries.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = () => new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const resolved = await handler.fetch(request(), alertEnv());
+    const replay = await handler.fetch(request(), alertEnv());
+
+    expect(resolved.status).toBe(202);
+    expect(await resolved.json()).toMatchObject({
+      delivered: true,
+      transition: "resolved",
+      resolved_alerts: 2,
+    });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({
+      delivered: false,
+      transition: "healthy",
+      resolved_alerts: 0,
+    });
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({
+      schema_version: 1,
+      alert_key: "github_action_recovery:31309377786",
+      state: "resolved",
+      severity: "info",
+      details: {
+        workflow_run_id: "31309377786",
+        resolved_alert_count: 2,
+      },
+    });
+    const states = await env.DB.prepare(
+      "SELECT alert_key, state, resolved_at FROM operational_alerts ORDER BY alert_key",
+    ).all<{ alert_key: string; state: string; resolved_at: string | null }>();
+    expect(states.results).toEqual([
+      {
+        alert_key: "github_action_failure:31309370001",
+        state: "resolved",
+        resolved_at: "2026-08-13T08:00:00.000Z",
+      },
+      {
+        alert_key: "github_action_failure:31309370002",
+        state: "resolved",
+        resolved_at: "2026-08-13T08:00:00.000Z",
+      },
+      {
+        alert_key: "topic_radar_freshness",
+        state: "open",
+        resolved_at: null,
+      },
+    ]);
+  });
+
+  it("does not resolve action failures when recovery delivery is rejected", async () => {
+    await arrangePublishedRecoveryRun();
+    await env.DB.prepare(
+      `INSERT INTO operational_alerts (
+        alert_key, state, fingerprint, summary, first_detected_at,
+        last_detected_at, last_notified_at, resolved_at
+      ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+    ).bind(
+      "github_action_failure:31309370001",
+      "a".repeat(64),
+      "Synthetic action failure for testing only",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+    ).run();
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => new Response("rejected", { status: 503 }),
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    expect((await handler.fetch(request, alertEnv())).status).toBe(502);
+    const row = await env.DB.prepare(
+      "SELECT state, resolved_at FROM operational_alerts WHERE alert_key = ?",
+    ).bind("github_action_failure:31309370001")
+      .first<{ state: string; resolved_at: string | null }>();
+    expect(row).toEqual({ state: "open", resolved_at: null });
+  });
+
+  it("rejects recovery unless the OIDC run is the published current snapshot", async () => {
+    let deliveries = 0;
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => {
+        deliveries += 1;
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const response = await handler.fetch(request, alertEnv());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "action_recovery_run_not_published" });
+    expect(deliveries).toBe(0);
+  });
+
+  it("fails closed when the action failure backlog exceeds its hard bound", async () => {
+    await arrangePublishedRecoveryRun();
+    await env.DB.batch(Array.from({ length: 101 }, (_, index) => env.DB.prepare(
+      `INSERT INTO operational_alerts (
+        alert_key, state, fingerprint, summary, first_detected_at,
+        last_detected_at, last_notified_at, resolved_at
+      ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+    ).bind(
+      `github_action_failure:${40000000000 + index}`,
+      "a".repeat(64),
+      "Synthetic action failure for testing only",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+    )));
+    let deliveries = 0;
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => {
+        deliveries += 1;
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const response = await handler.fetch(request, alertEnv());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "action_recovery_backlog_exceeded" });
+    expect(deliveries).toBe(0);
+    const open = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM operational_alerts WHERE state = 'open'",
+    ).first<{ count: number }>();
+    expect(Number(open?.count)).toBe(101);
+  });
+
+  it("rejects action recovery identity mismatches and malformed payloads", async () => {
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+    });
+    const request = (overrides: Record<string, unknown>) => new Request(
+      "https://ingest.example/v1/alerts/action-recovery",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          workflow_run_id: "31309377786",
+          commit_sha: "d".repeat(40),
+          conclusion: "success",
+          run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+          ...overrides,
+        }),
+      },
+    );
+
+    expect((await handler.fetch(
+      request({ workflow_run_id: "999" }),
+      alertEnv(),
+    )).status).toBe(403);
+    expect((await handler.fetch(
+      request({ commit_sha: "e".repeat(40) }),
+      alertEnv(),
+    )).status).toBe(403);
+    expect((await handler.fetch(
+      request({ run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/999" }),
+      alertEnv(),
+    )).status).toBe(422);
+    expect((await handler.fetch(
+      request({ conclusion: "failure" }),
+      alertEnv(),
+    )).status).toBe(422);
+    expect((await handler.fetch(
+      request({ unexpected: true }),
+      alertEnv(),
+    )).status).toBe(422);
   });
 
   it("formats ntfy delivery without exposing private evidence", async () => {
