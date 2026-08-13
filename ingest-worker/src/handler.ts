@@ -16,7 +16,10 @@ import {
   RunPlanConfigurationError,
 } from "./run-plan";
 import { AlertDeliveryError, reportActionFailure } from "./alerts";
-import { runFreshnessWatchdog } from "./watchdog";
+import {
+  runAuthenticatedFreshnessWatchdog,
+  runFreshnessWatchdog,
+} from "./watchdog";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -73,6 +76,7 @@ export function createHandler(
         "/v1/ingest/publish",
         "/v1/run/plan",
         "/v1/alerts/action-failure",
+        "/v1/alerts/freshness-check",
       ].includes(url.pathname)) {
         return jsonResponse({ error: "route_not_found", request_id: requestId }, 404);
       }
@@ -95,6 +99,19 @@ export function createHandler(
         }
         if (url.pathname === "/v1/alerts/action-failure") {
           const result = await reportActionFailure(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            dependencies.alertFetch,
+          );
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.delivered ? 202 : 200,
+          );
+        }
+        if (url.pathname === "/v1/alerts/freshness-check") {
+          const result = await runAuthenticatedFreshnessWatchdog(
             env,
             payload,
             auth,

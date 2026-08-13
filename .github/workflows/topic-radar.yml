@@ -9,7 +9,12 @@ on:
         type: boolean
         default: false
       verify_alert_delivery:
-        description: Fail after admission planning to verify the external alert path
+        description: Fail before checkout/admission to verify the external alert path
+        required: false
+        type: boolean
+        default: false
+      verify_freshness_watchdog:
+        description: Run the D1 freshness watchdog without admission or crawling
         required: false
         type: boolean
         default: false
@@ -28,16 +33,67 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Reject mutually exclusive alert validation modes
+        if: inputs.verify_alert_delivery && inputs.verify_freshness_watchdog
+        run: |
+          echo "::error title=Invalid alert validation::Select only one alert validation mode."
+          exit 2
+
+      - name: Inject alert delivery validation failure
+        if: inputs.verify_alert_delivery && !inputs.verify_freshness_watchdog
+        run: |
+          echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
+          exit 1
+
+      - name: Run authenticated freshness watchdog
+        if: inputs.verify_freshness_watchdog && !inputs.verify_alert_delivery
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            '{
+              schema_version: 1,
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha
+            }' >"$RUNNER_TEMP/freshness-check.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/freshness-check.json" \
+            "$INGEST_WORKER_URL/v1/alerts/freshness-check")"
+          jq -e '
+            (.delivered | type == "boolean") and
+            (.transition | IN("opened", "deduplicated", "resolved", "healthy"))
+          ' <<<"$response"
+
       - name: Check out repository
+        if: >-
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
+        if: >-
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install admission client only
+        if: >-
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         run: |
           python -m pip install --disable-pip-version-check --no-deps -e .
           python -m pip install --disable-pip-version-check \
@@ -45,6 +101,9 @@ jobs:
             'jsonschema[format]>=4.23,<5'
 
       - name: Request OIDC admission and persisted checkpoints
+        if: >-
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         id: admission
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
@@ -78,19 +137,22 @@ jobs:
       - name: Install full collector
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          !inputs.verify_alert_delivery
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         run: python -m pip install --disable-pip-version-check -e .
 
       - name: Install Chromium and system dependencies
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          !inputs.verify_alert_delivery
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          !inputs.verify_alert_delivery
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
@@ -100,7 +162,8 @@ jobs:
       - name: Ingest and publish through GitHub OIDC
         if: >-
           steps.admission.outputs.admitted == 'true' &&
-          !inputs.verify_alert_delivery
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -126,6 +189,7 @@ jobs:
         if: >-
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
           inputs.verify_resilience
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
@@ -179,12 +243,6 @@ jobs:
           path: artifacts/topic-radar/run-report.json
           if-no-files-found: error
           retention-days: 14
-
-      - name: Inject alert delivery validation failure
-        if: github.event_name == 'workflow_dispatch' && inputs.verify_alert_delivery
-        run: |
-          echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
-          exit 1
 
       - name: Deliver external failure alert through OIDC
         if: failure()

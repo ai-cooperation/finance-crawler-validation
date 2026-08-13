@@ -792,6 +792,83 @@ describe("external operational alerts", () => {
     expect(Number(alerts?.count)).toBe(0);
   });
 
+  it("uses a second external destination only when primary delivery fails", async () => {
+    const deliveries: string[] = [];
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async (input) => {
+        deliveries.push(String(input));
+        return String(input).includes("primary.example")
+          ? new Response("rejected", { status: 503 })
+          : new Response("ok", { status: 200 });
+      },
+    });
+    const redundantEnv = Object.assign(Object.create(env) as Env, {
+      ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
+      ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
+      ALERT_WEBHOOK_FORMAT: "generic_json",
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-failure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "failure",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const response = await handler.fetch(request, redundantEnv);
+    expect(response.status).toBe(202);
+    expect(deliveries).toEqual([
+      "https://primary.example/hooks/finance-radar",
+      "https://fallback.example/hooks/finance-radar",
+    ]);
+    const alert = await env.DB.prepare(
+      "SELECT alert_key FROM operational_alerts WHERE alert_key = ?",
+    ).bind("github_action_failure:31309377786").first();
+    expect(alert).not.toBeNull();
+  });
+
+  it("does not persist an alert when primary and fallback both fail", async () => {
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => new Response("rejected", { status: 503 }),
+    });
+    const redundantEnv = Object.assign(Object.create(env) as Env, {
+      ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
+      ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
+      ALERT_WEBHOOK_FORMAT: "generic_json",
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-failure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "failure",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    expect((await handler.fetch(request, redundantEnv)).status).toBe(502);
+    const alerts = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM operational_alerts",
+    ).first<{ count: number }>();
+    expect(Number(alerts?.count)).toBe(0);
+  });
+
   it("opens, deduplicates, and resolves a freshness alert", async () => {
     await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
     await publishSnapshot(env, topicSnapshot(), new Date("2026-08-10T02:06:00Z"));
@@ -839,6 +916,51 @@ describe("external operational alerts", () => {
     );
     expect(reopened).toMatchObject({ delivered: true, transition: "opened" });
     expect(deliveries).toHaveLength(3);
+  });
+
+  it("runs the real freshness watchdog through an OIDC-bound manual endpoint", async () => {
+    const deliveries: unknown[] = [];
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async (_input, init) => {
+        deliveries.push(JSON.parse(String(init?.body)));
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = (overrides: Record<string, unknown> = {}) => new Request(
+      "https://ingest.example/v1/alerts/freshness-check",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          workflow_run_id: "31309377786",
+          commit_sha: "d".repeat(40),
+          ...overrides,
+        }),
+      },
+    );
+
+    const opened = await handler.fetch(request(), alertEnv());
+    const replay = await handler.fetch(request(), alertEnv());
+    expect(opened.status).toBe(202);
+    expect(await opened.json()).toMatchObject({ delivered: true, transition: "opened" });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ delivered: false, transition: "deduplicated" });
+    expect(deliveries).toHaveLength(1);
+
+    expect((await handler.fetch(
+      request({ workflow_run_id: "999" }),
+      alertEnv(),
+    )).status).toBe(403);
+    expect((await handler.fetch(
+      request({ unexpected: true }),
+      alertEnv(),
+    )).status).toBe(422);
   });
 
   it("treats missing snapshots as an alert and does not persist rejected delivery", async () => {

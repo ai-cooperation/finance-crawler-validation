@@ -55,6 +55,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "finance-topic-radar-${{ github.run_id }}" in workflow
     assert "verify_resilience" in workflow
     assert "verify_alert_delivery" in workflow
+    assert "verify_freshness_watchdog" in workflow
     assert "default: false" in workflow
     assert "Verify replay and last-good resilience" in workflow
     assert "jq -er '.admitted | type == \"boolean\"'" in workflow
@@ -65,6 +66,19 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert 'invalid_payload' in workflow
     assert "gh issue create" in workflow
     assert "Inject alert delivery validation failure" in workflow
+    assert "Run authenticated freshness watchdog" in workflow
+    assert (
+        workflow.index("Inject alert delivery validation failure")
+        < workflow.index("Check out repository")
+        < workflow.index("Request OIDC admission and persisted checkpoints")
+    )
+    assert (
+        workflow.index("Run authenticated freshness watchdog")
+        < workflow.index("Check out repository")
+        < workflow.index("Request OIDC admission and persisted checkpoints")
+    )
+    assert '"$INGEST_WORKER_URL/v1/alerts/freshness-check"' in workflow
+    assert "!inputs.verify_freshness_watchdog" in workflow
     assert "failure_issue_number" in workflow
     assert "steps.admission.outputs.admitted == 'true'" in workflow
     assert "Install admission client only" in workflow

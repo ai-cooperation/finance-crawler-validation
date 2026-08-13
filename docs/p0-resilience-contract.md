@@ -16,7 +16,7 @@
 - 手動 workflow 的 resilience 驗證是預設關閉的選配項；開啟時使用同一輪 15 來源垂直切片的真實 payload，在同一個 run 內完成 replay 與 invalid publish，不另外多跑第二輪爬取。禁止使用會覆蓋 current snapshot 或汙染來源健康分母的 synthetic publish。
 - 收集前以同一 GitHub OIDC identity 呼叫 `POST /v1/run/plan`；未獲 admission 不安裝 Chromium、不爬取、不寫入 ingest。
 - 每 UTC 日最多租出 2 個 run admission，成功租約至少間隔 21,600 秒；同一 workflow run 重放相同決策，不重複占用額度。
-- Action failure 與 freshness stale／empty 只在外部 webhook 回應 2xx 後寫入告警 receipt；同一事件去重，freshness 恢復時發送 recovery。
+- Action failure 與 freshness stale／empty 只在 primary 或 fallback 外部 webhook 回應已驗證成功後寫入告警 receipt；同一事件去重，freshness 恢復時發送 recovery。
 
 ## 契約與資料擁有權
 
@@ -57,9 +57,11 @@ Runner 將 checkpoint 轉成三種有限追補：
 
 所有可追補窗最多回看七天，未有 checkpoint 或過舊 checkpoint 都 clamp 到七天；未來 checkpoint clamp 到本輪時間。
 
-### POST `/v1/alerts/action-failure` 與 scheduled watchdog
+### POST `/v1/alerts/action-failure`、`/v1/alerts/freshness-check` 與 scheduled watchdog
 
-Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。Worker 對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；`auto` 格式依精確官方 hostname 選擇 Slack Incoming Webhook、Telegram Bot API、ntfy，其他目的地使用 version 1 generic JSON。外送有 10 秒 timeout，非 HTTPS、redirect、network error、非 2xx 或 provider-level rejection 都是明確失敗，不留下「已通知」receipt。日誌不記錄可能回顯 webhook URL／token 的 fetch error message。Workers fetch traces 會保存 `url.full`、`url.path` 與 `url.query`，而 Slack／Telegram URL 含 bearer secret，因此本 Worker 必須關閉 traces，只開啟已去除 secret 的結構化 logs。
+Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。`freshness-check` 也綁定 OIDC run ID 與 commit SHA，但不取得 admission、不 checkout、不安裝 Python／Chromium、不爬取，只對真實 D1 status 執行與 Cron 相同的 watchdog。Action failure 的故障注入同樣在 checkout 與 admission 前執行。
+
+Worker 優先對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；primary 失敗且已配置 `ALERT_FALLBACK_WEBHOOK_URL` 時才嘗試 fallback，兩者都失敗就向上拋出。`auto` 格式依精確官方 hostname 選擇 Slack Incoming Webhook、Telegram Bot API、ntfy，其他目的地使用 version 1 generic JSON。外送有 10 秒 timeout，非 HTTPS、redirect、network error、非 2xx 或 provider-level rejection 都是明確失敗，不留下「已通知」receipt。日誌不記錄可能回顯 webhook URL／token 的 fetch error message。Workers fetch traces 會保存 `url.full`、`url.path` 與 `url.query`，而 Slack／Telegram URL 含 bearer secret，因此本 Worker 必須關閉 traces，只開啟已去除 secret 的結構化 logs。
 
 已有 D1 receipt 的一般 workflow replay 不重送。但 provider 與 D1 之間無法建立跨系統交易；若 Worker 在 provider 已收件、D1 receipt 尚未落盤的極小 crash window 中斷，後續重試可能重複告警。因此契約是 at-least-once 與可識別 `alert_key`，不宣稱跨系統 exactly-once；告警必須偏向重複而不得靜默遺失。
 
@@ -92,6 +94,8 @@ Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_fre
 15. RSS／API catch-up 的實際 request URL 與 filter 必須保存於 run report，不只保存 checkpoint。
 16. 外部 webhook 成功前不得寫入 open／resolved receipt；失敗必須向上拋出。
 17. `operational_alerts` 同一 key 只允許 open → deduplicated → resolved 的可稽核轉移。
+18. 手動 action／freshness 告警驗證不得呼叫 `POST /v1/run/plan`、安裝 collector／Chromium或寫入 ingest。
+19. primary 送達成功時不呼叫 fallback；primary 失敗時才呼叫，且兩者失敗不寫 receipt。
 
 ## Given／When／Then 驗收
 
@@ -106,6 +110,8 @@ Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_fre
 - Given quota 已滿或 quiet interval 未過，When workflow 取得 run plan，Then 在安裝 Chromium 前正常跳過昂貴步驟。
 - Given GitHub run 失敗，When webhook 回應 2xx，Then D1 只保存一次 open receipt；回應非 2xx 時不保存。
 - Given freshness 已 stale 且後續恢復，When watchdog 連續檢查，Then 外部只收到 open 與 resolved 各一次。
+- Given 已選擇告警驗證模式，When workflow 執行，Then checkout、Python、admission、Chromium、collect 與 ingest 全部跳過。
+- Given primary 目的地拒絕送達且 fallback 成功，When 送出 action 或 freshness 告警，Then 只在 fallback 成功後寫入 receipt。
 
 ## 遠端驗收紀錄
 
