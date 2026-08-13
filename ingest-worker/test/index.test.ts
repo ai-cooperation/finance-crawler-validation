@@ -894,6 +894,41 @@ describe("external operational alerts", () => {
     });
   }
 
+  async function arrangePublishedRecoveryRun(): Promise<void> {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO runs (
+          run_id, workflow_run_id, commit_sha, snapshot_id, source_manifest_hash,
+          status, collected_at, published_at, item_count
+        ) VALUES (?, ?, ?, ?, ?, 'published', ?, ?, 1)`,
+      ).bind(
+        "run_20260813t080000z",
+        "31309377786",
+        "d".repeat(40),
+        "radar_20260813t080000z",
+        "c".repeat(64),
+        "2026-08-13T07:59:00Z",
+        "2026-08-13T08:00:00Z",
+      ),
+      env.DB.prepare(
+        `INSERT INTO topic_snapshots (
+          snapshot_id, run_id, as_of, partial, failed_sources_json, object_key,
+          content_sha256, topic_count, created_at
+        ) VALUES (?, ?, ?, 0, '[]', ?, ?, 1, ?)`,
+      ).bind(
+        "radar_20260813t080000z",
+        "run_20260813t080000z",
+        "2026-08-13T08:00:00Z",
+        "topics/radar_20260813t080000z.json",
+        "b".repeat(64),
+        "2026-08-13T08:00:00Z",
+      ),
+      env.DB.prepare(
+        "INSERT INTO current_snapshot (singleton_id, snapshot_id, updated_at) VALUES (1, ?, ?)",
+      ).bind("radar_20260813t080000z", "2026-08-13T08:00:00Z"),
+    ]);
+  }
+
   it("sends one action failure notification and deduplicates its replay", async () => {
     const deliveries: unknown[] = [];
     const deliveryOptions: RequestInit[] = [];
@@ -940,6 +975,7 @@ describe("external operational alerts", () => {
 
   it("resolves prior action failures only after a verified successful run", async () => {
     const deliveries: Array<Record<string, unknown>> = [];
+    await arrangePublishedRecoveryRun();
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO operational_alerts (
@@ -1053,6 +1089,7 @@ describe("external operational alerts", () => {
   });
 
   it("does not resolve action failures when recovery delivery is rejected", async () => {
+    await arrangePublishedRecoveryRun();
     await env.DB.prepare(
       `INSERT INTO operational_alerts (
         alert_key, state, fingerprint, summary, first_detected_at,
@@ -1092,6 +1129,86 @@ describe("external operational alerts", () => {
     ).bind("github_action_failure:31309370001")
       .first<{ state: string; resolved_at: string | null }>();
     expect(row).toEqual({ state: "open", resolved_at: null });
+  });
+
+  it("rejects recovery unless the OIDC run is the published current snapshot", async () => {
+    let deliveries = 0;
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => {
+        deliveries += 1;
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const response = await handler.fetch(request, alertEnv());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "action_recovery_run_not_published" });
+    expect(deliveries).toBe(0);
+  });
+
+  it("fails closed when the action failure backlog exceeds its hard bound", async () => {
+    await arrangePublishedRecoveryRun();
+    await env.DB.batch(Array.from({ length: 101 }, (_, index) => env.DB.prepare(
+      `INSERT INTO operational_alerts (
+        alert_key, state, fingerprint, summary, first_detected_at,
+        last_detected_at, last_notified_at, resolved_at
+      ) VALUES (?, 'open', ?, ?, ?, ?, ?, NULL)`,
+    ).bind(
+      `github_action_failure:${40000000000 + index}`,
+      "a".repeat(64),
+      "Synthetic action failure for testing only",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+      "2026-08-13T07:00:00Z",
+    )));
+    let deliveries = 0;
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async () => {
+        deliveries += 1;
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-recovery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "success",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    const response = await handler.fetch(request, alertEnv());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "action_recovery_backlog_exceeded" });
+    expect(deliveries).toBe(0);
+    const open = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM operational_alerts WHERE state = 'open'",
+    ).first<{ count: number }>();
+    expect(Number(open?.count)).toBe(101);
   });
 
   it("rejects action recovery identity mismatches and malformed payloads", async () => {

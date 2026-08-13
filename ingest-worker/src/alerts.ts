@@ -3,6 +3,7 @@ import { HttpError } from "./storage";
 
 const GITHUB_RUN_URL_PATTERN = /^https:\/\/github\.com\/ai-cooperation\/finance-crawler-validation\/actions\/runs\/(\d+)$/;
 const ALERT_DELIVERY_TIMEOUT_MS = 10_000;
+const MAX_ACTION_RECOVERY_ALERTS = 100;
 
 interface ActionFailurePayload {
   schema_version: 1;
@@ -111,11 +112,16 @@ export async function resolveActionFailures(
 }> {
   const recovery = parseActionRecovery(payload);
   assertActionIdentity(recovery, identity);
+  await assertPublishedRecoveryRun(env.DB, recovery);
   const open = await env.DB.prepare(
     `SELECT alert_key, fingerprint FROM operational_alerts
      WHERE state = 'open' AND alert_key LIKE 'github_action_failure:%'
-     ORDER BY first_detected_at, alert_key`,
-  ).all<AlertRow>();
+     ORDER BY first_detected_at, alert_key
+     LIMIT ?`,
+  ).bind(MAX_ACTION_RECOVERY_ALERTS + 1).all<AlertRow>();
+  if (open.results.length > MAX_ACTION_RECOVERY_ALERTS) {
+    throw new HttpError(409, "action_recovery_backlog_exceeded");
+  }
   if (open.results.length === 0) {
     return { delivered: false, transition: "healthy", resolved_alerts: 0 };
   }
@@ -154,6 +160,23 @@ export async function resolveActionFailures(
     transition: "resolved",
     resolved_alerts: open.results.length,
   };
+}
+
+async function assertPublishedRecoveryRun(
+  db: D1Database,
+  recovery: ActionRecoveryPayload,
+): Promise<void> {
+  const run = await db.prepare(
+    `SELECT run.run_id
+     FROM runs AS run
+     JOIN current_snapshot AS current ON current.snapshot_id = run.snapshot_id
+     WHERE run.workflow_run_id = ?
+       AND run.commit_sha = ?
+       AND run.status = 'published'
+       AND current.singleton_id = 1
+     LIMIT 1`,
+  ).bind(recovery.workflow_run_id, recovery.commit_sha).first<{ run_id: string }>();
+  if (run === null) throw new HttpError(409, "action_recovery_run_not_published");
 }
 
 function parseActionFailure(payload: unknown): ActionFailurePayload {

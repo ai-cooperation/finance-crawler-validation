@@ -62,7 +62,7 @@ Runner 將 checkpoint 轉成三種有限追補：
 
 Action failure request 同樣綁定 OIDC run ID、commit SHA 與固定 repository run URL。`freshness-check` 也綁定 OIDC run ID 與 commit SHA，但不取得 admission、不 checkout、不安裝 Python／Chromium、不爬取，只對真實 D1 status 執行與 Cron 相同的 watchdog。Action failure 的故障注入同樣在 checkout 與 admission 前執行。
 
-只有已取得 admission 並成功 publish 的工作流才呼叫 `action-recovery`。它綁定當次成功 run 的 OIDC run ID、commit SHA 與固定 repository run URL，查出所有仍為 open 的 `github_action_failure:*`，先送出一筆包含結案筆數的 recovery 通知，provider 確認收件後才以條件式更新將這批告警標為 resolved。沒有 open Action 告警時回傳 healthy 且不要求 webhook；外送失敗、寫入失敗或競態不一致時 fail closed，既有告警不得靜默結案。freshness 告警由獨立 watchdog 狀態機結案，不受此 endpoint 影響。
+只有已取得 admission 並成功 publish 的工作流才呼叫 `action-recovery`。它綁定當次成功 run 的 OIDC run ID、commit SHA 與固定 repository run URL，Worker 另以 D1 證明該 workflow run 已 published 且正是 `current_snapshot`，再查出所有仍為 open 的 `github_action_failure:*`。一次最多處理 100 筆，超限直接拒絕，不能只結案部分 backlog。Worker 先送出一筆包含結案筆數的 recovery 通知，provider 確認收件後才以條件式更新將這批告警標為 resolved。沒有 open Action 告警時回傳 healthy 且不要求 webhook；外送失敗、寫入失敗或競態不一致時 fail closed，既有告警不得靜默結案。freshness 告警由獨立 watchdog 狀態機結案，不受此 endpoint 影響。
 
 Worker 優先對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；primary 失敗且已配置 `ALERT_FALLBACK_WEBHOOK_URL` 時才嘗試 fallback，兩者都失敗就向上拋出。`auto` 格式依精確官方 hostname 選擇 Slack Incoming Webhook、Telegram Bot API、ntfy，其他目的地使用 version 1 generic JSON。外送有 10 秒 timeout，非 HTTPS、redirect、network error、非 2xx 或 provider-level rejection 都是明確失敗，不留下「已通知」receipt。日誌不記錄可能回顯 webhook URL／token 的 fetch error message。Workers fetch traces 會保存 `url.full`、`url.path` 與 `url.query`，而 Slack／Telegram URL 含 bearer secret，因此本 Worker 必須關閉 traces，只開啟已去除 secret 的結構化 logs。
 
@@ -110,7 +110,7 @@ Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失
 20. scheduled watchdog 的執行錯誤必須嘗試外部告警並保留 failed invocation；transport 自身失敗不得遞迴送告警。
 21. 同一 GitHub `(workflow_run_id, run_attempt)` 只能建立一個 soak receipt；GitHub Re-run 的新 attempt 可以留下獨立 receipt，並檢查該 workflow 最新的業務 run。
 22. soak observation 必須由 schedule identity 產生；手動 dispatch 必須在 checkout／admission／crawl 前以 HTTP 403 拒絕。
-23. Action failure 只能在後續 admitted、published 成功 run 的 recovery 通知送達後結案；不得刪除歷史告警或用未驗證的管理指令直接清零。
+23. Action failure 只能在 D1 證明後續 OIDC run 已 published 且為 current snapshot、recovery 通知送達後結案；不得刪除歷史告警或用未驗證的管理指令直接清零。一次最多結案 100 筆，超限不得部分處理。
 24. 已 admission 但沒有 published current run 必須記為 `not_started`／`incomplete`，不得借用舊 snapshot 冒充成功。
 25. 七日用量只接受 GitHub API 與 Cloudflare GraphQL 真實觀測資料；不允許估算或補零，未知 R2 action 必須拒絕分類。GitHub runner duration 與公開 repo 的零計費資格分開記錄；Cloudflare GraphQL 必須標為 `observed_not_billing`，不得宣稱為官方帳單。
 26. 每日 usage evidence 必須綁定同日 GitHub run ID、attempt 與 commit SHA；固定 Cloudflare account、Worker、D1 與 R2 scope，私有輸出不得進入 public repo 或 artifact。
