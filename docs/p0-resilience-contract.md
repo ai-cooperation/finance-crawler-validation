@@ -74,3 +74,13 @@ D1 讀取失敗回傳 HTTP 503 `status_unavailable`。
 - Given 無 snapshot，When 查詢 status，Then 回傳 version 1 `empty` response。
 - Given snapshot 已過 stale 門檻，When 查詢 status，Then 回傳 `stale` 與 `freshness_stale`。
 - Given 手動 workflow 開啟 resilience 選項，When 資料發布完成，Then 同一 job 驗證 ingest replay、publish replay、invalid publish 與 status pointer 不變。
+
+## 遠端驗收紀錄
+
+2026-08-13 以隔離 GitHub 帳號 `ai-cooperation` 與 Cloudflare 驗證帳號完成一次額度受控實測；schedule 保持關閉，沒有啟用商業 proxy 或 web unlocker。
+
+- D1 migration `0002_ingest_receipts.sql` 套用成功；Worker version `9eb9a838-8d38-44ac-9eed-db1c37c991e5` 部署後，`/health`、`/v1/status` 均為 HTTP 200，status schema 驗證通過。
+- [Actions run 31676925023](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31676925023) 從 commit `e0078b2aeea3fd6807f8ceff5e090768711fe1e3` 執行一次 15 來源收集，耗時 1 分 58 秒；同一 job 的 ingest replay 與 publish replay 都回傳 `replayed=true`。
+- invalid publish 回傳 HTTP 422 `invalid_payload`，前後 status 的 snapshot ID 與 content hash 相同，last-good 未被破壞。
+- D1 只產生 1 筆 `completed` receipt、1 個新 run、37 個 run links、1 個新 snapshot，以及 2 個 audit events；R2 topic object SHA-256 與 D1、status 相同。
+- 來源實測 13/15：RSS 5/5、Public API 7/7、Browser＋Crawl4AI 1/3。這證明重放與 last-good 契約成立，但 Browser 成功率仍是 Gate 2 擴大來源與路由驗證的風險，不宣稱 P0 整體或 120 來源已完成。
