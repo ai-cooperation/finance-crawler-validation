@@ -14,6 +14,7 @@ P2 驗證 Browser＋API＋RSS 分層策略能否在隔離帳號下，對 120 個
 - 後續 batch 只更新本批品牌的 latest observation；未重驗品牌保留 baseline 結果。
 - 合併器必須校驗 baseline 與 catalog 品牌 ID 完全一致，batch result ID 必須與其 explicit selection 完全一致。
 - `robots_denied`、`auth_required`、`paywall` 是合規終點，不以 Browser、換 IP 或 commercial unlocker 規避。
+- 某個 Browser URL 被 robots 禁止不會啟動該 URL 的其他 executor；但同品牌主動公開、可獨立識別的 API／RSS（包含財經 podcast RSS）可作為不同發佈介面，且 endpoint ID 必須明確標示類型。
 - 商業 proxy／residential egress／web unlocker 未授權，不列入候選 executor 或推估成功率。
 
 ## 分批與額度契約

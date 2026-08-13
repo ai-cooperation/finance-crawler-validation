@@ -29,6 +29,9 @@ brands:
     canonical_domain: reuters.com
     region: global
     endpoints:
+      # First-party Reuters finance podcast publishing interface. This does not
+      # override or bypass the separate reuters.com Browser robots denial.
+      - {id: reuters_morning_bid_podcast_rss, transport: rss, url: https://feeds.megaphone.fm/THRH7907651499, required_capabilities: [http, rss]}
       - {id: reuters_browser, transport: browser, url: https://www.reuters.com/markets/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: financial_times
@@ -65,6 +68,9 @@ brands:
     canonical_domain: barrons.com
     region: US
     endpoints:
+      # First-party Barron's finance podcast publishing interface. This does not
+      # override or bypass the separate barrons.com Browser robots denial.
+      - {id: barrons_streetwise_podcast_rss, transport: rss, url: https://video-api.shdsvc.dowjones.io/api/podcasts/feed/streetwise, required_capabilities: [http, rss]}
       - {id: barrons_browser, transport: browser, url: https://www.barrons.com/market-data, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: investors_business_daily
