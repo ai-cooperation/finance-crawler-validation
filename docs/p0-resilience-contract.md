@@ -17,6 +17,7 @@
 - 收集前以同一 GitHub OIDC identity 呼叫 `POST /v1/run/plan`；未獲 admission 不安裝 Chromium、不爬取、不寫入 ingest。
 - 每 UTC 日最多租出 2 個 run admission，成功租約至少間隔 21,600 秒；同一 workflow run 重放相同決策，不重複占用額度。
 - Action failure 與 freshness stale／empty 只在 primary 或 fallback 外部 webhook 回應已驗證成功後寫入告警 receipt；同一事件去重，freshness 恢復時發送 recovery。
+- 每次真實 `schedule` 在同一 job 結束前寫入一筆私有 soak observation；手動 dispatch 不可偽造，重放不得重查 R2 或新增 receipt。
 
 ## 契約與資料擁有權
 
@@ -69,6 +70,12 @@ Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_fre
 
 Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失敗，必須先嘗試以同一 primary→fallback transport 發出 `cloudflare_watchdog_failure:SCHEDULED_AT`，payload 只含排程時間、cron 與穩定錯誤碼，不得外洩 exception message；之後仍重新拋出原錯誤，讓 Worker invocation 保持 failed。若原錯誤已是 webhook transport failure，不得對同一失效 transport 遞迴告警。
 
+### POST `/v1/soak/observe`
+
+只接受 OIDC `event_name=schedule`，並同時核對 request 與 token 的 workflow run ID、run attempt、commit SHA。Worker 將 admission、該 workflow 對應的 published run、current status、D1 控制面計數，以及 current topic object 加最多 3 個 raw object 的 R2 `head` metadata 寫入 `soak_observations`。每次最多 4 次 R2 Class B 操作，不執行 bucket list；同一 `(workflow_run_id, run_attempt)` 重放只讀既有 D1 receipt，不再存取 R2，GitHub Re-run 的下一個 attempt 則建立獨立證據。任何 object 缺失、size 為零或 `content_sha256` 與 D1 不同都回傳明確錯誤且不寫成功 receipt。
+
+這是核心私有紀錄，不上傳到 public GitHub artifact。公開 artifact 仍只有 `run-report.json` 的一般 source-health metadata；D1 receipt 由驗證帳號 operator 使用 Wrangler 匯出。七日驗收用 `finance-soak-verify` 同時核對 7 個不同 schedule run、GitHub 官方 run metadata、完整 15 來源結果與 checkpoint、D1/R2 integrity，以及 GitHub API／Cloudflare GraphQL 的真實用量。任何缺日、手動 run、未發布、freshness 非 healthy、open alert、counter 倒退、來源集合不符、未知 R2 operation 或用量超出事先鎖定 ceiling 都 fail closed。
+
 ## 狀態與不變量
 
 1. `current_snapshot` 只能指向已驗證且已持久化的 topic snapshot。
@@ -99,6 +106,10 @@ Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失
 18. 手動 action／freshness 告警驗證不得呼叫 `POST /v1/run/plan`、安裝 collector／Chromium或寫入 ingest。
 19. primary 送達成功時不呼叫 fallback；primary 失敗時才呼叫，且兩者失敗不寫 receipt。
 20. scheduled watchdog 的執行錯誤必須嘗試外部告警並保留 failed invocation；transport 自身失敗不得遞迴送告警。
+21. 同一 GitHub `(workflow_run_id, run_attempt)` 只能建立一個 soak receipt；GitHub Re-run 的新 attempt 可以留下獨立 receipt，並檢查該 workflow 最新的業務 run。
+22. soak observation 必須由 schedule identity 產生；手動 dispatch 必須在 checkout／admission／crawl 前以 HTTP 403 拒絕。
+23. 已 admission 但沒有 published current run 必須記為 `not_started`／`incomplete`，不得借用舊 snapshot 冒充成功。
+24. 七日用量只接受 GitHub API 與 Cloudflare GraphQL 真實資料；不允許估算或補零，未知 R2 action 必須拒絕分類。
 
 ## Given／When／Then 驗收
 
@@ -115,6 +126,9 @@ Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失
 - Given freshness 已 stale 且後續恢復，When watchdog 連續檢查，Then 外部只收到 open 與 resolved 各一次。
 - Given 已選擇告警驗證模式，When workflow 執行，Then checkout、Python、admission、Chromium、collect 與 ingest 全部跳過。
 - Given primary 目的地拒絕送達且 fallback 成功，When 送出 action 或 freshness 告警，Then 只在 fallback 成功後寫入 receipt。
+- Given 手動 OIDC identity，When 呼叫 soak endpoint，Then 回傳 403 且 D1 不新增 observation。
+- Given schedule 已發布，When寫入 soak observation，Then current run、D1 counts 與 1–4 個 R2 metadata 全部一致；同 request 重放時 R2 不可用仍能回傳 receipt。
+- Given 七個連續 UTC 日的證據，When 執行 `finance-soak-verify`，Then只有全部 GitHub run 成功、15 來源報告 accepted、D1/R2 正確、真人雙通道已驗證且實際用量低於 ceiling 才回傳 accepted。
 
 ## 遠端驗收紀錄
 
@@ -130,4 +144,4 @@ Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失
 - [Actions run 31685905458](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31685905458) 以手動故障注入驗證外部 transport。臨時 HTTPS sink、D1 `operational_alerts` 與 GitHub issue 各只產生 1 筆；重放同一 run 後仍各為 1。測試 sink 已移除、Cloudflare 告警 secret 已清空，因此這項只證明機器到機器的送達與去重，不宣稱真人收件成功。
 - [Actions run 31692408769](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31692408769) 以 `Synthetic for testing only` 的預期 failure 驗證 production fallback：primary 拒絕後臨時 sink 收到 1 筆；重跑同一 run 後仍為 1。兩次 checkout、admission、Chromium、collect 與 ingest 都 skipped，D1 admission count 維持 5，該 alert key 只有 1 筆。接著 [Actions run 31692456847](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31692456847) 對真實 `healthy` D1 status 執行 OIDC freshness watchdog，成功且沒有新增外送。測試後兩個 secret 與 sink 都已清除，Worker 健康端點仍為 HTTP 200；結構化證據見 [`../experiments/p0-alerts/fallback-validation-20260813.json`](../experiments/p0-alerts/fallback-validation-20260813.json)。
 - freshness 狀態機另以不修改 snapshot 的暫時 1／2 秒門檻完成遠端驗證：[run 31693420412](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693420412) opened、[run 31693443611](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693443611) deduplicated、恢復正式 21,600／86,400 秒門檻後 [run 31693496333](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31693496333) resolved。sink 事件只有 open 與 resolved，D1 admission 前後均為 5；清理後 secret 空、status healthy、D1 alert resolved、端點 200。此 `Synthetic for testing only` 注入只證明機器狀態轉移；完整證據見 [`../experiments/p0-alerts/freshness-state-machine-20260813.json`](../experiments/p0-alerts/freshness-state-machine-20260813.json)。
-- Gate 2 已另以 120 個唯一新聞品牌驗收，114/120 成功（95.00%）。P0 未關閉的唯一子項是：先配置並驗證有人訂閱的告警目的地，再開啟低頻 schedule／Cron 進行 soak。在此之前兩種排程均保持關閉。
+- Gate 2 已另以 120 個唯一新聞品牌驗收，114/120 成功（95.00%）。P0 的 soak observation 與七日驗收器已完成本機 TDD，待 migration／Worker 遠端驗證；關閉 P0 仍需配置真人可收取的 primary/fallback、啟用低頻 schedule／Cron，累積七日真實證據。在此之前兩種排程均保持關閉。

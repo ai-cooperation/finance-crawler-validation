@@ -9,4 +9,4 @@
 - metadata-only 來源的 `public_excerpt_chars` 必須為 0。完整 raw、topic evidence、研究報告與稽核封存預設只進 private R2，不提交 Git history。
 - `current_snapshot` 只在 raw evidence 與 topic snapshot 都驗證、持久化成功後切換；失敗必須保留 last-good snapshot。
 
-目前契約：source record、raw item、ingest envelope、topic snapshot、status response、market snapshot、research report、audit event，均為 version 1。`status-response` 是只讀 operational API 的輸出契約，不包含 raw content 或私有證據。
+目前契約：source record、raw item、ingest envelope、topic snapshot、status response、soak observation、market snapshot、research report、audit event，均為 version 1。`status-response` 是公開只讀 operational API；`soak-observation` 是 schedule-only 的私有 D1 證據，不得上傳 public artifact，兩者都不包含 raw content。

@@ -56,6 +56,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "verify_resilience" in workflow
     assert "verify_alert_delivery" in workflow
     assert "verify_freshness_watchdog" in workflow
+    assert "verify_soak_boundary" in workflow
     assert "default: false" in workflow
     assert "Verify replay and last-good resilience" in workflow
     assert "jq -er '.admitted | type == \"boolean\"'" in workflow
@@ -84,6 +85,25 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "Install admission client only" in workflow
     assert "--no-deps -e ." in workflow
     assert "Install full collector" in workflow
+    assert "Record schedule-only soak observation" in workflow
+    assert "github.event_name == 'schedule'" in workflow
+    assert '"$INGEST_WORKER_URL/v1/soak/observe"' in workflow
+    assert "Verify manual identity cannot write soak evidence" in workflow
+    assert 'test "$response_status" = "403"' in workflow
+    assert 'error == "schedule_identity_required"' in workflow
+    assert '--argjson run_attempt "$GITHUB_RUN_ATTEMPT"' in workflow
+    assert ".run_attempt == (env.GITHUB_RUN_ATTEMPT | tonumber)" in workflow
+    assert "soak-observation-${{ github.run_id }}" not in workflow
+    assert "artifacts/topic-radar/soak-observation.json" not in workflow
+    assert "soak-observation-response.json" not in workflow
+    assert (
+        workflow.index("Record schedule-only soak observation")
+        < workflow.index("Deliver external failure alert through OIDC")
+    )
+    assert (
+        workflow.index("Verify manual identity cannot write soak evidence")
+        < workflow.index("Check out repository")
+    )
 
 
 def test_ingest_worker_is_locked_to_the_validation_repository() -> None:

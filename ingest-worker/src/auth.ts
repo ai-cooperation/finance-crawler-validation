@@ -9,6 +9,10 @@ const GITHUB_JWKS = createRemoteJWKSet(
 export interface AuthContext {
   workflowRunId: string;
   commitSha: string;
+  runAttempt?: number;
+  // The production OIDC authenticator always sets this. Optional injected
+  // authenticators fail closed on schedule-only routes when it is absent.
+  eventName?: string;
 }
 
 export interface ExpectedGithubClaims {
@@ -60,10 +64,12 @@ export async function authenticateGithubOidc(
   });
   const workflowRunId = stringClaim(payload, "run_id");
   const commitSha = stringClaim(payload, "sha");
+  const runAttempt = positiveIntegerClaim(payload, "run_attempt");
+  const eventName = stringClaim(payload, "event_name");
   if (!/^[a-f0-9]{40}$/.test(commitSha)) {
     throw new AuthenticationError(403, "oidc_claim_invalid:sha");
   }
-  return { workflowRunId, commitSha };
+  return { workflowRunId, commitSha, runAttempt, eventName };
 }
 
 function isPlaceholder(value: string): boolean {
@@ -98,4 +104,12 @@ function stringClaim(claims: Record<string, unknown>, name: string): string {
     throw new AuthenticationError(403, `oidc_claim_missing:${name}`);
   }
   return value;
+}
+
+function positiveIntegerClaim(claims: Record<string, unknown>, name: string): number {
+  const value = stringClaim(claims, name);
+  if (!/^\d+$/.test(value) || Number(value) < 1 || !Number.isSafeInteger(Number(value))) {
+    throw new AuthenticationError(403, `oidc_claim_invalid:${name}`);
+  }
+  return Number(value);
 }

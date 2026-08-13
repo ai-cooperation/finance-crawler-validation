@@ -24,6 +24,7 @@ import {
   runAuthenticatedFreshnessWatchdog,
   runFreshnessWatchdog,
 } from "./watchdog";
+import { observeScheduledSoak } from "./soak";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -102,6 +103,7 @@ export function createHandler(
         "/v1/run/plan",
         "/v1/alerts/action-failure",
         "/v1/alerts/freshness-check",
+        "/v1/soak/observe",
       ].includes(url.pathname)) {
         return jsonResponse({ error: "route_not_found", request_id: requestId }, 404);
       }
@@ -146,6 +148,18 @@ export function createHandler(
           return jsonResponse(
             { ...result, request_id: requestId },
             result.delivered ? 202 : 200,
+          );
+        }
+        if (url.pathname === "/v1/soak/observe") {
+          const result = await observeScheduledSoak(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+          );
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
           );
         }
         if (url.pathname === "/v1/ingest/items") {
