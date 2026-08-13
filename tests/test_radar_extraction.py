@@ -149,6 +149,7 @@ def test_failure_result_preserves_delivery_evidence() -> None:
     assert result["status_code"] == 403
     assert result["route"] == "crawl4ai"
     assert "anti-bot challenge" in result["error"]
+    assert result["request_url"] == source.canonical_url
 
 
 def test_extraction_filters_before_max_items_with_overlap_window() -> None:
