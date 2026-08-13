@@ -74,6 +74,12 @@ gh workflow run topic-radar.yml \
 
 這個步驟不能只依據 HTTP 2xx 或臨時 webhook sink 判定通過；必須有真人收件確認。
 
+### 2026-08-13 fallback 控制面實測
+
+[Actions run 31692408769](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31692408769) 以 `Synthetic for testing only` 的預期 failure，在 checkout／admission 前驗證 primary 拒絕後的 fallback。attempt 1 的臨時 sink request count 為 1；重跑同一 run 的 attempt 2 後仍為 1。兩次的 checkout、Python、admission、Chromium、collect 與 ingest 均為 skipped；D1 `run_admissions` 前後都為 5，`github_action_failure:31692408769` 只有 1 筆。
+
+[Actions run 31692456847](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31692456847) 隨後對真實 D1 `healthy` freshness 執行 OIDC watchdog，workflow 成功、昂貴步驟仍全部 skipped，sink request count 維持 1。測試後 primary／fallback secret 清空、臨時 sink 刪除，Worker `/health` 與 `/v1/status` 均為 HTTP 200。結構化證據見 [`../experiments/p0-alerts/fallback-validation-20260813.json`](../experiments/p0-alerts/fallback-validation-20260813.json)。這次只證明機器 fallback、replay 去重與健康控制路徑，不取代真人收件，也尚未驗證真實 stale 的 open／deduplicated／resolved。
+
 再手動執行一次真實 D1 freshness watchdog：
 
 ```bash

@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "validated_at": "2026-08-13T10:45:08Z",
+  "scope": "zero-crawl alert control-plane validation",
+  "accounts": {
+    "github_repository": "ai-cooperation/finance-crawler-validation",
+    "github_active_account": "ai-cooperation",
+    "cloudflare_account_email": "o970117818@gmail.com",
+    "cloudflare_account_id": "ca985c195ab218488fc0744692dbde21"
+  },
+  "software_under_test": {
+    "git_commit_sha": "5300bb7523ea1d36bcdb613c5f01720b3b72416f",
+    "worker_version_before_temporary_secret_changes": "8234b39f-f4b8-418e-923e-f906578c688d",
+    "worker_version_after_temporary_secret_cleanup": "3b490ae4-03bd-419e-9ddb-d374103eb4dc"
+  },
+  "action_failure_validation": {
+    "run_id": 31692408769,
+    "attempt_1_conclusion": "failure",
+    "attempt_2_conclusion": "failure",
+    "failure_injection": "Synthetic for testing only",
+    "checkout_skipped": true,
+    "admission_skipped": true,
+    "chromium_and_collection_skipped": true,
+    "primary_route_expected_result": "rejected",
+    "fallback_sink_delivery_count_after_attempt_1": 1,
+    "fallback_sink_delivery_count_after_attempt_2": 1,
+    "d1_alert_key": "github_action_failure:31692408769",
+    "d1_alert_rows_after_attempt_2": 1,
+    "github_issue_number": 22
+  },
+  "freshness_validation": {
+    "run_id": 31692456847,
+    "conclusion": "success",
+    "observed_d1_freshness_state": "healthy",
+    "checkout_skipped": true,
+    "admission_skipped": true,
+    "chromium_and_collection_skipped": true,
+    "fallback_sink_delivery_count_after_watchdog": 1,
+    "new_delivery_for_healthy_state": false
+  },
+  "quota_and_cleanup": {
+    "d1_run_admission_count_before": 5,
+    "d1_run_admission_count_after": 5,
+    "cloudflare_secret_names_before": [],
+    "cloudflare_secret_names_after": [],
+    "temporary_sink_deleted": true,
+    "github_schedule_enabled": false,
+    "worker_cron_enabled": false,
+    "worker_health_http_after_cleanup": 200,
+    "worker_status_http_after_cleanup": 200
+  },
+  "evidence_classification": {
+    "real": [
+      "GitHub Actions step conclusions and run attempts",
+      "temporary HTTPS fallback sink request count",
+      "remote D1 row and admission counts",
+      "Cloudflare secret list and deployed Worker health/status responses"
+    ],
+    "synthetic": [
+      "the workflow failure was deliberately injected",
+      "the primary webhook destination deliberately returned a non-success response"
+    ],
+    "unverified": [
+      "delivery to a human-subscribed destination",
+      "freshness open/deduplicated/resolved transitions against a human destination",
+      "seven-day scheduled soak"
+    ]
+  }
+}
