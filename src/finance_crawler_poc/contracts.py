@@ -18,6 +18,7 @@ CONTRACT_NAMES = frozenset(
         "raw-item",
         "research-report",
         "source-record",
+        "status-response",
         "topic-snapshot",
     }
 )

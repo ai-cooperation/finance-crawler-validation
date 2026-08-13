@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/status-response.schema.json",
+  "title": "Finance crawler operational status response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "service",
+    "as_of",
+    "state",
+    "reasons",
+    "freshness",
+    "current_snapshot",
+    "source_counts"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "service": { "const": "finance-crawler-ingest" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "state": { "$ref": "#/$defs/state" },
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "no_snapshot",
+          "freshness_warning",
+          "freshness_stale",
+          "partial_snapshot",
+          "source_failures",
+          "clock_skew"
+        ]
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "age_seconds",
+        "warning_after_seconds",
+        "stale_after_seconds"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/state" },
+        "age_seconds": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "warning_after_seconds": { "type": "integer", "minimum": 1 },
+        "stale_after_seconds": { "type": "integer", "minimum": 2 }
+      }
+    },
+    "current_snapshot": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/current_snapshot" }
+      ]
+    },
+    "source_counts": { "$ref": "#/$defs/source_counts" }
+  },
+  "$defs": {
+    "state": { "enum": ["empty", "healthy", "warning", "stale"] },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "current_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_id",
+        "run_id",
+        "as_of",
+        "partial",
+        "failed_source_count",
+        "topic_count",
+        "content_sha256"
+      ],
+      "properties": {
+        "snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+        "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+        "as_of": { "type": "string", "format": "date-time" },
+        "partial": { "type": "boolean" },
+        "failed_source_count": { "type": "integer", "minimum": 0 },
+        "topic_count": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "content_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "source_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "success", "partial", "failed"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "success": { "type": "integer", "minimum": 0 },
+        "partial": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

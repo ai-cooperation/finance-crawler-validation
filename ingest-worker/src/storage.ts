@@ -7,6 +7,7 @@ import {
   validateIngestEnvelope,
   validateTopicSnapshot,
 } from "./contracts";
+import { canonicalJson } from "./canonical-json";
 
 
 export class HttpError extends Error {
@@ -27,7 +28,8 @@ export interface IngestResult {
   run_id: string;
   snapshot_id: string;
   received_items: number;
-  status: "staging";
+  status: "staging" | "published";
+  replayed: boolean;
 }
 
 export interface PublishResult {
@@ -35,6 +37,7 @@ export interface PublishResult {
   snapshot_id: string;
   topic_count: number;
   status: "published";
+  replayed: boolean;
 }
 
 export async function ingestItems(
@@ -43,7 +46,9 @@ export async function ingestItems(
   now: Date,
 ): Promise<IngestResult> {
   const envelope = validateOrHttp(() => validateIngestEnvelope(payload));
-  await assertRunCompatible(env.DB, envelope);
+  const payloadHash = await sha256Hex(canonicalJson(envelope));
+  const replay = await reserveOrReplayIngest(env.DB, envelope, payloadHash, now);
+  if (replay !== null) return replay;
   await persistRawObjects(env.RAW_OBJECTS, envelope.items);
 
   const happenedAt = now.toISOString();
@@ -54,22 +59,7 @@ export async function ingestItems(
     envelope.source_manifest_hash,
     happenedAt,
   );
-  const statements: D1PreparedStatement[] = [
-    env.DB.prepare(
-      `INSERT INTO runs (
-        run_id, workflow_run_id, commit_sha, snapshot_id, source_manifest_hash,
-        status, collected_at, item_count
-      ) VALUES (?, ?, ?, ?, ?, 'staging', ?, 0)
-      ON CONFLICT(run_id) DO NOTHING`,
-    ).bind(
-      envelope.run_id,
-      envelope.workflow_run_id,
-      envelope.commit_sha,
-      envelope.snapshot_id,
-      envelope.source_manifest_hash,
-      envelope.collected_at,
-    ),
-  ];
+  const statements: D1PreparedStatement[] = [];
   for (const item of envelope.items) {
     statements.push(rawItemStatement(env.DB, item, happenedAt));
     statements.push(
@@ -89,6 +79,13 @@ export async function ingestItems(
     ).bind(envelope.run_id, envelope.run_id),
   );
   statements.push(audit);
+  statements.push(
+    env.DB.prepare(
+      `UPDATE ingest_receipts
+       SET status = 'completed', completed_at = ?
+       WHERE run_id = ? AND payload_sha256 = ?`,
+    ).bind(happenedAt, envelope.run_id, payloadHash),
+  );
 
   try {
     await env.DB.batch(statements);
@@ -101,6 +98,7 @@ export async function ingestItems(
     snapshot_id: envelope.snapshot_id,
     received_items: envelope.items.length,
     status: "staging",
+    replayed: false,
   };
 }
 
@@ -110,6 +108,8 @@ export async function publishSnapshot(
   now: Date,
 ): Promise<PublishResult> {
   const snapshot = validateOrHttp(() => validateTopicSnapshot(payload));
+  const serialized = JSON.stringify(snapshot);
+  const contentHash = await sha256Hex(serialized);
   const run = await env.DB.prepare(
     "SELECT snapshot_id, status FROM runs WHERE run_id = ?",
   ).bind(snapshot.run_id).first<{ snapshot_id: string; status: string }>();
@@ -117,10 +117,28 @@ export async function publishSnapshot(
   if (run.snapshot_id !== snapshot.snapshot_id) {
     throw new HttpError(409, "snapshot_run_conflict");
   }
+  const existing = await env.DB.prepare(
+    "SELECT run_id, content_sha256, topic_count FROM topic_snapshots WHERE snapshot_id = ?",
+  ).bind(snapshot.snapshot_id).first<{
+    run_id: string;
+    content_sha256: string;
+    topic_count: number;
+  }>();
+  if (existing !== null) {
+    if (existing.run_id !== snapshot.run_id || existing.content_sha256 !== contentHash) {
+      throw new HttpError(409, "snapshot_payload_conflict");
+    }
+    return {
+      run_id: snapshot.run_id,
+      snapshot_id: snapshot.snapshot_id,
+      topic_count: Number(existing.topic_count),
+      status: "published",
+      replayed: true,
+    };
+  }
+  if (run.status === "published") throw new HttpError(409, "published_snapshot_missing");
   await assertEvidenceBelongsToRun(env.DB, snapshot);
 
-  const serialized = JSON.stringify(snapshot);
-  const contentHash = await sha256Hex(serialized);
   const objectKey = `topics/${snapshot.snapshot_id}.json`;
   try {
     await env.RAW_OBJECTS.put(objectKey, serialized, {
@@ -186,20 +204,78 @@ export async function publishSnapshot(
     snapshot_id: snapshot.snapshot_id,
     topic_count: snapshot.topics.length,
     status: "published",
+    replayed: false,
   };
 }
 
-async function assertRunCompatible(db: D1Database, envelope: IngestEnvelope): Promise<void> {
+async function reserveOrReplayIngest(
+  db: D1Database,
+  envelope: IngestEnvelope,
+  payloadHash: string,
+  now: Date,
+): Promise<IngestResult | null> {
+  const existing = await findExistingRun(db, envelope.run_id);
+  if (existing !== null) return evaluateExistingRun(existing, envelope, payloadHash);
+
+  const createdAt = now.toISOString();
+  try {
+    await db.batch([
+      db.prepare(
+        `INSERT INTO runs (
+          run_id, workflow_run_id, commit_sha, snapshot_id, source_manifest_hash,
+          status, collected_at, item_count
+        ) VALUES (?, ?, ?, ?, ?, 'staging', ?, 0)`,
+      ).bind(
+        envelope.run_id,
+        envelope.workflow_run_id,
+        envelope.commit_sha,
+        envelope.snapshot_id,
+        envelope.source_manifest_hash,
+        envelope.collected_at,
+      ),
+      db.prepare(
+        `INSERT INTO ingest_receipts (
+          run_id, payload_sha256, status, created_at, completed_at
+        ) VALUES (?, ?, 'started', ?, NULL)`,
+      ).bind(envelope.run_id, payloadHash, createdAt),
+    ]);
+    return null;
+  } catch {
+    const raced = await findExistingRun(db, envelope.run_id);
+    if (raced !== null) return evaluateExistingRun(raced, envelope, payloadHash);
+    throw new HttpError(503, "storage_write_failed");
+  }
+}
+
+interface ExistingRun {
+  workflow_run_id: string;
+  commit_sha: string;
+  snapshot_id: string;
+  source_manifest_hash: string;
+  status: string;
+  payload_sha256: string | null;
+  receipt_status: string | null;
+}
+
+async function findExistingRun(db: D1Database, runId: string): Promise<ExistingRun | null> {
   const existing = await db.prepare(
-    `SELECT workflow_run_id, commit_sha, snapshot_id, source_manifest_hash
-     FROM runs WHERE run_id = ?`,
-  ).bind(envelope.run_id).first<{
-    workflow_run_id: string;
-    commit_sha: string;
-    snapshot_id: string;
-    source_manifest_hash: string;
-  }>();
-  if (!existing) return;
+    `SELECT
+      runs.workflow_run_id, runs.commit_sha, runs.snapshot_id,
+      runs.source_manifest_hash, runs.status,
+      ingest_receipts.payload_sha256,
+      ingest_receipts.status AS receipt_status
+    FROM runs
+    LEFT JOIN ingest_receipts ON ingest_receipts.run_id = runs.run_id
+    WHERE runs.run_id = ?`,
+  ).bind(runId).first<ExistingRun>();
+  return existing ?? null;
+}
+
+function evaluateExistingRun(
+  existing: ExistingRun,
+  envelope: IngestEnvelope,
+  payloadHash: string,
+): IngestResult | null {
   if (
     existing.workflow_run_id !== envelope.workflow_run_id ||
     existing.commit_sha !== envelope.commit_sha ||
@@ -208,6 +284,26 @@ async function assertRunCompatible(db: D1Database, envelope: IngestEnvelope): Pr
   ) {
     throw new HttpError(409, "run_identity_conflict");
   }
+  if (existing.payload_sha256 === null || existing.receipt_status === null) {
+    throw new HttpError(409, "run_receipt_missing");
+  }
+  if (existing.payload_sha256 !== payloadHash) {
+    throw new HttpError(409, "run_payload_conflict");
+  }
+  if (existing.receipt_status === "started") return null;
+  if (existing.receipt_status !== "completed") {
+    throw new HttpError(409, "run_receipt_invalid");
+  }
+  if (existing.status !== "staging" && existing.status !== "published") {
+    throw new HttpError(409, "run_not_replayable");
+  }
+  return {
+    run_id: envelope.run_id,
+    snapshot_id: envelope.snapshot_id,
+    received_items: envelope.items.length,
+    status: existing.status,
+    replayed: true,
+  };
 }
 
 async function persistRawObjects(bucket: R2Bucket, items: RawItem[]): Promise<void> {

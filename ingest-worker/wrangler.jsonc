@@ -18,7 +18,9 @@
     "GITHUB_OWNER_ID": "258149792",
     "GITHUB_WORKFLOW_REF": "ai-cooperation/finance-crawler-validation/.github/workflows/topic-radar.yml@refs/heads/main",
     "GITHUB_REF": "refs/heads/main",
-    "GITHUB_EVENT_NAME": "workflow_dispatch"
+    "GITHUB_EVENT_NAME": "workflow_dispatch",
+    "FRESHNESS_WARNING_SECONDS": "21600",
+    "FRESHNESS_STALE_SECONDS": "86400"
   },
   "d1_databases": [
     {

@@ -95,6 +95,32 @@ def topic_snapshot() -> dict[str, object]:
     }
 
 
+def status_response() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "service": "finance-crawler-ingest",
+        "as_of": "2026-08-10T02:10:00Z",
+        "state": "warning",
+        "reasons": ["partial_snapshot"],
+        "freshness": {
+            "state": "healthy",
+            "age_seconds": 300,
+            "warning_after_seconds": 21600,
+            "stale_after_seconds": 86400,
+        },
+        "current_snapshot": {
+            "snapshot_id": "radar_20260810t020500z",
+            "run_id": "run_20260810t020500z",
+            "as_of": "2026-08-10T02:05:00Z",
+            "partial": True,
+            "failed_source_count": 0,
+            "topic_count": 1,
+            "content_sha256": "c" * 64,
+        },
+        "source_counts": {"total": 1, "success": 1, "partial": 0, "failed": 0},
+    }
+
+
 def test_all_versioned_contracts_are_loadable() -> None:
     assert CONTRACT_NAMES == frozenset(
         {
@@ -104,6 +130,7 @@ def test_all_versioned_contracts_are_loadable() -> None:
             "raw-item",
             "research-report",
             "source-record",
+            "status-response",
             "topic-snapshot",
         }
     )
@@ -119,6 +146,7 @@ def test_all_versioned_contracts_are_loadable() -> None:
         ("source-record", source_record()),
         ("raw-item", raw_item()),
         ("topic-snapshot", topic_snapshot()),
+        ("status-response", status_response()),
     ],
 )
 def test_core_contracts_accept_valid_payloads(

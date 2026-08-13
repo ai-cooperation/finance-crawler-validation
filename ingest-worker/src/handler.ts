@@ -4,6 +4,12 @@ import {
   authenticateGithubOidc,
 } from "./auth";
 import { HttpError, ingestItems, publishSnapshot } from "./storage";
+import {
+  parseFreshnessPolicy,
+  readStatus,
+  StatusConfigurationError,
+  StatusReadError,
+} from "./status";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -30,11 +36,30 @@ export function createHandler(
       if (request.method === "GET" && url.pathname === "/health") {
         return jsonResponse({ ok: true, service: "finance-crawler-ingest" }, 200);
       }
-      if (request.method !== "POST") {
-        return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
+      if (url.pathname === "/v1/status") {
+        if (request.method !== "GET") {
+          return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
+        }
+        try {
+          const status = await readStatus(
+            env.DB,
+            dependencies.now(),
+            parseFreshnessPolicy(env),
+          );
+          return jsonResponse(status, 200);
+        } catch (error) {
+          const normalized = normalizeError(error);
+          return jsonResponse(
+            { error: normalized.code, request_id: requestId },
+            normalized.status,
+          );
+        }
       }
       if (!["/v1/ingest/items", "/v1/ingest/publish"].includes(url.pathname)) {
         return jsonResponse({ error: "route_not_found", request_id: requestId }, 404);
+      }
+      if (request.method !== "POST") {
+        return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
       }
 
       try {
@@ -129,6 +154,10 @@ function stringField(value: unknown, field: string): string | null {
 function normalizeError(error: unknown): HttpError {
   if (error instanceof HttpError) return error;
   if (error instanceof AuthenticationError) return new HttpError(error.status, error.code);
+  if (error instanceof StatusReadError) return new HttpError(503, "status_unavailable");
+  if (error instanceof StatusConfigurationError) {
+    return new HttpError(500, "status_configuration_invalid");
+  }
   console.error(JSON.stringify({
     event: "unhandled_ingest_error",
     error: error instanceof Error ? error.message : String(error),

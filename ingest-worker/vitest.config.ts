@@ -14,5 +14,18 @@ export default defineConfig({
       },
     })),
   ],
-  test: { setupFiles: ["./test/apply-migrations.ts"] },
+  test: {
+    setupFiles: ["./test/apply-migrations.ts"],
+    coverage: {
+      provider: "istanbul",
+      reporter: ["text"],
+      include: ["src/**/*.ts"],
+      thresholds: {
+        statements: 80,
+        branches: 80,
+        functions: 80,
+        lines: 80,
+      },
+    },
+  },
 });
