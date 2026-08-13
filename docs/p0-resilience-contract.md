@@ -67,6 +67,8 @@ Worker 優先對 `ALERT_WEBHOOK_URL` 送出 HTTPS 告警；primary 失敗且已�
 
 Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_freshness`；重複異常只更新偵測時間，不重送；恢復到 `healthy`／`warning` 時發送 resolved，再更新 D1。外部 generic JSON transport 已以臨時 sink驗證 open 與 replay 去重。正式 soak 必須先配置並驗證有人訂閱的 Slack／Telegram／自有 webhook 或 ntfy topic；在此之前 GitHub schedule 與 Worker Cron 保持關閉。不啟用 email、商業出口或付費功能。
 
+Cloudflare scheduled handler 自身若因 D1／status／未預期程式錯誤失敗，必須先嘗試以同一 primary→fallback transport 發出 `cloudflare_watchdog_failure:SCHEDULED_AT`，payload 只含排程時間、cron 與穩定錯誤碼，不得外洩 exception message；之後仍重新拋出原錯誤，讓 Worker invocation 保持 failed。若原錯誤已是 webhook transport failure，不得對同一失效 transport 遞迴告警。
+
 ## 狀態與不變量
 
 1. `current_snapshot` 只能指向已驗證且已持久化的 topic snapshot。
@@ -96,6 +98,7 @@ Watchdog 讀取同一個 D1 status：`empty` 或 `stale` 開啟 `topic_radar_fre
 17. `operational_alerts` 同一 key 只允許 open → deduplicated → resolved 的可稽核轉移。
 18. 手動 action／freshness 告警驗證不得呼叫 `POST /v1/run/plan`、安裝 collector／Chromium或寫入 ingest。
 19. primary 送達成功時不呼叫 fallback；primary 失敗時才呼叫，且兩者失敗不寫 receipt。
+20. scheduled watchdog 的執行錯誤必須嘗試外部告警並保留 failed invocation；transport 自身失敗不得遞迴送告警。
 
 ## Given／When／Then 驗收
 
