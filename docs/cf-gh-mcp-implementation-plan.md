@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
 更新日期：2026-08-13
-狀態：資料契約、Ingest Worker、D1／R2 與 15 來源議題雷達已在隔離驗證帳號完成單次 GitHub OIDC 垂直切片；實作順序已固定為 P0 基礎關卡 → P2 120 來源關卡 → P1 應用整合 → MCP／Agent 使用者介面裁示。正式排程、長期穩定性、外部告警與故障恢復尚未驗收。
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；實作順序固定為 P0 基礎關卡 → P2 120 來源關卡 → P1 應用整合 → MCP／Agent 使用者介面裁示。正式排程仍關閉，P0 尚待 catch-up、外部 staleness／失敗告警、額度保護與低頻 soak。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -155,8 +155,8 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 |---|---|---|
 | 0. 來源與路由 POC | 部分完成 | 已完成來源矩陣、120 品牌單一 GitHub executor 擴大樣本與 15 來源垂直切片；跨時間 observation state 與同 URL 多 executor A/B 待辦 |
 | 1. 資料契約 | 本機完成 | 八份 version 1 JSON Schema（含只讀 status response）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
-| 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain 與 Ingest Worker 已部署；run `31369726174` 寫入 38 items 與 1 個 current snapshot，並直讀 R2 object 驗證 hash |
-| 3. GH 批次管線 | 手動 OIDC 實接完成 | ingest envelope、immutable repo／owner／workflow／ref claims、commit SHA／workflow run 綁定、checkpoint 與單次 staging→publish 已實辦；遠端重放、catch-up、真正外部告警與 staleness 待辦 |
+| 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
+| 3. GH 批次管線 | 手動 OIDC／重放實接完成 | ingest envelope、immutable repo／owner／workflow／ref claims、commit SHA／workflow run 綁定、checkpoint、staging→publish、遠端 ingest／publish replay 與 invalid publish 保留 last-good 已實辦；catch-up、真正外部告警與 staleness 待辦 |
 | 4. 議題雷達與研究 | 遠端垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
 | 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
 | 6. 穩定性驗收 | 待辦 | 故障注入、額度觀測、連續一週正常排程與補跑紀錄 |
@@ -186,9 +186,9 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 - R2：直接讀回 topic JSON（4,085 bytes）與一個 raw JSON（66,104 bytes）；topic SHA-256 `4aff9ea563bf190ab4bee9bd9e187b92b9cbbd7f5a118c138d0f358978fc7093` 與 D1 完全一致。R2 bucket usage 彙總當時仍顯示 0，因此驗收以直接 object get 為準，不以延遲的彙總指標推定。
 - 公開 artifact 只有 source-health `run-report.json`；raw items 與 topic snapshot 沒有上傳為 GitHub artifact。
 
-進入 OpenBB 前仍須依序完成 Gate 1 與 Gate 2：遠端重放去重、故障注入確認 last-good、catch-up 視窗、外部失敗通知、staleness watchdog，以及 120 個不重複新聞品牌的隔離帳號實測與失敗分群。正式 schedule 仍保持關閉。
+進入 OpenBB 前仍須依序完成 Gate 1 與 Gate 2：catch-up 視窗、外部失敗通知、staleness watchdog、額度保護與低頻 soak，以及 120 個不重複新聞品牌的隔離帳號實測與失敗分群。正式 schedule 仍保持關閉。
 
-### 2026-08-13 P0 重放與 status 本機實作
+### 2026-08-13 P0 重放與 status 實作
 
 本機已完成 canonical ingest receipt migration、同 ID 異 payload 409 衝突、publish replay 不重設 current、D1-backed `GET /v1/status`，以及手動 workflow 的選配 `verify_resilience`。驗證選項預設關閉；開啟時使用同一輪 15 來源垂直切片的真實 payload，在同一 job 內完成 replay、invalid publish，再比對 status 的 snapshot ID 與 content hash，不另外多跑第二輪爬取。
 
@@ -196,7 +196,17 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 - Python coverage：81.27%，pyproject 80% 門檻通過。
 - Ingest Worker coverage：statements 86.89%、branches 81.30%、functions 94.64%、lines 88.14%；四項 80% 門檻已寫入 Vitest config。
 - Wrangler type check、TypeScript typecheck、workflow YAML 語法與 deploy dry-run 通過。
-- 上述全部是本機證據；`0002_ingest_receipts.sql`、Worker 新版、`/v1/status` 與 resilience workflow 尚未遠端部署，因此 Gate 1 的「遠端重放／last-good 故障注入」仍未驗收完成。
+- 遠端部署與驗收證據如下；Gate 1 的「遠端重放／last-good 故障注入／D1 status」子項已完成，但 catch-up、外部告警、額度保護與 soak 仍未完成，因此 P0 整體尚未關閉。
+
+#### 遠端部署與單次額度驗證
+
+- [PR #1](https://github.com/ai-cooperation/finance-crawler-validation/pull/1) 合併為 commit `e0078b2aeea3fd6807f8ceff5e090768711fe1e3`；D1 migration `0002_ingest_receipts.sql` 已套用，舊 1 筆 run 保留且未補寫不可驗證 receipt。
+- Worker version `9eb9a838-8d38-44ac-9eed-db1c37c991e5` 已部署；`GET /health` 與 `GET /v1/status` 均回 HTTP 200，status response 通過 version 1 JSON Schema。
+- 只觸發一次 [Actions run 31676925023](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31676925023)，耗時 1 分 58 秒；同一 job 先抓 15 個來源一次，再重放同一 ingest／publish payload 與注入一個 invalid publish，沒有第二輪爬取，也沒有開啟 schedule。
+- 實測來源為 13/15：RSS 5/5、Public API 7/7、Browser＋Crawl4AI 1/3，共 37 items、3 topics。OpenBB GitHub Discussions 發生 HTTP/2 refused stream，Bogleheads 遭 Cloudflare JS challenge／403；snapshot 因此正確標記 `partial=true`，不把單次成功外推為長期成功率。
+- D1 run `run_20260813t071516z` 為 `published`，`item_count=37` 且 `run_items=37`；只有 1 筆 `completed` ingest receipt、1 個新 snapshot，以及 `raw_collected`／`published` audit 各 1 筆，證明 replay 沒有增加 run、snapshot、link 或 audit 業務事件。
+- invalid publish 回傳 422 `invalid_payload` 後，current 仍指向 `radar_20260813t071516z`；status 顯示 freshness `healthy`、整體 `warning`，原因為 2 個來源失敗與 partial snapshot。
+- R2 直接讀回 topic object（4,195 bytes）與一個 raw object（1,073 bytes）；topic SHA-256 `807b851c2c062307da79dccde1349b3e4461a8d785416bc4990bacd633f7d5be` 與 D1、status 完全一致。公開 artifact 仍只有 source-health `run-report.json`。
 
 ## 九、驗收條件
 
