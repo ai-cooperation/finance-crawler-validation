@@ -43,6 +43,8 @@
 
 隔離帳號 baseline 是 [Actions run 31677822771](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31677822771)：120/120 品牌都有紀錄，101/120 成功（84.17%）。後續只以 explicit brand batch 重驗失敗或 endpoint 變更者，再按 brand ID 合併 observation；batch 內成功率不得冒充 120 品牌整體成功率。
 
+P2 擴大驗收已由 baseline 與三個 bounded batches 合併完成：120 個唯一品牌中 114 個成功（95.00%），達成契約上緣。實驗 run、artifact 雜湊、合併規則及剩餘 6 個邊界見 [`experiments/news-120/p2-acceptance-20260813.json`](experiments/news-120/p2-acceptance-20260813.json)。
+
 來源定義在 `sources.yaml`，目前涵蓋台灣與國際社群、開發者社群、新聞、RSS、官方資料 API、市場資料 API，以及 Crawl4AI 財經範例網站。每個來源都聲明 topic、kind、transport、最低內容門檻、必要詞、來源脈絡與選源證據。
 
 熱門社群的選擇依據、能力假設與合規邊界見 [`docs/source-selection.md`](docs/source-selection.md)。實際可用性以 GitHub Actions 產出的 `report.json` 為準，不以本文件或單次本機請求推定。

@@ -12,6 +12,9 @@ SUMMARY_PATH = (
 ISOLATED_SUMMARY_PATH = (
     REPOSITORY_ROOT / "experiments/news-120/run-31677822771-summary.json"
 )
+ACCEPTANCE_PATH = (
+    REPOSITORY_ROOT / "experiments/news-120/p2-acceptance-20260813.json"
+)
 
 
 def test_strict_news_run_summary_matches_the_frozen_catalog() -> None:
@@ -53,3 +56,30 @@ def test_isolated_account_baseline_records_every_unique_brand() -> None:
     assert len(failed_ids) == len(set(failed_ids))
     assert set(failed_ids) <= {brand.id for brand in catalog.brands}
     assert re.fullmatch(r"[0-9a-f]{64}", summary["news_report_sha256"])
+
+
+def test_p2_acceptance_has_exact_run_hashes_and_unique_brand_denominator() -> None:
+    evidence = json.loads(ACCEPTANCE_PATH.read_text(encoding="utf-8"))
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    merged = evidence["merged_result"]
+
+    assert evidence["catalog"]["unique_brands"] == catalog.brand_count == 120
+    assert evidence["catalog"]["endpoint_paths_at_acceptance"] == 162
+    assert catalog.endpoint_count == 162
+    assert [run["run_id"] for run in evidence["runs"]] == [
+        31677822771,
+        31679578795,
+        31680725396,
+        31681280554,
+    ]
+    assert all(run["conclusion"] == "success" for run in evidence["runs"])
+    assert all(
+        re.fullmatch(r"[0-9a-f]{64}", run["artifact_json_sha256"])
+        for run in evidence["runs"]
+    )
+    assert merged["observed_brands"] == merged["unique_brand_ids"] == 120
+    assert merged["successful_brands"] == 114
+    assert merged["failed_brands"] == len(merged["failed_brand_ids"]) == 6
+    assert len(set(merged["failed_brand_ids"])) == 6
+    assert merged["brand_success_rate"] == merged["acceptance_threshold"] == 0.95
+    assert merged["accepted"] is True
