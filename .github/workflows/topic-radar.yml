@@ -303,6 +303,43 @@ jobs:
           test "$(jq -r '.current_snapshot.content_sha256' <<<"$status_after")" = \
             "$(jq -r '.current_snapshot.content_sha256' <<<"$status_before")"
 
+      # Resolve historical Action failures only after this run completed the
+      # admitted collection and publish path. Provider delivery happens before
+      # D1 state changes, so a missing/rejected human channel leaves alerts open.
+      - name: Resolve prior action failure alerts
+        if: success() && steps.admission.outputs.admitted == 'true'
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg run_url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{
+              schema_version: 1,
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha,
+              conclusion: "success",
+              run_url: $run_url
+            }' >"$RUNNER_TEMP/action-recovery.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/action-recovery.json" \
+            "$INGEST_WORKER_URL/v1/alerts/action-recovery")"
+          jq -e '
+            (.delivered | type == "boolean") and
+            (.resolved_alerts | type == "number") and
+            (.transition | IN("resolved", "healthy"))
+          ' <<<"$response" >/dev/null
+
       # This endpoint accepts only a real GitHub `schedule` OIDC identity. It is
       # deliberately after all workload steps and uses `always()` so admitted,
       # denied, and failed scheduled runs all produce bounded control-plane

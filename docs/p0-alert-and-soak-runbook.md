@@ -71,6 +71,7 @@ gh workflow run topic-radar.yml \
 - 真人在 Slack／Telegram／ntfy／自有系統看到該 run ID，且訊息不含 token、raw content 或 private evidence。
 - D1 `operational_alerts` 只有一筆 `github_action_failure:RUN_ID`，GitHub 只有一個對應 issue。
 - 從 GitHub UI 重跑同一 run 後，真人目的地、D1 receipt 與 issue 均不增加。
+- 後續一次真正 admitted 且 publish 成功的 run 必須送出一筆彙總 recovery；只有真人確認收到後，既有 `github_action_failure:*` 才可轉為 resolved。不得以刪 row 或直接 SQL 更新取代這條路徑。
 
 這個步驟不能只依據 HTTP 2xx 或臨時 webhook sink 判定通過；必須有真人收件確認。
 

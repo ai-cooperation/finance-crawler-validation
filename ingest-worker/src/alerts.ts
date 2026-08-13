@@ -3,12 +3,21 @@ import { HttpError } from "./storage";
 
 const GITHUB_RUN_URL_PATTERN = /^https:\/\/github\.com\/ai-cooperation\/finance-crawler-validation\/actions\/runs\/(\d+)$/;
 const ALERT_DELIVERY_TIMEOUT_MS = 10_000;
+const MAX_ACTION_RECOVERY_ALERTS = 100;
 
 interface ActionFailurePayload {
   schema_version: 1;
   workflow_run_id: string;
   commit_sha: string;
   conclusion: "failure";
+  run_url: string;
+}
+
+interface ActionRecoveryPayload {
+  schema_version: 1;
+  workflow_run_id: string;
+  commit_sha: string;
+  conclusion: "success";
   run_url: string;
 }
 
@@ -45,16 +54,7 @@ export async function reportActionFailure(
   alertFetch: AlertFetch,
 ): Promise<{ delivered: boolean; transition: "opened" | "deduplicated" }> {
   const failure = parseActionFailure(payload);
-  if (failure.workflow_run_id !== identity.workflowRunId) {
-    throw new HttpError(403, "workflow_run_mismatch");
-  }
-  if (failure.commit_sha !== identity.commitSha) {
-    throw new HttpError(403, "commit_sha_mismatch");
-  }
-  const runUrlMatch = GITHUB_RUN_URL_PATTERN.exec(failure.run_url);
-  if (!runUrlMatch || runUrlMatch[1] !== failure.workflow_run_id) {
-    throw new HttpError(422, "invalid_alert_request");
-  }
+  assertActionIdentity(failure, identity);
   const alertKey = `github_action_failure:${failure.workflow_run_id}`;
   const summary = `Finance topic radar GitHub Actions run ${failure.workflow_run_id} failed`;
   const fingerprint = await sha256(`${alertKey}\n${failure.commit_sha}\n${failure.conclusion}`);
@@ -99,6 +99,86 @@ export async function reportActionFailure(
   return { delivered: true, transition: "opened" };
 }
 
+export async function resolveActionFailures(
+  env: Env,
+  payload: unknown,
+  identity: { workflowRunId: string; commitSha: string },
+  now: Date,
+  alertFetch: AlertFetch,
+): Promise<{
+  delivered: boolean;
+  transition: "resolved" | "healthy";
+  resolved_alerts: number;
+}> {
+  const recovery = parseActionRecovery(payload);
+  assertActionIdentity(recovery, identity);
+  await assertPublishedRecoveryRun(env.DB, recovery);
+  const open = await env.DB.prepare(
+    `SELECT alert_key, fingerprint FROM operational_alerts
+     WHERE state = 'open' AND alert_key LIKE 'github_action_failure:%'
+     ORDER BY first_detected_at, alert_key
+     LIMIT ?`,
+  ).bind(MAX_ACTION_RECOVERY_ALERTS + 1).all<AlertRow>();
+  if (open.results.length > MAX_ACTION_RECOVERY_ALERTS) {
+    throw new HttpError(409, "action_recovery_backlog_exceeded");
+  }
+  if (open.results.length === 0) {
+    return { delivered: false, transition: "healthy", resolved_alerts: 0 };
+  }
+
+  const timestamp = now.toISOString();
+  const recoveryKey = `github_action_recovery:${recovery.workflow_run_id}`;
+  await deliverConfiguredAlert(env, recoveryKey, {
+    schema_version: 1,
+    alert_key: recoveryKey,
+    state: "resolved",
+    severity: "info",
+    detected_at: timestamp,
+    service: "finance-crawler-validation",
+    summary: `Finance topic radar recovered in GitHub Actions run ${recovery.workflow_run_id}`,
+    details: {
+      workflow_run_id: recovery.workflow_run_id,
+      commit_sha: recovery.commit_sha,
+      run_url: recovery.run_url,
+      resolved_alert_count: open.results.length,
+    },
+  }, alertFetch);
+
+  const statements = open.results.map((row) => env.DB.prepare(
+    `UPDATE operational_alerts
+     SET state = 'resolved', last_detected_at = ?, last_notified_at = ?, resolved_at = ?
+     WHERE alert_key = ? AND state = 'open' AND fingerprint = ?`,
+  ).bind(timestamp, timestamp, timestamp, row.alert_key, row.fingerprint));
+  const results = await env.DB.batch(statements);
+  if (results.some((result) => !result.success) || results.reduce(
+    (total, result) => total + Number(result.meta.changes), 0,
+  ) !== open.results.length) {
+    throw new HttpError(503, "alert_recovery_write_failed");
+  }
+  return {
+    delivered: true,
+    transition: "resolved",
+    resolved_alerts: open.results.length,
+  };
+}
+
+async function assertPublishedRecoveryRun(
+  db: D1Database,
+  recovery: ActionRecoveryPayload,
+): Promise<void> {
+  const run = await db.prepare(
+    `SELECT run.run_id
+     FROM runs AS run
+     JOIN current_snapshot AS current ON current.snapshot_id = run.snapshot_id
+     WHERE run.workflow_run_id = ?
+       AND run.commit_sha = ?
+       AND run.status = 'published'
+       AND current.singleton_id = 1
+     LIMIT 1`,
+  ).bind(recovery.workflow_run_id, recovery.commit_sha).first<{ run_id: string }>();
+  if (run === null) throw new HttpError(409, "action_recovery_run_not_published");
+}
+
 function parseActionFailure(payload: unknown): ActionFailurePayload {
   if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
     throw new HttpError(422, "invalid_alert_request");
@@ -120,6 +200,45 @@ function parseActionFailure(payload: unknown): ActionFailurePayload {
     throw new HttpError(422, "invalid_alert_request");
   }
   return record as unknown as ActionFailurePayload;
+}
+
+function parseActionRecovery(payload: unknown): ActionRecoveryPayload {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    throw new HttpError(422, "invalid_alert_request");
+  }
+  const record = payload as Record<string, unknown>;
+  if (!sameKeys(record, [
+    "schema_version",
+    "workflow_run_id",
+    "commit_sha",
+    "conclusion",
+    "run_url",
+  ]) || record.schema_version !== 1
+    || typeof record.workflow_run_id !== "string"
+    || !/^\d+$/.test(record.workflow_run_id)
+    || typeof record.commit_sha !== "string"
+    || !/^[a-f0-9]{40}$/.test(record.commit_sha)
+    || record.conclusion !== "success"
+    || typeof record.run_url !== "string") {
+    throw new HttpError(422, "invalid_alert_request");
+  }
+  return record as unknown as ActionRecoveryPayload;
+}
+
+function assertActionIdentity(
+  payload: ActionFailurePayload | ActionRecoveryPayload,
+  identity: { workflowRunId: string; commitSha: string },
+): void {
+  if (payload.workflow_run_id !== identity.workflowRunId) {
+    throw new HttpError(403, "workflow_run_mismatch");
+  }
+  if (payload.commit_sha !== identity.commitSha) {
+    throw new HttpError(403, "commit_sha_mismatch");
+  }
+  const runUrlMatch = GITHUB_RUN_URL_PATTERN.exec(payload.run_url);
+  if (!runUrlMatch || runUrlMatch[1] !== payload.workflow_run_id) {
+    throw new HttpError(422, "invalid_alert_request");
+  }
 }
 
 export function requireAlertWebhookUrl(env: Env): string {
