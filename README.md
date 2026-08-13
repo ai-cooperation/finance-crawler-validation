@@ -49,7 +49,7 @@
 
 國外社群的全面矩陣獨立放在 [`foreign-community-sources.yaml`](foreign-community-sources.yaml)，避免官方資料探測與社群平台邊界互相稀釋。它包含可匿名實跑路徑及需要 OAuth、API key、會員或商業授權的 catalog-only 路徑；範圍定義與分層策略見 [`docs/foreign-community-landscape.md`](docs/foreign-community-landscape.md)，同批 Browser URL 的 Crawl4AI、Crawlee、Cloudflare Browser Run 實測與商業 unlocker A/B 契約見 [`docs/browser-treatment-experiment.md`](docs/browser-treatment-experiment.md)。GitHub Actions 手動觸發時可選 `core` 或 `foreign_communities` scope。
 
-`worker/` 是限定七個 feed ID 的 Cloudflare RSS relay：只在 GitHub 直連遇到 403、429 或 5xx 時啟用，不接受任意目標 URL，也不追隨上游重導。工作流程透過 repository variable `CF_RELAY_BASE_URL` 注入部署 URL；未設定時仍可重現純 GitHub 直連邊界。
+`worker/` 是限定十個 feed ID 的 Cloudflare RSS relay：只在 GitHub 直連遇到 403、429 或 5xx 時啟用，不接受任意目標 URL，也不追隨上游重導。工作流程透過 repository variable `CF_RELAY_BASE_URL` 注入部署 URL；未設定時仍可重現純 GitHub 直連邊界。
 
 ## 本機開發
 

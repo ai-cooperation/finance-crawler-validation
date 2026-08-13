@@ -68,4 +68,5 @@ def test_news_report_uses_brand_denominator_and_keeps_endpoint_attempts(tmp_path
     }
     assert len(payload["results"]) == 2
     assert len(payload["results"][0]["endpoint_attempts"]) == 2
+    assert payload["results"][0]["endpoint_attempts"][0]["delivery_attempts"] == []
     assert "1/2" in paths.markdown_path.read_text(encoding="utf-8")

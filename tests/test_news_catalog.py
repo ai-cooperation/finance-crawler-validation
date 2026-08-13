@@ -37,6 +37,7 @@ brands:
       - id: specialist_one_rss
         transport: rss
         url: https://specialist.example/rss
+        relay_path: /v1/feed/specialist_one_rss
         required_capabilities: [http, rss]
       - id: specialist_one_browser
         transport: browser
@@ -59,12 +60,52 @@ brands:
 
     assert catalog.brand_count == 2
     assert catalog.endpoint_count == 3
+    assert catalog.brands[0].endpoints[0].relay_path == (
+        "/v1/feed/specialist_one_rss"
+    )
     assert catalog.target.total_brands == 120
     assert catalog.is_complete is False
     assert {brand.canonical_domain for brand in catalog.brands} == {
         "general.example",
         "specialist.example",
     }
+
+
+@pytest.mark.parametrize(
+    ("transport", "relay_path", "message"),
+    [
+        ("static_html", "/v1/feed/specialist_one_html", "only for rss endpoints"),
+        ("rss", "/v1/feed/some_other_feed", "must match endpoint id"),
+        ("rss", "https://proxy.example/feed", "must match endpoint id"),
+    ],
+)
+def test_catalog_relay_path_is_a_fixed_rss_allowlist_route(
+    tmp_path: Path, transport: str, relay_path: str, message: str
+) -> None:
+    path = write_catalog(
+        tmp_path,
+        f"""
+version: 1
+status: draft
+target: {{total_brands: 120, finance_specialist: 100, general_finance_desk: 20}}
+brands:
+  - id: specialist_one
+    name: Specialist One
+    canonical_domain: specialist.example
+    brand_class: finance_specialist
+    region: global
+    languages: [en]
+    endpoints:
+      - id: specialist_one_{transport}
+        transport: {transport}
+        url: https://specialist.example/data
+        relay_path: {relay_path}
+        required_capabilities: [http, {transport}]
+""",
+    )
+
+    with pytest.raises(NewsCatalogError, match=message):
+        load_news_catalog(path)
 
 
 def test_complete_catalog_must_match_100_plus_20_contract(tmp_path: Path) -> None:

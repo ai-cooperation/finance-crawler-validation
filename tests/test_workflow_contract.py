@@ -18,6 +18,7 @@ def test_workflow_can_select_the_bounded_foreign_community_manifest() -> None:
     assert "finance-crawler-capability-report-${{ inputs.scope }}" in workflow
     assert "default: \"1\"" in workflow
     assert "CF_RELAY_BASE_URL: ${{ vars.CF_RELAY_BASE_URL }}" in workflow
+    assert workflow.count("CF_RELAY_BASE_URL: ${{ vars.CF_RELAY_BASE_URL }}") == 2
     assert "node --test worker/test/index.test.mjs" in workflow
     assert "npm ci --prefix experiments/crawlee-browser" in workflow
     assert "node --test experiments/crawlee-browser/test/*.test.mjs" in workflow

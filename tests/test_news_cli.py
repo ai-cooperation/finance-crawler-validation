@@ -19,6 +19,7 @@ class FakeAdapter:
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         self.closed = False
+        self.kwargs = kwargs
         self.instances.append(self)
 
     async def close(self) -> None:
@@ -119,6 +120,7 @@ def test_news_run_exposes_only_the_actual_runtime_executor(monkeypatch, tmp_path
     monkeypatch.setattr(news_cli, "Crawl4AIAdapter", FakeAdapter)
     monkeypatch.setattr(news_cli, "probe_news_brand", fake_probe)
     monkeypatch.setattr(news_cli, "write_news_reports", fake_write)
+    monkeypatch.setenv("CF_RELAY_BASE_URL", "https://relay.example.workers.dev")
 
     results = asyncio.run(
         news_cli.run(
@@ -133,6 +135,9 @@ def test_news_run_exposes_only_the_actual_runtime_executor(monkeypatch, tmp_path
     assert states["github_actions_crawl4ai"].available is True
     assert captured["target_total"] == 1
     assert results[0].brand_id == "brand_one"
+    assert FakeAdapter.instances[0].kwargs == {
+        "relay_base_url": "https://relay.example.workers.dev"
+    }
     assert all(adapter.closed for adapter in FakeAdapter.instances)
 
 

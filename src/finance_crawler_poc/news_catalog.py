@@ -35,6 +35,7 @@ class NewsEndpoint:
     transport: str
     url: str
     required_capabilities: frozenset[str]
+    relay_path: str = ""
 
 
 @dataclass(frozen=True)
@@ -205,11 +206,22 @@ def _parse_endpoint(raw: Any, brand_id: str, index: int) -> NewsEndpoint:
         for capability in capabilities_raw
     ):
         raise NewsCatalogError(f"endpoint {endpoint_id} has invalid capability")
+    relay_path = raw.get("relay_path", "")
+    if not isinstance(relay_path, str):
+        raise NewsCatalogError(f"endpoint {endpoint_id} relay_path must be a string")
+    relay_path = relay_path.strip()
+    if relay_path and transport != "rss":
+        raise NewsCatalogError("relay_path is allowed only for rss endpoints")
+    if relay_path and relay_path != f"/v1/feed/{endpoint_id}":
+        raise NewsCatalogError(
+            f"endpoint {endpoint_id} relay_path must match endpoint id"
+        )
     return NewsEndpoint(
         id=endpoint_id,
         transport=transport,
         url=url,
         required_capabilities=frozenset(capabilities_raw),
+        relay_path=relay_path,
     )
 
 
