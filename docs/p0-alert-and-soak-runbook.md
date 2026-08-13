@@ -6,12 +6,12 @@
 
 這份 runbook 只用於 `ai-cooperation/finance-crawler-validation` 與 Cloudflare 隔離驗證帳號。完成順序不可對調：
 
-1. 配置一個真人已訂閱的外部告警目的地。
-2. 以手動故障注入證明 provider 2xx、D1 receipt、GitHub issue 去重與真人收件。
+1. 配置 primary 與一個不同 provider／故障域的 fallback 目的地，至少 primary 必須有真人訂閱。
+2. 以手動 action failure 與 freshness watchdog 證明 provider 成功、fallback、D1 receipt、GitHub issue 去重與真人收件。
 3. 只有第 2 步全數通過，才能開啟 GitHub schedule 與 Worker Cron。
 4. 連續七日保存 run、freshness、告警與用量證據；任一失敗先關閉排程，不擴大來源數或轉向付費服務。
 
-目前 GitHub workflow 無 `schedule`、Worker 設定無 `crons`、Cloudflare 無 `ALERT_WEBHOOK_URL` secret；因此不會自動耗用 Actions 或發送告警。
+目前 GitHub workflow 無 `schedule`、Worker 設定無 `crons`、Cloudflare 無 primary／fallback 告警 secret；因此不會自動耗用 Actions 或發送告警。
 
 ## 支援的目的地
 
@@ -48,6 +48,8 @@ unset ALERT_ENDPOINT
 npx wrangler secret list
 ```
 
+fallback 使用同一流程寫入 `ALERT_FALLBACK_WEBHOOK_URL`。它應使用與 primary 不同的 provider 或至少不同的故障域；相同 URL 會被拒絕。primary 成功時不呼叫 fallback，只有 primary 失敗才嘗試 fallback。
+
 `secret list` 只應出現 secret 名稱，不應顯示值。Worker 的 outbound request 有 10 秒 timeout、`redirect: manual`；任何 3xx、非 2xx、Slack 非 `ok` 或 Telegram JSON `ok != true` 都是失敗，且不寫入 D1 「已通知」receipt。Workers tracing 必須保持關閉，因為官方自動 fetch spans 會收集完整 URL，可暴露 Slack／Telegram bearer secret；結構化 logs 不得寫入 fetch error message。外部 provider 已收件但 D1 尚未落盤時若 Worker 中斷，重試可能重複送達；這是 at-least-once 的安全取捨，收件端應以 `alert_key` 識別同一事件。
 
 ## 手動故障注入驗收
@@ -58,17 +60,31 @@ npx wrangler secret list
 gh workflow run topic-radar.yml \
   --repo ai-cooperation/finance-crawler-validation \
   -f verify_alert_delivery=true \
+  -f verify_freshness_watchdog=false \
   -f verify_resilience=false
 ```
 
 取得新 run ID 後，驗收以下證據：
 
 - workflow 結論必須為 `failure`，因為這是故意注入；`Deliver external failure alert through OIDC` step 必須成功。
+- checkout、Python 安裝、admission、Chromium、collect 與 ingest 必須全部跳過；這個驗證不佔用爬取租約。
 - 真人在 Slack／Telegram／ntfy／自有系統看到該 run ID，且訊息不含 token、raw content 或 private evidence。
 - D1 `operational_alerts` 只有一筆 `github_action_failure:RUN_ID`，GitHub 只有一個對應 issue。
 - 從 GitHub UI 重跑同一 run 後，真人目的地、D1 receipt 與 issue 均不增加。
 
 這個步驟不能只依據 HTTP 2xx 或臨時 webhook sink 判定通過；必須有真人收件確認。
+
+再手動執行一次真實 D1 freshness watchdog：
+
+```bash
+gh workflow run topic-radar.yml \
+  --repo ai-cooperation/finance-crawler-validation \
+  -f verify_alert_delivery=false \
+  -f verify_freshness_watchdog=true \
+  -f verify_resilience=false
+```
+
+這條路徑也必須跳過 checkout／Python／admission／Chromium／collect／ingest，只以 OIDC 綁定的 request 執行與 Cron 相同的 watchdog。使用者必須驗證 stale／empty 時的 open、重複檢查的 deduplicated 與恢復後的 resolved。
 
 ## 啟用與回退 soak
 

@@ -1,9 +1,9 @@
 import {
-  deliverAlertWebhook,
-  readAlertWebhookFormat,
+  deliverConfiguredAlert,
   requireAlertWebhookUrl,
 } from "./alerts";
 import { parseFreshnessPolicy, readStatus } from "./status";
+import { HttpError } from "./storage";
 
 
 const ALERT_KEY = "topic_radar_freshness";
@@ -19,13 +19,37 @@ export interface WatchdogResult {
   transition: "opened" | "deduplicated" | "resolved" | "healthy";
 }
 
+interface FreshnessCheckPayload {
+  schema_version: 1;
+  workflow_run_id: string;
+  commit_sha: string;
+}
+
+export async function runAuthenticatedFreshnessWatchdog(
+  env: Env,
+  payload: unknown,
+  identity: { workflowRunId: string; commitSha: string },
+  now: Date,
+  alertFetch: typeof fetch = fetch,
+): Promise<WatchdogResult> {
+  const request = parseFreshnessCheck(payload);
+  if (request.workflow_run_id !== identity.workflowRunId) {
+    throw new HttpError(403, "workflow_run_mismatch");
+  }
+  if (request.commit_sha !== identity.commitSha) {
+    throw new HttpError(403, "commit_sha_mismatch");
+  }
+  return runFreshnessWatchdog(env, now, alertFetch);
+}
+
 export async function runFreshnessWatchdog(
   env: Env,
   now: Date,
   alertFetch: typeof fetch = fetch,
 ): Promise<WatchdogResult> {
-  const webhookUrl = requireAlertWebhookUrl(env);
-  const webhookFormat = readAlertWebhookFormat(env);
+  // Validate primary configuration even when the current state is healthy;
+  // scheduled monitoring without any external destination is not operational.
+  requireAlertWebhookUrl(env);
   const status = await readStatus(env.DB, now, parseFreshnessPolicy(env));
   const existing = await env.DB.prepare(
     "SELECT state, fingerprint, first_detected_at FROM operational_alerts WHERE alert_key = ?",
@@ -48,12 +72,11 @@ export async function runFreshnessWatchdog(
         age_seconds: status.freshness.age_seconds,
       },
     };
-    await deliverAlertWebhook(
-      webhookUrl,
+    await deliverConfiguredAlert(
+      env,
       `${ALERT_KEY}:resolved:${existing.first_detected_at}`,
       notification,
       alertFetch,
-      webhookFormat,
     );
     await env.DB.prepare(
       `UPDATE operational_alerts
@@ -91,12 +114,11 @@ export async function runFreshnessWatchdog(
       snapshot_id: status.current_snapshot?.snapshot_id ?? null,
     },
   };
-  await deliverAlertWebhook(
-    webhookUrl,
+  await deliverConfiguredAlert(
+    env,
     `${ALERT_KEY}:open:${now.toISOString()}`,
     notification,
     alertFetch,
-    webhookFormat,
   );
   const timestamp = now.toISOString();
   await env.DB.prepare(
@@ -118,4 +140,23 @@ async function sha256(value: string): Promise<string> {
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function parseFreshnessCheck(payload: unknown): FreshnessCheckPayload {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    throw new HttpError(422, "invalid_alert_request");
+  }
+  const record = payload as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  const expected = ["commit_sha", "schema_version", "workflow_run_id"];
+  if (keys.length !== expected.length
+    || !keys.every((key, index) => key === expected[index])
+    || record.schema_version !== 1
+    || typeof record.workflow_run_id !== "string"
+    || !/^\d+$/.test(record.workflow_run_id)
+    || typeof record.commit_sha !== "string"
+    || !/^[a-f0-9]{40}$/.test(record.commit_sha)) {
+    throw new HttpError(422, "invalid_alert_request");
+  }
+  return record as unknown as FreshnessCheckPayload;
 }

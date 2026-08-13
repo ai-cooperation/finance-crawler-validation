@@ -55,7 +55,6 @@ export async function reportActionFailure(
   if (!runUrlMatch || runUrlMatch[1] !== failure.workflow_run_id) {
     throw new HttpError(422, "invalid_alert_request");
   }
-  const webhookUrl = requireAlertWebhookUrl(env);
   const alertKey = `github_action_failure:${failure.workflow_run_id}`;
   const summary = `Finance topic radar GitHub Actions run ${failure.workflow_run_id} failed`;
   const fingerprint = await sha256(`${alertKey}\n${failure.commit_sha}\n${failure.conclusion}`);
@@ -81,13 +80,7 @@ export async function reportActionFailure(
       run_url: failure.run_url,
     },
   };
-  await deliverAlertWebhook(
-    webhookUrl,
-    alertKey,
-    notification,
-    alertFetch,
-    readAlertWebhookFormat(env),
-  );
+  await deliverConfiguredAlert(env, alertKey, notification, alertFetch);
   const timestamp = now.toISOString();
   try {
     await env.DB.prepare(
@@ -144,6 +137,31 @@ export function requireAlertWebhookUrl(env: Env): string {
     throw new AlertDeliveryError("alert_webhook_invalid");
   }
   return parsed.toString();
+}
+
+export async function deliverConfiguredAlert(
+  env: Env,
+  alertKey: string,
+  payload: object,
+  alertFetch: AlertFetch,
+): Promise<void> {
+  const primaryUrl = requireAlertWebhookUrl(env);
+  const format = readAlertWebhookFormat(env);
+  try {
+    await deliverAlertWebhook(primaryUrl, alertKey, payload, alertFetch, format);
+    return;
+  } catch (error) {
+    const fallbackUrl = readFallbackWebhookUrl(env);
+    if (fallbackUrl === null) throw error;
+    if (fallbackUrl === primaryUrl) {
+      throw new AlertDeliveryError("alert_fallback_webhook_invalid");
+    }
+    console.warn(JSON.stringify({
+      event: "alert_primary_delivery_failed",
+      error_code: error instanceof AlertDeliveryError ? error.code : "unknown",
+    }));
+    await deliverAlertWebhook(fallbackUrl, alertKey, payload, alertFetch, format);
+  }
 }
 
 export function readAlertWebhookFormat(env: Env): AlertWebhookFormat {
@@ -318,4 +336,20 @@ function sameKeys(record: Record<string, unknown>, expected: string[]): boolean 
   const normalizedExpected = [...expected].sort();
   return keys.length === normalizedExpected.length
     && keys.every((key, index) => key === normalizedExpected[index]);
+}
+
+function readFallbackWebhookUrl(env: Env): string | null {
+  const raw = (env as Env & { ALERT_FALLBACK_WEBHOOK_URL?: string })
+    .ALERT_FALLBACK_WEBHOOK_URL;
+  if (raw === undefined || raw === "") return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new AlertDeliveryError("alert_fallback_webhook_invalid");
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new AlertDeliveryError("alert_fallback_webhook_invalid");
+  }
+  return parsed.toString();
 }
