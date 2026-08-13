@@ -27,6 +27,10 @@
     "RUN_MIN_INTERVAL_SECONDS": "21600",
     "ALERT_WEBHOOK_FORMAT": "auto"
   },
+  "triggers": {
+    // Freshness checks never crawl; the daily Action remains the only collector.
+    "crons": ["17 */6 * * *"]
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -1,6 +1,9 @@
 name: Finance topic radar vertical slice
 
 on:
+  schedule:
+    # One daily collection bounds Actions use; D1 admission remains the hard gate.
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       verify_resilience:
@@ -34,19 +37,28 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Reject mutually exclusive alert validation modes
-        if: inputs.verify_alert_delivery && inputs.verify_freshness_watchdog
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.verify_alert_delivery &&
+          inputs.verify_freshness_watchdog
         run: |
           echo "::error title=Invalid alert validation::Select only one alert validation mode."
           exit 2
 
       - name: Inject alert delivery validation failure
-        if: inputs.verify_alert_delivery && !inputs.verify_freshness_watchdog
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog
         run: |
           echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
           exit 1
 
       - name: Run authenticated freshness watchdog
-        if: inputs.verify_freshness_watchdog && !inputs.verify_alert_delivery
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.verify_freshness_watchdog &&
+          !inputs.verify_alert_delivery
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
