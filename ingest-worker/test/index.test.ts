@@ -667,6 +667,7 @@ describe("external operational alerts", () => {
   function alertEnv(): Env {
     return Object.assign(Object.create(env) as Env, {
       ALERT_WEBHOOK_URL: "https://alerts.example/hooks/finance-radar",
+      ALERT_WEBHOOK_FORMAT: "generic_json",
     });
   }
 
@@ -709,6 +710,48 @@ describe("external operational alerts", () => {
       state: "open",
       severity: "critical",
     });
+  });
+
+  it("formats ntfy delivery without exposing private evidence", async () => {
+    let delivery: { input: string; init: RequestInit } | null = null;
+    const handler = createHandler({
+      authenticate: async () => ({
+        workflowRunId: "31309377786",
+        commitSha: "d".repeat(40),
+      }),
+      now: () => new Date("2026-08-13T08:00:00Z"),
+      alertFetch: async (input, init) => {
+        delivery = { input: String(input), init: init ?? {} };
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const ntfyEnv = Object.assign(Object.create(env) as Env, {
+      ALERT_WEBHOOK_URL: "https://ntfy.sh/finance-radar-synthetic-topic",
+      ALERT_WEBHOOK_FORMAT: "ntfy",
+    });
+    const request = new Request("https://ingest.example/v1/alerts/action-failure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema_version: 1,
+        workflow_run_id: "31309377786",
+        commit_sha: "d".repeat(40),
+        conclusion: "failure",
+        run_url: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      }),
+    });
+
+    expect((await handler.fetch(request, ntfyEnv)).status).toBe(202);
+    expect(delivery?.input).toBe("https://ntfy.sh/");
+    const body = JSON.parse(String(delivery?.init.body));
+    expect(body).toMatchObject({
+      topic: "finance-radar-synthetic-topic",
+      title: "Finance crawler alert",
+      priority: 5,
+      click: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+    });
+    expect(body.message).toContain("31309377786");
+    expect(body).not.toHaveProperty("details");
   });
 
   it("fails closed when the webhook is absent or rejects delivery", async () => {

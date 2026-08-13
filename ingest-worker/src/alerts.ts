@@ -72,7 +72,13 @@ export async function reportActionFailure(
       run_url: failure.run_url,
     },
   };
-  await deliverAlertWebhook(webhookUrl, alertKey, notification, alertFetch);
+  await deliverAlertWebhook(
+    webhookUrl,
+    alertKey,
+    notification,
+    alertFetch,
+    readAlertWebhookFormat(env),
+  );
   const timestamp = now.toISOString();
   try {
     await env.DB.prepare(
@@ -131,27 +137,64 @@ export function requireAlertWebhookUrl(env: Env): string {
   return parsed.toString();
 }
 
+export function readAlertWebhookFormat(env: Env): "generic_json" | "ntfy" {
+  const raw: string | undefined = (env as unknown as {
+    ALERT_WEBHOOK_FORMAT?: string;
+  }).ALERT_WEBHOOK_FORMAT;
+  if (raw === "generic_json" || raw === "ntfy") return raw;
+  throw new AlertDeliveryError("alert_webhook_format_invalid");
+}
+
 export async function deliverAlertWebhook(
   webhookUrl: string,
   alertKey: string,
   payload: object,
   alertFetch: AlertFetch,
+  format: "generic_json" | "ntfy" = "generic_json",
 ): Promise<void> {
+  const delivery = format === "ntfy"
+    ? ntfyDelivery(webhookUrl, payload)
+    : { url: webhookUrl, body: payload };
   let response: Response;
   try {
-    response = await alertFetch(webhookUrl, {
+    response = await alertFetch(delivery.url, {
       method: "POST",
       redirect: "error",
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": alertKey,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(delivery.body),
     });
   } catch {
     throw new AlertDeliveryError("alert_delivery_failed");
   }
   if (!response.ok) throw new AlertDeliveryError("alert_delivery_rejected");
+}
+
+function ntfyDelivery(webhookUrl: string, payload: object): { url: string; body: object } {
+  const parsed = new URL(webhookUrl);
+  if (parsed.hostname !== "ntfy.sh" || parsed.search || parsed.hash) {
+    throw new AlertDeliveryError("alert_webhook_invalid");
+  }
+  const topic = parsed.pathname.split("/").filter(Boolean);
+  if (topic.length !== 1 || !/^[A-Za-z0-9_-]{16,128}$/.test(topic[0])) {
+    throw new AlertDeliveryError("alert_webhook_invalid");
+  }
+  const record = payload as Record<string, unknown>;
+  const details = typeof record.details === "object" && record.details !== null
+    ? record.details as Record<string, unknown>
+    : {};
+  const click = typeof details.run_url === "string" ? details.run_url : undefined;
+  const body: Record<string, unknown> = {
+    topic: topic[0],
+    title: "Finance crawler alert",
+    message: `${String(record.summary ?? "Finance crawler state changed")}\n${String(record.alert_key ?? "unknown")}`,
+    priority: record.severity === "critical" ? 5 : 2,
+    tags: record.state === "resolved" ? ["white_check_mark"] : ["warning"],
+  };
+  if (click !== undefined) body.click = click;
+  return { url: "https://ntfy.sh/", body };
 }
 
 async function sha256(value: string): Promise<string> {

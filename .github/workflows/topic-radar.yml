@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      verify_alert_delivery:
+        description: Fail after admission planning to verify the external alert path
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -156,6 +161,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Inject alert delivery validation failure
+        if: inputs.verify_alert_delivery
+        run: |
+          echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
+          exit 1
+
       - name: Deliver external failure alert through OIDC
         if: failure()
         env:
@@ -189,8 +200,19 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh issue create
-          --repo "$GITHUB_REPOSITORY"
-          --title "Topic radar failed: run $GITHUB_RUN_ID"
-          --body "The manual topic-radar validation failed. Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+        run: |
+          set -euo pipefail
+          failure_issue_number="$(gh issue list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state all \
+            --search "Topic radar failed: run $GITHUB_RUN_ID in:title" \
+            --json number,title \
+            --jq 'map(select(.title == "Topic radar failed: run '"$GITHUB_RUN_ID"'"))[0].number // empty')"
+          if [[ -z "$failure_issue_number" ]]; then
+            gh issue create \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Topic radar failed: run $GITHUB_RUN_ID" \
+              --body "The topic-radar workflow failed. Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          else
+            echo "::notice title=Failure issue deduplicated::Issue #$failure_issue_number already tracks this run."
+          fi
