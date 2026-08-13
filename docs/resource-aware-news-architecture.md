@@ -8,7 +8,7 @@
 
 執行平台不按 transport 固定分工。每一個抓取工作先描述能力與資源需求，再依當下可用性、配額、憑證與成本選擇符合條件的最低成本執行器。Cloudflare 與 GitHub Actions 都是可替換的 executor，不是某一類來源的永久 owner。
 
-`news-sources.yaml` 現在是完整的 120/120 品牌 catalog：100 個財經專業媒體、20 個綜合媒體財經部門，共 148 個巢狀 endpoints。每個品牌的 canonical domain 唯一；既有 52 或 86 條舊實驗路徑沒有被改名後灌入分母。
+`news-sources.yaml` 現在是完整的 120/120 品牌 catalog：100 個財經專業媒體、20 個綜合媒體財經部門。2026-08-13 新增品牌自營 RSS fallback 後共有 160 個巢狀 endpoints；endpoint 數可以因合規 fallback 成長，但品牌分母固定為 120。每個品牌的 canonical domain 唯一；既有 52 或 86 條舊實驗路徑沒有被改名後灌入分母。
 
 ## 兩層決策
 
@@ -85,6 +85,8 @@ flowchart LR
 4. 待執行：把後續正常抓取寫入跨時間 observation state；只有近期失敗或變更者優先重驗。
 5. 待執行：依失敗群組啟動同 URL、同判定規則的 Cloudflare／商業 executor A/B；未配置能力或憑證時維持 blocked，而不是推估成功率。
 
+後續重驗改用 explicit brand batch：workflow 必須提供唯一 `brand_ids`，預設單批上限 30，artifact retention 為 7 天。子集報表保留 `target_brands=120` 與本批品牌清單，不能把 batch 內成功率冒充整體品牌成功率。RSS 路徑除了 HTTP、字數與財經語意外，還必須通過 XML root 契約；重導到 HTML 的 feed URL不再算成功。
+
 ## 2026-08-09 第一輪嚴格實測
 
 [GitHub Actions run 31309377786](https://github.com/AlanChen75/finance-crawler-poc/actions/runs/31309377786) 在 commit `ff2c46a` 完成單輪 120 品牌實測。這一輪先將 static HTML 轉成可見文字，排除 script、style、template 與 noscript，再要求至少 300 字且命中任一財經語意詞；Browser 使用 Crawl4AI markdown，RSS 與 JSON 保留機器格式驗證。報表只保存 preview、SHA-256、final URL 與 content type，不保存完整正文。
@@ -105,3 +107,9 @@ flowchart LR
 21 個品牌未成功：15 個 blocked、3 個 invalid content、3 個 robots denied。90% 門檻需要 108 家，這一輪還差 9 家；95% 門檻需要 114 家，還差 15 家。這輪 runtime state 只開放 `github_actions_crawl4ai`，所以 141 次 endpoint attempt 全由 GitHub executor 執行；Cloudflare Browser Run、Firecrawl Hosted 與 Browserless Residential 沒有被假裝成已測。
 
 機器可讀摘要保存在 `experiments/news-120/run-31309377786-summary.json`；完整 Action artifact 的 `news-report.json` SHA-256 是 `5e991ab2c3ee406689826ec6213ce1ff1e5ef128997992eaea6f0f325154ab19`。
+
+## 2026-08-13 隔離帳號 baseline
+
+[GitHub Actions run 31677822771](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31677822771) 在 `ai-cooperation` public repo 完成 120/120 品牌單輪 observation，耗時 3 分 40 秒。這輪仍使用修改前的 148 endpoint catalog；101/120 品牌成功（84.17%），141 次 endpoint attempts，完整報表 SHA-256 為 `077f95616657fb1c9d3f38c9a3b07cbf57ab7dcc2fa3830d1904388977679cf4`。
+
+19 個失敗為 14 blocked、1 HTTP error、1 invalid content 與 3 robots denied。Reuters、WSJ 網頁與 Barron's 的 robots denial 保留為合規終點；WSJ 另有公開品牌 RSS，將作為不同發布介面的獨立 endpoint 驗證，不以 Browser 規避網頁 robots。隔離帳號 baseline 與增量 batch 的完整契約見 [P2 120 品牌 observation 契約](./p2-news-observation-contract.md)。

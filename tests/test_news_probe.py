@@ -154,5 +154,6 @@ def test_all_120_brand_endpoints_fit_the_github_actions_executor_policy() -> Non
         for endpoint in brand.endpoints
     ]
 
-    assert len(selected) == catalog.endpoint_count == 148
+    assert len(selected) == catalog.endpoint_count
+    assert catalog.endpoint_count >= 148
     assert set(selected) == {github.id}

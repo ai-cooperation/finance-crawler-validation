@@ -21,6 +21,21 @@ on:
           - "1"
           - "2"
           - "3"
+      brand_ids:
+        description: Comma-separated unique brand IDs for news_120 batches
+        required: false
+        type: string
+        default: ""
+      max_brands:
+        description: Hard admission cap for one news_120 run
+        required: true
+        type: choice
+        default: "30"
+        options:
+          - "15"
+          - "30"
+          - "60"
+          - "120"
 
 permissions:
   contents: read
@@ -94,12 +109,16 @@ jobs:
 
       - name: Probe 120-brand news catalog
         if: inputs.scope == 'news_120'
-        run: >-
-          python -m finance_crawler_poc.news_cli
-          --catalog news-sources.yaml
-          --executors resource-executors.yaml
-          --current-executor github_actions_crawl4ai
-          --output artifacts
+        run: |
+          set -euo pipefail
+          test -n "${{ inputs.brand_ids }}"
+          python -m finance_crawler_poc.news_cli \
+            --catalog news-sources.yaml \
+            --executors resource-executors.yaml \
+            --current-executor github_actions_crawl4ai \
+            --brand-ids "${{ inputs.brand_ids }}" \
+            --max-brands "${{ inputs.max_brands }}" \
+            --output artifacts
 
       - name: Run Crawlee Browser treatment
         if: inputs.scope == 'foreign_communities'
@@ -127,4 +146,4 @@ jobs:
           name: finance-crawler-capability-report-${{ inputs.scope }}
           path: artifacts/
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 7

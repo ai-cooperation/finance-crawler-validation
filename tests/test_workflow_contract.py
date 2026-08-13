@@ -28,6 +28,10 @@ def test_workflow_can_select_the_bounded_foreign_community_manifest() -> None:
         "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0"
         in workflow
     )
+    assert "brand_ids:" in workflow
+    assert "max_brands:" in workflow
+    assert '--brand-ids "${{ inputs.brand_ids }}"' in workflow
+    assert '--max-brands "${{ inputs.max_brands }}"' in workflow
 
 
 def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:

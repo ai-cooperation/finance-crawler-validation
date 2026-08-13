@@ -21,6 +21,7 @@ brands:
     canonical_domain: bloomberg.com
     region: US
     endpoints:
+      - {id: bloomberg_rss, transport: rss, url: https://feeds.bloomberg.com/markets/news.rss, required_capabilities: [http, rss]}
       - {id: bloomberg_browser, transport: browser, url: https://www.bloomberg.com/markets, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: reuters
@@ -42,6 +43,7 @@ brands:
     canonical_domain: wsj.com
     region: US
     endpoints:
+      - {id: wall_street_journal_rss, transport: rss, url: https://feeds.a.dj.com/rss/RSSMarketsMain.xml, required_capabilities: [http, rss]}
       - {id: wall_street_journal_browser, transport: browser, url: https://www.wsj.com/news/business, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: cnbc
@@ -84,6 +86,7 @@ brands:
     canonical_domain: investing.com
     region: global
     endpoints:
+      - {id: investing_com_rss, transport: rss, url: https://www.investing.com/rss/market_overview.rss, required_capabilities: [http, rss]}
       - {id: investing_com_browser, transport: browser, url: https://www.investing.com/news/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: seeking_alpha
@@ -113,6 +116,7 @@ brands:
     canonical_domain: benzinga.com
     region: US
     endpoints:
+      - {id: benzinga_rss, transport: rss, url: https://www.benzinga.com/feed, required_capabilities: [http, rss]}
       - {id: benzinga_html, transport: static_html, url: https://www.benzinga.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: the_street
@@ -134,6 +138,7 @@ brands:
     canonical_domain: money.com
     region: US
     endpoints:
+      - {id: money_com_rss, transport: rss, url: https://money.com/feed/, required_capabilities: [http, rss]}
       - {id: money_com_html, transport: static_html, url: https://money.com/investing/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investopedia
@@ -273,6 +278,7 @@ brands:
     canonical_domain: privatebankerinternational.com
     region: UK
     endpoints:
+      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/feed/, required_capabilities: [http, rss]}
       - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investment_week
@@ -309,6 +315,7 @@ brands:
     canonical_domain: advisorhub.com
     region: US
     endpoints:
+      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/category/news/feed/, required_capabilities: [http, rss]}
       - {id: advisor_hub_html, transport: static_html, url: https://www.advisorhub.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: financial_advisor_magazine
@@ -392,6 +399,7 @@ brands:
     canonical_domain: thetradenews.com
     region: UK
     endpoints:
+      - {id: the_trade_rss, transport: rss, url: https://www.thetradenews.com/feed/, required_capabilities: [http, rss]}
       - {id: the_trade_html, transport: static_html, url: https://www.thetradenews.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investinglive
@@ -420,6 +428,7 @@ brands:
     canonical_domain: hedgeweek.com
     region: UK
     endpoints:
+      - {id: hedgeweek_rss, transport: rss, url: https://www.hedgeweek.com/feed/, required_capabilities: [http, rss]}
       - {id: hedgeweek_html, transport: static_html, url: https://www.hedgeweek.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: etf_com
@@ -457,6 +466,7 @@ brands:
     canonical_domain: stockhead.com.au
     region: Australia
     endpoints:
+      - {id: stockhead_rss, transport: rss, url: https://stockhead.com.au/feed/, required_capabilities: [http, rss]}
       - {id: stockhead_html, transport: static_html, url: https://stockhead.com.au/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: livewire_markets
@@ -486,6 +496,7 @@ brands:
     canonical_domain: moneycontrol.com
     region: India
     endpoints:
+      - {id: moneycontrol_rss, transport: rss, url: https://www.moneycontrol.com/rss/marketreports.xml, required_capabilities: [http, rss]}
       - {id: moneycontrol_html, transport: static_html, url: https://www.moneycontrol.com/news/business/markets/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: economic_times_markets
@@ -595,6 +606,7 @@ brands:
     canonical_domain: bitcoinmagazine.com
     region: global
     endpoints:
+      - {id: bitcoin_magazine_feed, transport: rss, url: https://bitcoinmagazine.com/feed, required_capabilities: [http, rss]}
       - {id: bitcoin_magazine_rss, transport: rss, url: https://bitcoinmagazine.com/.rss/full/, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: cryptoslate

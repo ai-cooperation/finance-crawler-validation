@@ -121,6 +121,8 @@ def _response_outcome(
 ) -> tuple[Outcome, str]:
     if _is_auth_redirect(source.url, response.final_url):
         return Outcome.AUTH_REQUIRED, "authentication redirect detected"
+    if response.error.startswith(("invalid JSON:", "invalid RSS/Atom feed:")):
+        return Outcome.INVALID_CONTENT, response.error
     if response.error or response.status_code is None or not 200 <= response.status_code < 400:
         outcome = classify_failure(
             status_code=response.status_code,

@@ -52,6 +52,34 @@ def catalog(*, complete: bool = True) -> NewsCatalog:
     )
 
 
+def two_brand_catalog() -> NewsCatalog:
+    first = catalog().brands[0]
+    second = NewsBrand(
+        id="brand_two",
+        name="Brand Two",
+        canonical_domain="brand-two.example",
+        brand_class="general_finance_desk",
+        region="US",
+        languages=("en",),
+        endpoints=(
+            NewsEndpoint(
+                id="brand_two_rss",
+                transport="rss",
+                url="https://brand-two.example/rss",
+                required_capabilities=frozenset({"http", "rss"}),
+            ),
+        ),
+    )
+    return NewsCatalog(
+        version=1,
+        status="complete",
+        target=NewsTarget(
+            total_brands=2, finance_specialist=1, general_finance_desk=1
+        ),
+        brands=(first, second),
+    )
+
+
 def executor() -> Executor:
     return Executor(
         id="github_actions_crawl4ai",
@@ -118,5 +146,83 @@ def test_news_run_rejects_draft_catalog(monkeypatch, tmp_path: Path) -> None:
                 Path("resource-executors.yaml"),
                 tmp_path,
                 current_executor_id="github_actions_crawl4ai",
+            )
+        )
+
+
+def test_news_run_selects_a_bounded_unique_brand_batch(monkeypatch, tmp_path: Path) -> None:
+    probed: list[str] = []
+
+    async def fake_probe(brand, *, executors, states, adapters):
+        probed.append(brand.id)
+        return NewsBrandResult(
+            brand_id=brand.id,
+            name=brand.name,
+            brand_class=brand.brand_class,
+            region=brand.region,
+            success=True,
+            successful_endpoint_id=f"{brand.id}_rss",
+            final_outcome="success",
+            endpoint_attempts=(),
+        )
+
+    FakeAdapter.instances = []
+    monkeypatch.setattr(news_cli, "load_news_catalog", lambda _: two_brand_catalog())
+    monkeypatch.setattr(news_cli, "load_executors", lambda _: (executor(),))
+    monkeypatch.setattr(news_cli, "HttpAdapter", FakeAdapter)
+    monkeypatch.setattr(news_cli, "Crawl4AIAdapter", FakeAdapter)
+    monkeypatch.setattr(news_cli, "probe_news_brand", fake_probe)
+
+    results = asyncio.run(
+        news_cli.run(
+            Path("news-sources.yaml"),
+            Path("resource-executors.yaml"),
+            tmp_path,
+            current_executor_id="github_actions_crawl4ai",
+            brand_ids=("brand_two",),
+            max_brands=1,
+        )
+    )
+
+    report = __import__("json").loads((tmp_path / "news-report.json").read_text())
+    assert probed == ["brand_two"]
+    assert [result.brand_id for result in results] == ["brand_two"]
+    assert report["selection"] == {
+        "mode": "explicit_brand_ids",
+        "selected_brands": 1,
+        "target_brands": 2,
+        "brand_ids": ["brand_two"],
+    }
+    assert report["summary"]["catalog_brands"] == 1
+    assert report["summary"]["target_brands"] == 2
+
+
+@pytest.mark.parametrize(
+    ("brand_ids", "max_brands", "message"),
+    [
+        (("missing",), 1, "unknown brand ids: missing"),
+        (("brand_one", "brand_one"), 2, "brand ids must be unique"),
+        (("brand_one", "brand_two"), 1, "brand batch exceeds max_brands: 2 > 1"),
+    ],
+)
+def test_news_run_rejects_invalid_brand_batches(
+    monkeypatch,
+    tmp_path: Path,
+    brand_ids: tuple[str, ...],
+    max_brands: int,
+    message: str,
+) -> None:
+    monkeypatch.setattr(news_cli, "load_news_catalog", lambda _: two_brand_catalog())
+    monkeypatch.setattr(news_cli, "load_executors", lambda _: (executor(),))
+
+    with pytest.raises(ValueError, match=message):
+        asyncio.run(
+            news_cli.run(
+                Path("news-sources.yaml"),
+                Path("resource-executors.yaml"),
+                tmp_path,
+                current_executor_id="github_actions_crawl4ai",
+                brand_ids=brand_ids,
+                max_brands=max_brands,
             )
         )

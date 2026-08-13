@@ -42,6 +42,25 @@ def test_probe_requires_content_contract_not_only_http_200() -> None:
     assert "required term" in result.error
 
 
+def test_probe_classifies_adapter_format_errors_as_invalid_content() -> None:
+    adapter = FakeAdapter(
+        [
+            FetchResponse(
+                status_code=200,
+                content="<html>market news</html>",
+                error="invalid RSS/Atom feed: root element is html",
+            )
+        ]
+    )
+
+    result = asyncio.run(
+        probe_source(make_source(retries=0), adapter, sleep=lambda _: _done())
+    )
+
+    assert result.outcome is Outcome.INVALID_CONTENT
+    assert result.error == "invalid RSS/Atom feed: root element is html"
+
+
 def test_probe_excludes_catalog_verified_robots_denial_before_adapter_call() -> None:
     adapter = FakeAdapter([])
     source = make_source(

@@ -33,13 +33,15 @@
 
 ## 來源矩陣
 
-新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 148 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 會產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md)，executor policy 見 `resource-executors.yaml`。
+新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 160 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
 
 資料保存、Crawl4AI＋OpenBB＋TradingAgents 背景分析、Cloudflare 權限分離、MCP 與 GitHub Actions 失效恢復的後續工作，統一追蹤於 [`docs/cf-gh-mcp-implementation-plan.md`](docs/cf-gh-mcp-implementation-plan.md)。
 
 第一個議題雷達垂直切片定義在 `radar-sources.yaml`：15 個唯一來源分為 RSS 5、Public API 7、Browser 3。2026-08-10 本機實測 14/15 成功、正規化 38 筆資料並產出三個可溯源議題；Bogleheads Browser 路徑被 Cloudflare JS challenge／HTTP 403 阻擋，因此 snapshot 正確標為 partial。這次沒有觸發 GitHub Actions，也沒有部署 Cloudflare 遠端資源。
 
 第一個嚴格單輪實測是 [Actions run 31309377786](https://github.com/AlanChen75/finance-crawler-poc/actions/runs/31309377786)：99/120 個品牌成功（82.5%），其中財經專業媒體 79/100、綜合媒體財經部門 20/20。這一輪只有 GitHub Actions executor 可用；結果不可外推為加入 Cloudflare 或商業出口後的成功率。
+
+隔離帳號 baseline 是 [Actions run 31677822771](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31677822771)：120/120 品牌都有紀錄，101/120 成功（84.17%）。後續只以 explicit brand batch 重驗失敗或 endpoint 變更者，再按 brand ID 合併 observation；batch 內成功率不得冒充 120 品牌整體成功率。
 
 來源定義在 `sources.yaml`，目前涵蓋台灣與國際社群、開發者社群、新聞、RSS、官方資料 API、市場資料 API，以及 Crawl4AI 財經範例網站。每個來源都聲明 topic、kind、transport、最低內容門檻、必要詞、來源脈絡與選源證據。
 
