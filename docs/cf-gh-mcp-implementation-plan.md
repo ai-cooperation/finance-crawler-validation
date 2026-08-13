@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
 更新日期：2026-08-13
-狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、114 成功（95.00%）驗收。P0 的 catch-up、D1 原子 admission、Action failure webhook 已完成遠端驗證；外部 transport 與 replay 去重通過後，已進入每日一次資料 run／每六小時 watchdog 的低頻 soak。後續順序固定為 soak 關閉 P0 → P1 OpenBB／TradingAgents → MCP／Agent 使用者介面裁示。
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、114 成功（95.00%）驗收。P0 的 catch-up、D1 原子 admission、Action failure webhook transport 與 replay 去重已完成遠端驗證；低頻 soak 只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。後續順序固定為 soak 關閉 P0 → P1 OpenBB／TradingAgents → MCP／Agent 使用者介面裁示。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
