@@ -664,10 +664,19 @@ describe("OIDC run planning", () => {
 });
 
 describe("external operational alerts", () => {
-  function alertEnv(): Env {
-    return Object.assign(Object.create(env) as Env, {
+  function alertEnv(overrides: Record<string, unknown> = {}): Env {
+    const bindings: Record<string, unknown> = {
       ALERT_WEBHOOK_URL: "https://alerts.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
+      ...overrides,
+    };
+    return new Proxy(env, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && Object.hasOwn(bindings, property)) {
+          return bindings[property];
+        }
+        return Reflect.get(target, property, receiver);
+      },
     });
   }
 
@@ -728,7 +737,7 @@ describe("external operational alerts", () => {
         return new Response("ok", { status: 200 });
       },
     });
-    const ntfyEnv = Object.assign(Object.create(env) as Env, {
+    const ntfyEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://ntfy.sh/finance-radar-synthetic-topic",
       ALERT_WEBHOOK_FORMAT: "ntfy",
     });
@@ -807,7 +816,7 @@ describe("external operational alerts", () => {
           : new Response("ok", { status: 200 });
       },
     });
-    const redundantEnv = Object.assign(Object.create(env) as Env, {
+    const redundantEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
       ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
@@ -845,7 +854,7 @@ describe("external operational alerts", () => {
       now: () => new Date("2026-08-13T08:00:00Z"),
       alertFetch: async () => new Response("rejected", { status: 503 }),
     });
-    const redundantEnv = Object.assign(Object.create(env) as Env, {
+    const redundantEnv = alertEnv({
       ALERT_WEBHOOK_URL: "https://primary.example/hooks/finance-radar",
       ALERT_FALLBACK_WEBHOOK_URL: "https://fallback.example/hooks/finance-radar",
       ALERT_WEBHOOK_FORMAT: "generic_json",
@@ -975,6 +984,63 @@ describe("external operational alerts", () => {
       "SELECT COUNT(*) AS count FROM operational_alerts",
     ).first<{ count: number }>();
     expect(Number(alerts?.count)).toBe(0);
+  });
+
+  it("externally reports a scheduled watchdog execution failure and still rejects", async () => {
+    const deliveries: Array<Record<string, unknown>> = [];
+    await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
+    await publishSnapshot(env, topicSnapshot(), new Date("2026-08-10T02:06:00Z"));
+    await env.DB.prepare(
+      "UPDATE topic_snapshots SET as_of = 'Synthetic invalid timestamp for testing only'",
+    ).run();
+    const handler = createHandler({
+      now: () => new Date("2026-08-13T12:00:00Z"),
+      alertFetch: async (_input, init) => {
+        deliveries.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response("ok", { status: 200 });
+      },
+    });
+    const controller = {
+      scheduledTime: Date.parse("2026-08-13T12:00:00Z"),
+      cron: "17 */6 * * *",
+      noRetry: () => undefined,
+    } as ScheduledController;
+
+    await expect(handler.scheduled!(controller, alertEnv(), {} as ExecutionContext))
+      .rejects.toThrow("invalid snapshot as_of in D1");
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({
+      schema_version: 1,
+      alert_key: "cloudflare_watchdog_failure:2026-08-13T12:00:00.000Z",
+      state: "open",
+      severity: "critical",
+      summary: "Finance topic radar Cloudflare freshness watchdog failed",
+      details: {
+        scheduled_at: "2026-08-13T12:00:00.000Z",
+        cron: "17 */6 * * *",
+        error_code: "watchdog_execution_failed",
+      },
+    });
+  });
+
+  it("does not recursively alert when the scheduled watchdog alert transport fails", async () => {
+    let attempts = 0;
+    const handler = createHandler({
+      now: () => new Date("2026-08-13T12:00:00Z"),
+      alertFetch: async () => {
+        attempts += 1;
+        return new Response("rejected", { status: 503 });
+      },
+    });
+    const controller = {
+      scheduledTime: Date.parse("2026-08-13T12:00:00Z"),
+      cron: "17 */6 * * *",
+      noRetry: () => undefined,
+    } as ScheduledController;
+
+    await expect(handler.scheduled!(controller, alertEnv(), {} as ExecutionContext))
+      .rejects.toMatchObject({ code: "alert_delivery_rejected" });
+    expect(attempts).toBe(1);
   });
 });
 

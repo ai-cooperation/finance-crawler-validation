@@ -108,6 +108,7 @@ gh workflow run topic-radar.yml \
 排程必須透過 PR 啟用，並在合併後重新部署 Worker。不在 runbook 中隱藏建立 schedule 的側寫 API。任一下列情況發生時，先以 PR 移除 GitHub `schedule` 與 Worker `crons`，部署無 Cron 設定，再排查：
 
 - 真人未收到已完成 provider delivery 的告警。
+- Cloudflare scheduled watchdog 出現 failed invocation，或 `cloudflare_watchdog_failure:SCHEDULED_AT` 未送達真人目的地。
 - scheduled run 連續失敗，或沒有從 checkpoint 續跑。
 - `current_snapshot` 倒退、partial 被誤報 healthy，或重放產生重複業務事件。
 - Actions、Workers、D1 或 R2 任一用量超出本期設定的受控上限。

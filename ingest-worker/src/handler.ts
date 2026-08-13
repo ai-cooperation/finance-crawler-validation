@@ -15,7 +15,11 @@ import {
   parseRunAdmissionPolicy,
   RunPlanConfigurationError,
 } from "./run-plan";
-import { AlertDeliveryError, reportActionFailure } from "./alerts";
+import {
+  AlertDeliveryError,
+  reportActionFailure,
+  reportScheduledWatchdogFailure,
+} from "./alerts";
 import {
   runAuthenticatedFreshnessWatchdog,
   runFreshnessWatchdog,
@@ -43,8 +47,29 @@ export function createHandler(
 ): Pick<ExportedHandler<Env>, "fetch" | "scheduled"> {
   const dependencies: HandlerDependencies = { ...defaultDependencies, ...overrides };
   return {
-    async scheduled(_controller, env): Promise<void> {
-      await runFreshnessWatchdog(env, dependencies.now(), dependencies.alertFetch);
+    async scheduled(controller, env): Promise<void> {
+      try {
+        await runFreshnessWatchdog(env, dependencies.now(), dependencies.alertFetch);
+      } catch (error) {
+        if (!(error instanceof AlertDeliveryError)) {
+          try {
+            await reportScheduledWatchdogFailure(
+              env,
+              controller,
+              dependencies.now(),
+              dependencies.alertFetch,
+            );
+          } catch (alertError) {
+            console.error(JSON.stringify({
+              event: "scheduled_watchdog_failure_alert_failed",
+              error_code: alertError instanceof AlertDeliveryError
+                ? alertError.code
+                : "unknown",
+            }));
+          }
+        }
+        throw error;
+      }
     },
     async fetch(request: Request, env: Env): Promise<Response> {
       const requestId = crypto.randomUUID();
