@@ -147,13 +147,13 @@ P0、P2、P1 是既有 backlog 標籤，不直接代表施工先後。本專案�
 | Gate 3 | P1 應用整合 | 先以 OpenBB 建立市場快照與時間軸對齊，再以 TradingAgents 產生 bull／bear／risk 可溯源「第二意見」 | 實際來源資料可完成 topic↔market↔evidence 關聯；報告可重跑、可中斷續跑、有預算關卡，且不將模型輸出宣稱為交易事實 |
 | Gate 4 | 使用者裁示 | 決定 MCP／Chat Agent 的用戶任務、tools、OAuth scopes、讀寫邊界、回應形態與客戶端 | 使用者批准介面 SDD 與驗收用例後，才開始 MCP Server 與 Agent 實作 |
 
-Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120。隔離帳號已以 1 個 baseline 與 3 個 bounded fallback batches 實測 120 個唯一品牌、162 條 endpoint paths，合併後 114／120 成功（95.00%），達成驗收上限。機器可讀證據、run ID、artifact SHA-256 與剩餘 6 個邊界保存於 [`p2-acceptance-20260813.json`](../experiments/news-120/p2-acceptance-20260813.json)。
+Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120。隔離帳號已以 1 個 baseline 與 3 個 bounded fallback batches 實測 120 個唯一品牌、162 條 endpoint paths，合併後 114／120 成功（95.00%），達成驗收上限。機器可讀證據、run ID、artifact SHA-256 與剩餘 6 個邊界保存於 [`p2-acceptance-20260813.json`](../experiments/news-120/p2-acceptance-20260813.json)。目前 catalog 新增 Citywire 的官方 podcast RSS 後共有 163 條路徑，必須以新版完整 baseline 重驗，不能回溯改寫 8/13 證據。
 
 ### 現有能力狀態（不代表施工順序）
 
 | 階段 | 狀態 | 交付與驗證 |
 |---|---|---|
-| 0. 來源與路由 POC | Gate 2 驗收完成 | 120 個唯一品牌、162 條 endpoint paths 已以 baseline 與 bounded fallback batches 實測；114 品牌成功（95.00%），6 品牌保留為合規／技術邊界 |
+| 0. 來源與路由 POC | Gate 2 既有驗收完成；新版待重驗 | 歷史驗收為 120 個唯一品牌、162 條 endpoint paths，114 品牌成功（95.00%）；目前 163 條路徑 catalog 新增官方 RSS，待新版完整 baseline，原有 6 品牌保留為合規／技術邊界 |
 | 1. 資料契約 | 本機完成 | 八份 version 1 JSON Schema（含只讀 status response）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
 | 3. GH 批次管線 | 手動 OIDC 韌性實接完成 | ingest／publish replay、invalid publish 保留 last-good、checkpoint catch-up、D1 原子 admission、action failure webhook、watchdog 與去重已實作；正式排程等有人訂閱的告警目的地後才開啟 |

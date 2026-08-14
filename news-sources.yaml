@@ -284,7 +284,7 @@ brands:
     canonical_domain: privatebankerinternational.com
     region: UK
     endpoints:
-      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
+      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/news/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
       - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investment_week
@@ -321,7 +321,7 @@ brands:
     canonical_domain: advisorhub.com
     region: US
     endpoints:
-      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/category/news/feed/, relay_path: /v1/feed/advisor_hub_rss, required_capabilities: [http, rss]}
+      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/feed/, relay_path: /v1/feed/advisor_hub_rss, required_capabilities: [http, rss]}
       - {id: advisor_hub_html, transport: static_html, url: https://www.advisorhub.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: financial_advisor_magazine
@@ -458,6 +458,7 @@ brands:
     canonical_domain: citywire.com
     region: UK
     endpoints:
+      - {id: citywire_advice_show_podcast_rss, transport: rss, url: https://feeds.transistor.fm/the-advice-show, required_capabilities: [http, rss]}
       - {id: citywire_html, transport: static_html, url: https://citywire.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: proactive_investors
@@ -480,7 +481,7 @@ brands:
     canonical_domain: livewiremarkets.com
     region: Australia
     endpoints:
-      - {id: livewire_markets_html, transport: static_html, url: https://www.livewiremarkets.com/, required_capabilities: [http, static_html]}
+      - {id: livewire_markets_podcast_rss, transport: rss, url: https://feed.podbean.com/successandmoreinterestingstuff/feed.xml, required_capabilities: [http, rss]}
       - {id: livewire_markets_browser, transport: browser, url: https://www.livewiremarkets.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: sharecafe
@@ -729,7 +730,7 @@ brands:
     canonical_domain: sifted.eu
     region: EU
     endpoints:
-      - {id: sifted_rss, transport: rss, url: https://sifted.eu/feed, required_capabilities: [http, rss]}
+      - {id: sifted_startup_europe_podcast_rss, transport: rss, url: https://feeds.buzzsprout.com/1877446.rss, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: crunchbase_news
     name: Crunchbase News

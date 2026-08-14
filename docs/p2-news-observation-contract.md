@@ -1,6 +1,6 @@
 # P2 120 品牌 observation 契約
 
-更新日期：2026-08-13
+更新日期：2026-08-14
 
 ## 問題與成功標準
 
@@ -68,3 +68,4 @@ Public repository 的標準 GitHub-hosted runner 分鐘依 GitHub 官方文件�
 - Relay batch `31680725396`：Private Banker International 與 AdvisorHub 在 GitHub runner 上都完整記錄 `direct 403 → cloudflare_relay 200`；Benzinga 是 `direct 403 → relay timeout`，不列成功。artifact JSON SHA-256 為 `f28b8a0903e7c327845c6e6fb8308bc3e8491b2c1273d40d097cdc44f1cc3d04`。
 - 第一方財經 podcast RSS batch `31681280554`：Reuters Morning Bid 與 Barron's Streetwise 皆成功，同時保留 Reuters／Barron's 網頁 Browser robots 禁止的獨立邊界。artifact JSON SHA-256 為 `962e7ae35692df6d65d2e1d4123afaa5806a46a3881c347e6249e8075fbcf221`。
 - 以程式重新下載四個 artifact 並按 brand ID 合併後，結果為 120 個唯一品牌、114 成功、6 失敗、95.00%；已達 P2 95% 驗收門檻。
+- 2026-08-14 端點修路前的公開 probe：Private Banker International 的正式新聞 feed 改為 `/news/feed/`、AdvisorHub 改為 `/feed/`；前者在同一台本機先回 200 後又回 403，因此仍保留為 relay 候選，不把單次 200 外推為成功。Citywire 的官方 Advice Show 訂閱頁、Livewire Markets 的官方 podcast 索引、Sifted Startup Europe 的官方訂閱頁均明示其活躍 RSS；三個外部 feed 均實際通過 XML、300 字與財經語意契約。先以未設定 relay 的本機完整 120 品牌 run 得 114/120，再只替換六個失敗品牌的 bounded batch，其中 Sifted 成功、其他五個仍失敗；按品牌 ID 合併為 115/120（95.83%）。機器摘要在 `local-20260814t031220z-summary.json` 與 `local-20260814t032008z-sifted-repair-summary.json`，兩者都明確標為非 acceptance：待 `ai-cooperation` GitHub runner 重驗，未回填 2026-08-13 的 acceptance 數字。
