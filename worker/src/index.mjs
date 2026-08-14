@@ -4,7 +4,7 @@ const MAX_DECLARED_BYTES = 2_000_000;
 
 export const TARGETS = Object.freeze({
   advisor_hub_rss: Object.freeze({
-    url: "https://www.advisorhub.com/category/news/feed/",
+    url: "https://www.advisorhub.com/feed/",
   }),
   aussie_stock_forums_rss: Object.freeze({
     url: "https://www.aussiestockforums.com/forums/-/index.rss",
@@ -31,7 +31,7 @@ export const TARGETS = Object.freeze({
     url: "https://quant.stackexchange.com/feeds",
   }),
   private_banker_international_rss: Object.freeze({
-    url: "https://www.privatebankerinternational.com/feed/",
+    url: "https://www.privatebankerinternational.com/news/feed/",
   }),
 });
 

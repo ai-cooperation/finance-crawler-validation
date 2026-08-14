@@ -15,6 +15,9 @@ ISOLATED_SUMMARY_PATH = (
 ACCEPTANCE_PATH = (
     REPOSITORY_ROOT / "experiments/news-120/p2-acceptance-20260813.json"
 )
+CURRENT_ACCEPTANCE_PATH = (
+    REPOSITORY_ROOT / "experiments/news-120/p2-acceptance-20260814.json"
+)
 ARCHITECTURE_PATH = REPOSITORY_ROOT / "docs/resource-aware-news-architecture.md"
 
 
@@ -66,7 +69,7 @@ def test_p2_acceptance_has_exact_run_hashes_and_unique_brand_denominator() -> No
 
     assert evidence["catalog"]["unique_brands"] == catalog.brand_count == 120
     assert evidence["catalog"]["endpoint_paths_at_acceptance"] == 162
-    assert catalog.endpoint_count == 162
+    assert catalog.endpoint_count == 166
     assert [run["run_id"] for run in evidence["runs"]] == [
         31677822771,
         31679578795,
@@ -94,3 +97,32 @@ def test_p2_architecture_documents_the_accepted_endpoint_count() -> None:
         f"共有 {evidence['catalog']['endpoint_paths_at_acceptance']} 個巢狀 endpoints"
         in architecture
     )
+
+
+def test_current_p2_acceptance_replaces_only_revalidated_brands() -> None:
+    evidence = json.loads(CURRENT_ACCEPTANCE_PATH.read_text(encoding="utf-8"))
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    merged = evidence["merged_result"]
+
+    assert evidence["catalog"]["unique_brands"] == catalog.brand_count == 120
+    assert evidence["catalog"]["endpoint_paths_current"] == catalog.endpoint_count == 166
+    assert [run["run_id"] for run in evidence["runs"]] == [
+        31768400476,
+        31768848318,
+    ]
+    assert all(run["conclusion"] == "success" for run in evidence["runs"])
+    assert all(
+        re.fullmatch(r"[0-9a-f]{64}", run["artifact_json_sha256"])
+        for run in evidence["runs"]
+    )
+    assert merged["observed_brands"] == merged["unique_brand_ids"] == 120
+    assert merged["successful_brands"] == 116
+    assert merged["failed_brands"] == len(merged["failed_brand_ids"]) == 4
+    assert merged["brand_success_rate"] == 0.9667
+    assert merged["accepted"] is True
+    assert merged["failed_brand_ids"] == [
+        "benzinga",
+        "financial_advisor_magazine",
+        "etf_stream",
+        "financial_express",
+    ]

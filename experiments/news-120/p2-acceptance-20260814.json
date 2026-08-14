@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "observation_unit": "unique_news_brand_latest",
+  "catalog": {
+    "unique_brands": 120,
+    "finance_specialists": 100,
+    "general_finance_desks": 20,
+    "endpoint_paths_full_baseline": 163,
+    "endpoint_paths_current": 166
+  },
+  "merge_contract": {
+    "baseline_must_match_catalog_brand_ids": true,
+    "batches_must_declare_exact_selected_brand_ids": true,
+    "latest_explicit_batch_replaces_same_brand_only": true
+  },
+  "runs": [
+    {
+      "run_id": 31768400476,
+      "role": "revised_full_baseline",
+      "head_sha": "27387b550f067e6268a75950196e79d6485a6735",
+      "conclusion": "success",
+      "brands_observed": 120,
+      "brands_successful": 112,
+      "artifact_json_sha256": "b3778895c1d61ab230c2c2d9f4520408c519540dc10fef181b37d5c2653b45d1"
+    },
+    {
+      "run_id": 31768848318,
+      "role": "official_feed_recovery_batch",
+      "head_sha": "988941deac49757adc1baf3aa0bb54ad782f8740",
+      "conclusion": "success",
+      "brands_observed": 4,
+      "brands_successful": 4,
+      "selected_brand_ids": [
+        "international_banker",
+        "leaprate",
+        "businessline",
+        "bankless"
+      ],
+      "artifact_json_sha256": "07b991abf2df401d11f9d2fb78dfd74fa6ae24c94c06319dc98da00a557a17bf"
+    }
+  ],
+  "merged_result": {
+    "observed_brands": 120,
+    "unique_brand_ids": 120,
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "brand_success_rate": 0.9667,
+    "acceptance_threshold": 0.95,
+    "accepted": true,
+    "failed_brand_ids": [
+      "benzinga",
+      "financial_advisor_magazine",
+      "etf_stream",
+      "financial_express"
+    ],
+    "merged_result_sha256": "3203706b20cb97540c477f84f1ae97b19f21c46d4ec569c38c055483f9ee7daa"
+  },
+  "boundary_notes": {
+    "benzinga": "GitHub direct RSS and HTML returned 403. The fixed Cloudflare relay timed out, so no commercial unlocker or proxy was attempted.",
+    "financial_advisor_magazine": "Static HTML returned 403 and Browser reached a Cloudflare JavaScript challenge.",
+    "etf_stream": "Static HTML returned 403 and Browser reached a Cloudflare JavaScript challenge.",
+    "financial_express": "Static market HTML returned 403 on the GitHub runner. Its published syndication feed candidates redirected to HTML or returned 410 and failed strict RSS validation."
+  }
+}

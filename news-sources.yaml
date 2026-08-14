@@ -270,6 +270,7 @@ brands:
     canonical_domain: internationalbanker.com
     region: UK
     endpoints:
+      - {id: international_banker_rss, transport: rss, url: https://internationalbanker.com/feed/, required_capabilities: [http, rss]}
       - {id: international_banker_html, transport: static_html, url: https://internationalbanker.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: the_banker
@@ -284,7 +285,7 @@ brands:
     canonical_domain: privatebankerinternational.com
     region: UK
     endpoints:
-      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
+      - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/news/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
       - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: investment_week
@@ -321,7 +322,7 @@ brands:
     canonical_domain: advisorhub.com
     region: US
     endpoints:
-      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/category/news/feed/, relay_path: /v1/feed/advisor_hub_rss, required_capabilities: [http, rss]}
+      - {id: advisor_hub_rss, transport: rss, url: https://www.advisorhub.com/feed/, relay_path: /v1/feed/advisor_hub_rss, required_capabilities: [http, rss]}
       - {id: advisor_hub_html, transport: static_html, url: https://www.advisorhub.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: financial_advisor_magazine
@@ -427,6 +428,7 @@ brands:
     canonical_domain: leaprate.com
     region: global
     endpoints:
+      - {id: leaprate_rss, transport: rss, url: https://www.leaprate.com/feed/, required_capabilities: [http, rss]}
       - {id: leaprate_html, transport: static_html, url: https://www.leaprate.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: hedgeweek
@@ -458,6 +460,7 @@ brands:
     canonical_domain: citywire.com
     region: UK
     endpoints:
+      - {id: citywire_advice_show_podcast_rss, transport: rss, url: https://feeds.transistor.fm/the-advice-show, required_capabilities: [http, rss]}
       - {id: citywire_html, transport: static_html, url: https://citywire.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: proactive_investors
@@ -480,7 +483,7 @@ brands:
     canonical_domain: livewiremarkets.com
     region: Australia
     endpoints:
-      - {id: livewire_markets_html, transport: static_html, url: https://www.livewiremarkets.com/, required_capabilities: [http, static_html]}
+      - {id: livewire_markets_podcast_rss, transport: rss, url: https://feed.podbean.com/successandmoreinterestingstuff/feed.xml, required_capabilities: [http, rss]}
       - {id: livewire_markets_browser, transport: browser, url: https://www.livewiremarkets.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: sharecafe
@@ -539,6 +542,7 @@ brands:
     canonical_domain: thehindubusinessline.com
     region: India
     endpoints:
+      - {id: businessline_markets_rss, transport: rss, url: https://www.thehindubusinessline.com/markets/feeder/default.rss, required_capabilities: [http, rss]}
       - {id: businessline_html, transport: static_html, url: https://www.thehindubusinessline.com/markets/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: ndtv_profit
@@ -671,7 +675,7 @@ brands:
     canonical_domain: bankless.com
     region: global
     endpoints:
-      - {id: bankless_rss, transport: rss, url: https://www.bankless.com/feed, required_capabilities: [http, rss]}
+      - {id: bankless_daily_podcast_rss, transport: rss, url: https://feeds.libsyn.com/548227/rss, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: finextra
     name: Finextra
@@ -729,7 +733,7 @@ brands:
     canonical_domain: sifted.eu
     region: EU
     endpoints:
-      - {id: sifted_rss, transport: rss, url: https://sifted.eu/feed, required_capabilities: [http, rss]}
+      - {id: sifted_startup_europe_podcast_rss, transport: rss, url: https://feeds.buzzsprout.com/1877446.rss, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: crunchbase_news
     name: Crunchbase News

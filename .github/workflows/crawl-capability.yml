@@ -113,14 +113,25 @@ jobs:
           CF_RELAY_BASE_URL: ${{ vars.CF_RELAY_BASE_URL }}
         run: |
           set -euo pipefail
-          test -n "${{ inputs.brand_ids }}"
-          python -m finance_crawler_poc.news_cli \
-            --catalog news-sources.yaml \
-            --executors resource-executors.yaml \
-            --current-executor github_actions_crawl4ai \
-            --brand-ids "${{ inputs.brand_ids }}" \
-            --max-brands "${{ inputs.max_brands }}" \
-            --output artifacts
+          if [ -n "${{ inputs.brand_ids }}" ]; then
+            python -m finance_crawler_poc.news_cli \
+              --catalog news-sources.yaml \
+              --executors resource-executors.yaml \
+              --current-executor github_actions_crawl4ai \
+              --brand-ids "${{ inputs.brand_ids }}" \
+              --max-brands "${{ inputs.max_brands }}" \
+              --output artifacts
+          elif [ "${{ inputs.max_brands }}" != "120" ]; then
+            echo "brand_ids is required unless max_brands is set to 120 for a full baseline run."
+            exit 2
+          else
+            python -m finance_crawler_poc.news_cli \
+              --catalog news-sources.yaml \
+              --executors resource-executors.yaml \
+              --current-executor github_actions_crawl4ai \
+              --max-brands "${{ inputs.max_brands }}" \
+              --output artifacts
+          fi
 
       - name: Run Crawlee Browser treatment
         if: inputs.scope == 'foreign_communities'

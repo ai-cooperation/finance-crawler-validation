@@ -14,18 +14,20 @@ test("health exposes only the fixed feed allowlist", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body.routes, Object.keys(TARGETS).sort());
+  assert.equal(body.routes.length, 10);
   assert.equal(
     TARGETS.financial_wisdom_forum_feed.url,
     "https://www.financialwisdomforum.org/forum/app.php/feed",
   );
   assert.equal(TARGETS.benzinga_rss.url, "https://www.benzinga.com/feed");
+  assert.equal(TARGETS.citywire_feed, undefined);
   assert.equal(
     TARGETS.private_banker_international_rss.url,
-    "https://www.privatebankerinternational.com/feed/",
+    "https://www.privatebankerinternational.com/news/feed/",
   );
   assert.equal(
     TARGETS.advisor_hub_rss.url,
-    "https://www.advisorhub.com/category/news/feed/",
+    "https://www.advisorhub.com/feed/",
   );
 });
 

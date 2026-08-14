@@ -218,3 +218,59 @@ def test_robots_blocked_brands_use_explicit_first_party_podcast_feeds() -> None:
     assert brands["barrons"].endpoints[0].url == (
         "https://video-api.shdsvc.dowjones.io/api/podcasts/feed/streetwise"
     )
+
+
+def test_curated_rss_endpoints_use_the_current_official_news_feeds() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert brands["private_banker_international"].endpoints[0].url == (
+        "https://www.privatebankerinternational.com/news/feed/"
+    )
+    assert brands["advisor_hub"].endpoints[0].url == "https://www.advisorhub.com/feed/"
+
+
+def test_blocked_news_pages_use_active_first_party_podcast_feeds() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert [endpoint.id for endpoint in brands["citywire"].endpoints] == [
+        "citywire_advice_show_podcast_rss",
+        "citywire_html",
+    ]
+    assert brands["citywire"].endpoints[0].url == (
+        "https://feeds.transistor.fm/the-advice-show"
+    )
+    assert [endpoint.id for endpoint in brands["livewire_markets"].endpoints] == [
+        "livewire_markets_podcast_rss",
+        "livewire_markets_browser",
+    ]
+    assert brands["livewire_markets"].endpoints[0].url == (
+        "https://feed.podbean.com/successandmoreinterestingstuff/feed.xml"
+    )
+
+
+def test_sifted_uses_its_published_startup_europe_podcast_feed() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert [endpoint.id for endpoint in brands["sifted"].endpoints] == [
+        "sifted_startup_europe_podcast_rss"
+    ]
+    assert brands["sifted"].endpoints[0].url == (
+        "https://feeds.buzzsprout.com/1877446.rss"
+    )
+
+
+def test_recovered_publishers_prefer_first_party_rss_before_html() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert brands["international_banker"].endpoints[0].url == (
+        "https://internationalbanker.com/feed/"
+    )
+    assert brands["leaprate"].endpoints[0].url == "https://www.leaprate.com/feed/"
+    assert brands["businessline"].endpoints[0].url == (
+        "https://www.thehindubusinessline.com/markets/feeder/default.rss"
+    )
+    assert brands["bankless"].endpoints[0].url == "https://feeds.libsyn.com/548227/rss"

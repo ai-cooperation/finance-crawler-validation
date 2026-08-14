@@ -8,7 +8,7 @@
 
 執行平台不按 transport 固定分工。每一個抓取工作先描述能力與資源需求，再依當下可用性、配額、憑證與成本選擇符合條件的最低成本執行器。Cloudflare 與 GitHub Actions 都是可替換的 executor，不是某一類來源的永久 owner。
 
-`news-sources.yaml` 現在是完整的 120/120 品牌 catalog：100 個財經專業媒體、20 個綜合媒體財經部門。2026-08-13 P2 驗收時共有 162 個巢狀 endpoints；endpoint 數可以因合規 fallback 成長，但品牌分母固定為 120。每個品牌的 canonical domain 唯一；既有 52 或 86 條舊實驗路徑沒有被改名後灌入分母。
+`news-sources.yaml` 現在是完整的 120/120 品牌 catalog：100 個財經專業媒體、20 個綜合媒體財經部門。2026-08-13 P2 驗收時共有 162 個巢狀 endpoints；2026-08-14 的新版完整 baseline 有 163 條，隨後為 International Banker、LeapRate、BusinessLine 與 Bankless 新增或替換第一方 RSS，現行 catalog 為 166 條。新版 baseline 加明確 4 品牌 batch 合併為 116/120（96.67%），達成 95% P2 gate；詳見 `experiments/news-120/p2-acceptance-20260814.json`。endpoint 數可以因合規 fallback 成長，但品牌分母固定為 120；歷史 observation 的 endpoint 與成功數不可被新版 catalog 回溯改寫。每個品牌的 canonical domain 唯一；既有 52 或 86 條舊實驗路徑沒有被改名後灌入分母。
 
 ## 兩層決策
 
