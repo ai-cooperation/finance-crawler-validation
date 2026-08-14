@@ -270,6 +270,7 @@ brands:
     canonical_domain: internationalbanker.com
     region: UK
     endpoints:
+      - {id: international_banker_rss, transport: rss, url: https://internationalbanker.com/feed/, required_capabilities: [http, rss]}
       - {id: international_banker_html, transport: static_html, url: https://internationalbanker.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: the_banker
@@ -427,6 +428,7 @@ brands:
     canonical_domain: leaprate.com
     region: global
     endpoints:
+      - {id: leaprate_rss, transport: rss, url: https://www.leaprate.com/feed/, required_capabilities: [http, rss]}
       - {id: leaprate_html, transport: static_html, url: https://www.leaprate.com/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: hedgeweek
@@ -540,6 +542,7 @@ brands:
     canonical_domain: thehindubusinessline.com
     region: India
     endpoints:
+      - {id: businessline_markets_rss, transport: rss, url: https://www.thehindubusinessline.com/markets/feeder/default.rss, required_capabilities: [http, rss]}
       - {id: businessline_html, transport: static_html, url: https://www.thehindubusinessline.com/markets/, required_capabilities: [http, static_html]}
   - <<: *finance_specialist_defaults
     id: ndtv_profit
@@ -672,7 +675,7 @@ brands:
     canonical_domain: bankless.com
     region: global
     endpoints:
-      - {id: bankless_rss, transport: rss, url: https://www.bankless.com/feed, required_capabilities: [http, rss]}
+      - {id: bankless_daily_podcast_rss, transport: rss, url: https://feeds.libsyn.com/548227/rss, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: finextra
     name: Finextra

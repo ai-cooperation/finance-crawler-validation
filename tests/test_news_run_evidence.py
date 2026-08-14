@@ -66,7 +66,7 @@ def test_p2_acceptance_has_exact_run_hashes_and_unique_brand_denominator() -> No
 
     assert evidence["catalog"]["unique_brands"] == catalog.brand_count == 120
     assert evidence["catalog"]["endpoint_paths_at_acceptance"] == 162
-    assert catalog.endpoint_count == 163
+    assert catalog.endpoint_count == 166
     assert [run["run_id"] for run in evidence["runs"]] == [
         31677822771,
         31679578795,

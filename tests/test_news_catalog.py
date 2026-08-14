@@ -260,3 +260,17 @@ def test_sifted_uses_its_published_startup_europe_podcast_feed() -> None:
     assert brands["sifted"].endpoints[0].url == (
         "https://feeds.buzzsprout.com/1877446.rss"
     )
+
+
+def test_recovered_publishers_prefer_first_party_rss_before_html() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+
+    assert brands["international_banker"].endpoints[0].url == (
+        "https://internationalbanker.com/feed/"
+    )
+    assert brands["leaprate"].endpoints[0].url == "https://www.leaprate.com/feed/"
+    assert brands["businessline"].endpoints[0].url == (
+        "https://www.thehindubusinessline.com/markets/feeder/default.rss"
+    )
+    assert brands["bankless"].endpoints[0].url == "https://feeds.libsyn.com/548227/rss"
