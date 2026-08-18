@@ -535,7 +535,7 @@ brands:
     canonical_domain: financialexpress.com
     region: India
     endpoints:
-      - {id: financial_express_api, transport: json_api, url: 'https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1', required_capabilities: [http, json]}
+      - {id: financial_express_api, transport: json_api, url: 'https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1', relay_path: /v1/feed/financial_express_api, required_capabilities: [http, json]}
   - <<: *finance_specialist_defaults
     id: businessline
     name: BusinessLine
