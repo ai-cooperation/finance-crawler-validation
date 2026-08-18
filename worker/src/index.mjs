@@ -6,6 +6,9 @@ export const TARGETS = Object.freeze({
   advisor_hub_rss: Object.freeze({
     url: "https://www.advisorhub.com/feed/",
   }),
+  financial_advisor_magazine_rss: Object.freeze({
+    url: "https://www.fa-mag.com/rss.php",
+  }),
   aussie_stock_forums_rss: Object.freeze({
     url: "https://www.aussiestockforums.com/forums/-/index.rss",
   }),

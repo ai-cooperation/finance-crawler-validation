@@ -14,7 +14,7 @@ test("health exposes only the fixed feed allowlist", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body.routes, Object.keys(TARGETS).sort());
-  assert.equal(body.routes.length, 10);
+  assert.equal(body.routes.length, 11);
   assert.equal(
     TARGETS.financial_wisdom_forum_feed.url,
     "https://www.financialwisdomforum.org/forum/app.php/feed",
@@ -28,6 +28,10 @@ test("health exposes only the fixed feed allowlist", async () => {
   assert.equal(
     TARGETS.advisor_hub_rss.url,
     "https://www.advisorhub.com/feed/",
+  );
+  assert.equal(
+    TARGETS.financial_advisor_magazine_rss.url,
+    "https://www.fa-mag.com/rss.php",
   );
 });
 

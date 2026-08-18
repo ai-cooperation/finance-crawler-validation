@@ -330,7 +330,7 @@ brands:
     canonical_domain: fa-mag.com
     region: US
     endpoints:
-      - {id: financial_advisor_magazine_rss, transport: rss, url: https://www.fa-mag.com/rss.php, required_capabilities: [http, rss]}
+      - {id: financial_advisor_magazine_rss, transport: rss, url: https://www.fa-mag.com/rss.php, relay_path: /v1/feed/financial_advisor_magazine_rss, required_capabilities: [http, rss]}
       - {id: financial_advisor_magazine_browser, transport: browser, url: https://www.fa-mag.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: riabiz
