@@ -92,15 +92,41 @@
     "artifact_id": "9318017912",
     "finding": "RSS channel returned zero item/entry elements; strict validator rejects empty feeds"
   },
+  "strict_full_run": {
+    "run_id": "32119864710",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "43347c11079915b2cbe5b36378142b12b3d1cd3e",
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "failed_brand_ids": [
+      "international_banker",
+      "the_trade",
+      "etf_stream",
+      "abc_business"
+    ],
+    "endpoint_attempts": 141,
+    "raw_payloads": 136,
+    "raw_payloads_missing": 5,
+    "raw_bytes": 8948883,
+    "hash_mismatches": 0,
+    "rss_items": 2303,
+    "json_records": 21,
+    "successful_html_or_browser_payloads": 64,
+    "news_report_sha256": "bf59234563fa80785559aa5fc3918dfe2497d9ee720dc691e770079e22ec4ffd",
+    "raw_manifest_sha256": "ef4d0ef15488f89abbff2db26e0a7a7ca03d45b09fed769537c5523d15a9d8f",
+    "artifact_id": "9318211052"
+  },
   "merged_latest": {
     "observed_brands": 120,
-    "successful_brands": 118,
-    "failed_brands": 2,
-    "brand_success_rate": 0.9833,
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "brand_success_rate": 0.9667,
     "failed_brand_ids": [
+      "international_banker",
+      "the_trade",
       "etf_stream",
-      "the_trade"
+      "abc_business"
     ]
   },
-  "interpretation": "The baseline and bounded recoveries are live raw-content observations, not a rewrite of the prior 2026-08-14 acceptance. After strict RSS validation was added, the merged latest observation has 118/120 sources with actual non-empty feed/API/HTML content. Financial Advisor Magazine and Financial Express are proven through fixed Cloudflare relay routes after GitHub direct 403. The TRADE is retained as failed because its RSS channel contained zero article items; ETF Stream remains blocked by Cloudflare JS challenge from GitHub, Crawl4AI, and the fixed relay."
+  "interpretation": "The strict full run is the current source of truth for content coverage. It observed 116/120 brands with non-empty RSS/API/HTML/Browser content; 2,303 RSS items and 21 JSON records were present, while HTML/Browser success is measured as page text rather than a standardized article count. It does not mean all financial information for the day was collected. The four failures in this run are International Banker, The TRADE, ETF Stream, and ABC Business; prior bounded recoveries are retained as separate historical observations and are not silently merged into this run."
 }

@@ -45,7 +45,7 @@
 
 P2 擴大驗收已由新版 baseline 與四品牌 bounded recovery batch 合併完成：120 個唯一品牌中 116 個成功（96.67%），達成契約上緣。實驗 run、artifact 雜湊、合併規則及剩餘 4 個邊界見 [`experiments/news-120/p2-acceptance-20260814.json`](experiments/news-120/p2-acceptance-20260814.json)。
 
-為驗證「真的抓到內容」而不只驗證品牌級 metadata，`news_120` workflow 現在可用 `capture_raw=true` 將每個 endpoint attempt 的原始 response body 與 SHA-256 保存為 Actions artifact。基準 [run 32112055769](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32112055769) 實抓 120/120 品牌、144 endpoint attempts，113 品牌成功（94.17%），保存 139 個 raw payload（8,225,522 bytes），139/139 hash 一致；其後以固定 Cloudflare relay 重驗邊界，並加入非空 RSS item 檢查。嚴格內容觀察為 118/120（98.33%），raw hash mismatch=0。The TRADE 的 RSS channel 沒有任何 article item，ETF Stream 則在 GitHub、Crawl4AI 與固定 relay 均遭 Cloudflare JS challenge；完整證據見 [`experiments/news-120/raw-content-acceptance-20260818.json`](experiments/news-120/raw-content-acceptance-20260818.json)。
+為驗證「真的抓到內容」而不只驗證品牌級 metadata，`news_120` workflow 現在可用 `capture_raw=true` 將每個 endpoint attempt 的原始 response body 與 SHA-256 保存為 Actions artifact。加入非空 RSS item 檢查後，最新完整 [run 32119864710](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32119864710) 實抓 120 個品牌：116 通過（96.67%）、136 個 raw payload（8,948,883 bytes）、hash mismatch=0，內容包含 2,303 個 RSS item、21 個 JSON records，以及 64 個 HTML/Browser page-text payload。這不是「今天所有財金資訊」的完整快照；HTML/Browser 沒有統一文章筆數，且各 feed 的窗口與更新頻率不同。完整證據見 [`experiments/news-120/raw-content-acceptance-20260818.json`](experiments/news-120/raw-content-acceptance-20260818.json)。
 
 來源定義在 `sources.yaml`，目前涵蓋台灣與國際社群、開發者社群、新聞、RSS、官方資料 API、市場資料 API，以及 Crawl4AI 財經範例網站。每個來源都聲明 topic、kind、transport、最低內容門檻、必要詞、來源脈絡與選源證據。
 
