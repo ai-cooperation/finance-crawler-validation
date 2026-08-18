@@ -70,9 +70,13 @@ class NewsEndpointAttempt:
     final_url: str = ""
     content_type: str = ""
     delivery_attempts: tuple[dict[str, object], ...] = ()
+    content: str = ""
 
-    def to_dict(self) -> dict[str, object]:
-        return asdict(self)
+    def to_dict(self, *, include_content: bool = False) -> dict[str, object]:
+        payload = asdict(self)
+        if not include_content:
+            payload.pop("content", None)
+        return payload
 
 
 @dataclass(frozen=True)
@@ -185,6 +189,7 @@ def _endpoint_attempt(
         delivery_attempts=tuple(
             delivery.to_dict() for delivery in result.delivery_attempts
         ),
+        content=result.content,
     )
 
 

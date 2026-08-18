@@ -115,9 +115,14 @@ class ProbeResult:
     final_url: str = ""
     content_type: str = ""
     delivery_attempts: tuple[DeliveryAttempt, ...] = ()
+    # Raw response is retained in-memory for explicit capture runs.  The
+    # default report serializer removes it so ordinary capability reports do
+    # not accidentally mirror full third-party payloads.
+    content: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        payload.pop("content", None)
         payload["outcome"] = self.outcome.value
         payload["delivery_attempts"] = [item.to_dict() for item in self.delivery_attempts]
         return payload

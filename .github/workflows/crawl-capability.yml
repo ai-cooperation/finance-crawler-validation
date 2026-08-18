@@ -36,6 +36,11 @@ on:
           - "30"
           - "60"
           - "120"
+      capture_raw:
+        description: Save exact endpoint response bodies as a raw artifact
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -120,6 +125,7 @@ jobs:
               --current-executor github_actions_crawl4ai \
               --brand-ids "${{ inputs.brand_ids }}" \
               --max-brands "${{ inputs.max_brands }}" \
+              ${{ inputs.capture_raw && '--capture-raw' || '' }} \
               --output artifacts
           elif [ "${{ inputs.max_brands }}" != "120" ]; then
             echo "brand_ids is required unless max_brands is set to 120 for a full baseline run."
@@ -130,6 +136,7 @@ jobs:
               --executors resource-executors.yaml \
               --current-executor github_actions_crawl4ai \
               --max-brands "${{ inputs.max_brands }}" \
+              ${{ inputs.capture_raw && '--capture-raw' || '' }} \
               --output artifacts
           fi
 
@@ -147,6 +154,15 @@ jobs:
       - name: Add news report to job summary
         if: always() && hashFiles('artifacts/news-report.md') != ''
         run: cat artifacts/news-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add raw capture summary to job summary
+        if: always() && hashFiles('artifacts/news-raw-manifest.json') != ''
+        run: |
+          {
+            echo "## Raw payload capture"
+            echo
+            jq -r '"Brands: \(.summary.brands), endpoint attempts: \(.summary.endpoint_attempts), payloads written: \(.summary.payloads_written), payloads missing: \(.summary.payloads_missing)"' artifacts/news-raw-manifest.json
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Add Crawlee report to job summary
         if: always() && hashFiles('artifacts/crawlee-report.md') != ''

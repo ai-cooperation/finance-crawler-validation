@@ -11,6 +11,7 @@ from finance_crawler_poc.adapters import Crawl4AIAdapter, HttpAdapter
 from finance_crawler_poc.news_catalog import NewsBrand, NewsCatalogError, load_news_catalog
 from finance_crawler_poc.news_probe import NewsBrandResult, probe_news_brand
 from finance_crawler_poc.news_report import write_news_reports
+from finance_crawler_poc.news_raw import write_news_raw_artifacts
 from finance_crawler_poc.resource_router import (
     ExecutorConfigError,
     ExecutorState,
@@ -27,6 +28,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--current-executor", required=True)
     parser.add_argument(
+        "--capture-raw",
+        action="store_true",
+        help="Write exact endpoint response bodies and a raw capture manifest",
+    )
+    parser.add_argument(
         "--brand-ids",
         help="Comma-separated unique brand IDs; omit only for an intentional full run",
     )
@@ -42,6 +48,7 @@ async def run(
     current_executor_id: str,
     brand_ids: tuple[str, ...] | None = None,
     max_brands: int | None = None,
+    capture_raw: bool = False,
 ) -> list[NewsBrandResult]:
     catalog = load_news_catalog(catalog_path)
     if not catalog.is_complete:
@@ -130,6 +137,12 @@ async def run(
         target_total=catalog.target.total_brands,
         **report_kwargs,
     )
+    if capture_raw:
+        write_news_raw_artifacts(
+            results,
+            output_dir,
+            generated_at=generated_at,
+        )
     return results
 
 
@@ -178,6 +191,7 @@ def main() -> None:
                 current_executor_id=args.current_executor,
                 brand_ids=_parse_brand_ids(args.brand_ids),
                 max_brands=args.max_brands,
+                capture_raw=args.capture_raw,
             )
         )
     except (NewsCatalogError, ExecutorConfigError, ValueError) as exc:

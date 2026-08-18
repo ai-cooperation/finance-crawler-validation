@@ -227,6 +227,7 @@ def _result(
         final_url=final_url,
         content_type=content_type,
         delivery_attempts=delivery_attempts,
+        content=content,
     )
 
 
