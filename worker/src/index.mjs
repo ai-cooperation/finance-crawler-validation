@@ -13,6 +13,10 @@ export const TARGETS = Object.freeze({
     url: "https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1",
     accept: "application/json, application/problem+json;q=0.9, */*;q=0.1",
   }),
+  etf_stream_html: Object.freeze({
+    url: "https://www.etfstream.com/",
+    accept: "text/html, application/xhtml+xml;q=0.9, */*;q=0.1",
+  }),
   aussie_stock_forums_rss: Object.freeze({
     url: "https://www.aussiestockforums.com/forums/-/index.rss",
   }),

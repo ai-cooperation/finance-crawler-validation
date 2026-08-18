@@ -75,9 +75,9 @@ brands:
     ("transport", "relay_path", "message"),
     [
         (
-            "static_html",
-            "/v1/feed/specialist_one_html",
-            "only for rss or json_api endpoints",
+            "browser",
+            "/v1/feed/specialist_one_browser",
+            "only for rss, json_api, or static_html endpoints",
         ),
         ("rss", "/v1/feed/some_other_feed", "must match endpoint id"),
         ("rss", "https://proxy.example/feed", "must match endpoint id"),

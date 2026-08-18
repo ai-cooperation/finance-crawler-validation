@@ -210,9 +210,9 @@ def _parse_endpoint(raw: Any, brand_id: str, index: int) -> NewsEndpoint:
     if not isinstance(relay_path, str):
         raise NewsCatalogError(f"endpoint {endpoint_id} relay_path must be a string")
     relay_path = relay_path.strip()
-    if relay_path and transport not in {"rss", "json_api"}:
+    if relay_path and transport not in {"rss", "json_api", "static_html"}:
         raise NewsCatalogError(
-            "relay_path is allowed only for rss or json_api endpoints"
+            "relay_path is allowed only for rss, json_api, or static_html endpoints"
         )
     if relay_path and relay_path != f"/v1/feed/{endpoint_id}":
         raise NewsCatalogError(

@@ -452,7 +452,7 @@ brands:
     canonical_domain: etfstream.com
     region: UK
     endpoints:
-      - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, required_capabilities: [http, static_html]}
+      - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, relay_path: /v1/feed/etf_stream_html, required_capabilities: [http, static_html]}
       - {id: etf_stream_browser, transport: browser, url: https://www.etfstream.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: citywire
