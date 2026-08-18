@@ -35,17 +35,56 @@
     "raw_payloads": 9,
     "hash_mismatches": 0
   },
-  "merged_latest": {
-    "observed_brands": 120,
-    "successful_brands": 116,
-    "failed_brands": 4,
-    "brand_success_rate": 0.9667,
-    "failed_brand_ids": [
+  "recovery_run_latest": {
+    "run_id": "32116022731",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "f25883d949630c71aacca497564ca19cd9a23610",
+    "selected_brands": [
       "financial_advisor_magazine",
       "the_trade",
       "etf_stream",
       "financial_express"
+    ],
+    "successful_brands": 2,
+    "failed_brands": 2,
+    "endpoint_attempts": 5,
+    "raw_payloads": 5,
+    "raw_bytes": 14271,
+    "hash_mismatches": 0,
+    "news_report_sha256": "692c1de4cf82a7c9ef546a833eeff5f2e00139bb277afcfcd7065fd2916f45f2",
+    "raw_manifest_sha256": "fc51022084b4506c1e2781edb021338020fcc18a2d0ff53543166a75f24a7445",
+    "artifact_id": "9316737318",
+    "cloudflare_relay_version": "5a6eb54a-6bda-4fba-b264-f2a02e003dc8"
+  },
+  "recovery_run_final": {
+    "run_id": "32116635535",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "89740ff9a1d1a8c61e9e676b8adc10bc06388032",
+    "selected_brands": [
+      "financial_advisor_magazine",
+      "the_trade",
+      "etf_stream",
+      "financial_express"
+    ],
+    "successful_brands": 3,
+    "failed_brands": 1,
+    "endpoint_attempts": 5,
+    "raw_payloads": 5,
+    "raw_bytes": 179394,
+    "hash_mismatches": 0,
+    "news_report_sha256": "bc8ba291fedf2c93646e17a4f6de0a6879df2202c17ed738af3d6de48ef0fd5d",
+    "raw_manifest_sha256": "7161c310f0c5f8d25b4b32b1d1fc1ae730597bcfc00ba58b64c5ecfd71a07dcd",
+    "artifact_id": "9316957480",
+    "cloudflare_relay_version": "72480e06-52e9-460f-8a02-7a097a2ce88a"
+  },
+  "merged_latest": {
+    "observed_brands": 120,
+    "successful_brands": 119,
+    "failed_brands": 1,
+    "brand_success_rate": 0.9917,
+    "failed_brand_ids": [
+      "etf_stream"
     ]
   },
-  "interpretation": "The baseline is a live content observation and is not combined with the prior 2026-08-14 acceptance as if it were the same timestamp. The bounded recovery replaces only the seven explicitly selected brand IDs; the merged latest observation reaches 116/120."
+  "interpretation": "The baseline and three bounded recoveries are live raw-content observations, not a rewrite of the prior 2026-08-14 acceptance. The merged latest observation replaces only the explicitly selected brand IDs and reaches 119/120. Financial Advisor Magazine and Financial Express are proven through fixed Cloudflare relay routes after GitHub direct 403; The TRADE succeeds directly. ETF Stream remains blocked by a Cloudflare JS challenge from both the GitHub runner and the fixed Cloudflare relay, so it is retained as the single measured boundary."
 }
