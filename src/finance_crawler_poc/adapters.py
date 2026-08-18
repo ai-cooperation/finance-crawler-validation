@@ -157,6 +157,13 @@ def _rss_feed_error(content: str) -> str:
     local_name = root.tag.rsplit("}", 1)[-1].casefold()
     if local_name not in {"rss", "feed", "rdf"}:
         return f"invalid RSS/Atom feed: root element is {local_name}"
+    item_count = sum(
+        1
+        for element in root.iter()
+        if element.tag.rsplit("}", 1)[-1].casefold() in {"item", "entry"}
+    )
+    if item_count == 0:
+        return "invalid RSS/Atom feed: feed has no items"
     return ""
 
 
