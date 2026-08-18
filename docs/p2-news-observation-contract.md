@@ -30,7 +30,8 @@ Public repository 的標準 GitHub-hosted runner 分鐘依 GitHub 官方文件�
 - RSS 必須可解析 XML，root local name 只能是 `rss`、`feed` 或 `rdf`。Feed URL 若重導向 HTML，必須記為 `invalid_content`。
 - Static HTML 只計可見文字，排除 script、style、template 與 noscript。
 - Browser 使用 Crawl4AI markdown，並執行 robots preflight 與 Crawl4AI robots check。
-- 報表只保存 metadata、SHA-256、final URL、content type 與 500 字元 preview，不保存完整正文。
+- 預設 capability report 只保存 metadata、SHA-256、final URL、content type 與 500 字元 preview，不保存完整正文。
+- 需要驗證「真實內容已抓到」時，`news_120` workflow 以 `capture_raw=true` 啟用 raw capture：每個 endpoint attempt 的實際 response body 以 `news-raw/<brand>/<endpoint>.raw` 保存，並由 `news-raw-manifest.json` 記錄 URL、transport、HTTP、bytes、SHA-256、outcome 與 hash match。raw capture 是 GitHub Actions artifact，不寫入 Git history；失敗 response 若有 body 也保存，timeout／連線失敗則只留 manifest evidence。
 - relay 成功的 endpoint 必須同時保存 GitHub 直連與 Cloudflare relay 兩段 delivery attempts，不得只保存最終 200。
 
 ## 邊界條件
@@ -71,3 +72,4 @@ Public repository 的標準 GitHub-hosted runner 分鐘依 GitHub 官方文件�
 - 2026-08-14 端點修路前的公開 probe：Private Banker International 的正式新聞 feed 改為 `/news/feed/`、AdvisorHub 改為 `/feed/`；前者在同一台本機先回 200 後又回 403，因此仍保留為 relay 候選，不把單次 200 外推為成功。Citywire 的官方 Advice Show 訂閱頁、Livewire Markets 的官方 podcast 索引、Sifted Startup Europe 的官方訂閱頁均明示其活躍 RSS；三個外部 feed 均實際通過 XML、300 字與財經語意契約。先以未設定 relay 的本機完整 120 品牌 run 得 114/120，再只替換六個失敗品牌的 bounded batch，其中 Sifted 成功、其他五個仍失敗；按品牌 ID 合併為 115/120（95.83%）。機器摘要在 `local-20260814t031220z-summary.json` 與 `local-20260814t032008z-sifted-repair-summary.json`，兩者都明確標為非 acceptance：待 `ai-cooperation` GitHub runner 重驗，未回填 2026-08-13 的 acceptance 數字。
 - 新版正式 baseline `31768400476`：GitHub-hosted runner 在 163 endpoint catalog 對 120 個唯一品牌產生完整 result，112 成功、8 失敗；artifact SHA-256 為 `b3778895c1d61ab230c2c2d9f4520408c519540dc10fef181b37d5c2653b45d1`。這一輪揭露四個先前 HTML-only 來源可轉用公開 RSS：International Banker、LeapRate、BusinessLine Markets、Bankless Daily。
 - 官方 RSS recovery batch `31768848318`：只選取前述四個品牌，四個都成功，artifact SHA-256 為 `07b991abf2df401d11f9d2fb78dfd74fa6ae24c94c06319dc98da00a557a17bf`。用合併器按 brand ID 覆寫後為 120 個唯一品牌、116 成功、4 失敗、96.67%；詳見 `p2-acceptance-20260814.json`。四個失敗為 Benzinga、Financial Advisor Magazine、ETF Stream（anti-bot／Cloudflare challenge）與 Financial Express（GitHub runner 403，官方 syndication RSS 候選 redirect 到 HTML 或 410）；未使用 commercial proxy、residential egress 或 web unlocker。
+- Raw content acceptance run `32112055769`（驗證 branch `agent/p2-news-catalog-revalidation`）：GitHub-hosted runner 實際抓取 120/120 品牌、144 endpoint attempts，113 品牌通過內容契約（94.17%）；raw capture 產生 139 個 payload、8,225,522 bytes，5 個 endpoint 無 body（timeout／連線或空回應），139/139 payload hash 與 probe 回報一致，hash mismatch=0。`news-report.json` SHA-256=`7a88fbe70b047f8b2c733cd5d5cb236aabacefe2c223c8f4d7d5fd7031b1802e`，`news-raw-manifest.json` SHA-256=`725470265bf22d7388aa8cb2c13d8ef37cc427cfc32ebb111e6efbfdcda0bf74`；artifact ID `9315334853`。本輪與 8 月 14 日的 116/120 不同，是同一來源目錄在不同時間的即時 observation，不合併成單一成功率。

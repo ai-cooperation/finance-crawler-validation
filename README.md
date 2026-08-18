@@ -33,7 +33,7 @@
 
 ## 來源矩陣
 
-新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 162 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
+新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 166 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
 
 資料保存、Crawl4AI＋OpenBB＋TradingAgents 背景分析、Cloudflare 權限分離、MCP 與 GitHub Actions 失效恢復的後續工作，統一追蹤於 [`docs/cf-gh-mcp-implementation-plan.md`](docs/cf-gh-mcp-implementation-plan.md)。
 
@@ -43,7 +43,9 @@
 
 隔離帳號 baseline 是 [Actions run 31677822771](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31677822771)：120/120 品牌都有紀錄，101/120 成功（84.17%）。後續只以 explicit brand batch 重驗失敗或 endpoint 變更者，再按 brand ID 合併 observation；batch 內成功率不得冒充 120 品牌整體成功率。
 
-P2 擴大驗收已由 baseline 與三個 bounded batches 合併完成：120 個唯一品牌中 114 個成功（95.00%），達成契約上緣。實驗 run、artifact 雜湊、合併規則及剩餘 6 個邊界見 [`experiments/news-120/p2-acceptance-20260813.json`](experiments/news-120/p2-acceptance-20260813.json)。
+P2 擴大驗收已由新版 baseline 與四品牌 bounded recovery batch 合併完成：120 個唯一品牌中 116 個成功（96.67%），達成契約上緣。實驗 run、artifact 雜湊、合併規則及剩餘 4 個邊界見 [`experiments/news-120/p2-acceptance-20260814.json`](experiments/news-120/p2-acceptance-20260814.json)。
+
+為驗證「真的抓到內容」而不只驗證品牌級 metadata，`news_120` workflow 現在可用 `capture_raw=true` 將每個 endpoint attempt 的原始 response body 與 SHA-256 保存為 Actions artifact。驗證 branch 的 [run 32112055769](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32112055769) 實抓 120/120 品牌、144 endpoint attempts，113 品牌成功（94.17%），保存 139 個 raw payload（8,225,522 bytes），139/139 hash 一致；這是不同時間的即時 observation，不覆寫 8 月 14 日的 116/120 acceptance 證據。
 
 來源定義在 `sources.yaml`，目前涵蓋台灣與國際社群、開發者社群、新聞、RSS、官方資料 API、市場資料 API，以及 Crawl4AI 財經範例網站。每個來源都聲明 topic、kind、transport、最低內容門檻、必要詞、來源脈絡與選源證據。
 
