@@ -77,14 +77,30 @@
     "artifact_id": "9316957480",
     "cloudflare_relay_version": "72480e06-52e9-460f-8a02-7a097a2ce88a"
   },
+  "strict_feed_validation_run": {
+    "run_id": "32119549550",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "62b21ec",
+    "selected_brands": ["the_trade"],
+    "successful_brands": 0,
+    "failed_brands": 1,
+    "endpoint_attempts": 2,
+    "raw_payloads": 1,
+    "hash_mismatches": 0,
+    "news_report_sha256": "ecb0246aafbba2fdd2f43506baa499f42737c02a18a6c9a11de10231a5cf4d07",
+    "raw_manifest_sha256": "afc867b3804d646f94b36ebd67d1dd5e6061b25541edf937dea3ab948e10b384",
+    "artifact_id": "9318017912",
+    "finding": "RSS channel returned zero item/entry elements; strict validator rejects empty feeds"
+  },
   "merged_latest": {
     "observed_brands": 120,
-    "successful_brands": 119,
-    "failed_brands": 1,
-    "brand_success_rate": 0.9917,
+    "successful_brands": 118,
+    "failed_brands": 2,
+    "brand_success_rate": 0.9833,
     "failed_brand_ids": [
-      "etf_stream"
+      "etf_stream",
+      "the_trade"
     ]
   },
-  "interpretation": "The baseline and three bounded recoveries are live raw-content observations, not a rewrite of the prior 2026-08-14 acceptance. The merged latest observation replaces only the explicitly selected brand IDs and reaches 119/120. Financial Advisor Magazine and Financial Express are proven through fixed Cloudflare relay routes after GitHub direct 403; The TRADE succeeds directly. ETF Stream remains blocked by a Cloudflare JS challenge from both the GitHub runner and the fixed Cloudflare relay, so it is retained as the single measured boundary."
+  "interpretation": "The baseline and bounded recoveries are live raw-content observations, not a rewrite of the prior 2026-08-14 acceptance. After strict RSS validation was added, the merged latest observation has 118/120 sources with actual non-empty feed/API/HTML content. Financial Advisor Magazine and Financial Express are proven through fixed Cloudflare relay routes after GitHub direct 403. The TRADE is retained as failed because its RSS channel contained zero article items; ETF Stream remains blocked by Cloudflare JS challenge from GitHub, Crawl4AI, and the fixed relay."
 }
