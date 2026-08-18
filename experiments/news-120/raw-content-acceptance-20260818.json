@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "observation_unit": "unique_news_brand_latest",
+  "catalog_brands": 120,
+  "baseline_run": {
+    "run_id": "32112055769",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "7e895ce54393bee8f00169e5059f42a1369b5f76",
+    "successful_brands": 113,
+    "failed_brands": 7,
+    "endpoint_attempts": 144,
+    "raw_payloads": 139,
+    "raw_bytes": 8225522,
+    "hash_mismatches": 0,
+    "news_report_sha256": "7a88fbe70b047f8b2c733cd5d5cb236aabacefe2c223c8f4d7d5fd7031b1802e",
+    "raw_manifest_sha256": "725470265bf22d7388aa8cb2c13d8ef37cc427cfc32ebb111e6efbfdcda0bf74",
+    "artifact_id": "9315334853"
+  },
+  "recovery_run": {
+    "run_id": "32112558535",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "ca0f70246141eb0214630c609814056d6dc9a1d6",
+    "selected_brands": [
+      "benzinga",
+      "international_banker",
+      "financial_advisor_magazine",
+      "the_trade",
+      "leaprate",
+      "etf_stream",
+      "financial_express"
+    ],
+    "successful_brands": 3,
+    "failed_brands": 4,
+    "endpoint_attempts": 10,
+    "raw_payloads": 9,
+    "hash_mismatches": 0
+  },
+  "merged_latest": {
+    "observed_brands": 120,
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "brand_success_rate": 0.9667,
+    "failed_brand_ids": [
+      "financial_advisor_magazine",
+      "the_trade",
+      "etf_stream",
+      "financial_express"
+    ]
+  },
+  "interpretation": "The baseline is a live content observation and is not combined with the prior 2026-08-14 acceptance as if it were the same timestamp. The bounded recovery replaces only the seven explicitly selected brand IDs; the merged latest observation reaches 116/120."
+}
