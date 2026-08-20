@@ -15,14 +15,19 @@ CONTRACT_NAMES = frozenset(
     {
         "audit-event",
         "ingest-envelope",
+        "market-alignment-envelope",
         "market-snapshot",
+        "market-topic-alignment",
         "raw-item",
         "research-report",
+        "research-report-envelope",
         "source-record",
         "soak-observation",
         "soak-usage",
         "status-response",
         "topic-snapshot",
+        "tradingagents-plan-envelope",
+        "tradingagents-run-plan",
     }
 )
 SCHEMA_DIRECTORY = Path(__file__).resolve().parents[2] / "schemas"

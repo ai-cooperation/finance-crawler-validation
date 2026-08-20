@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
-更新日期：2026-08-13
-狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、114 成功（95.00%）驗收。P0 的 catch-up、D1 原子 admission、Action failure webhook transport 與 replay 去重已完成遠端驗證；低頻 soak 只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。後續順序固定為 soak 關閉 P0 → P1 OpenBB／TradingAgents → MCP／Agent 使用者介面裁示。
+更新日期：2026-08-20
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、116 成功（96.67%）驗收。P0 的 catch-up、D1 原子 admission、replay 去重與 failure-path 已完成遠端驗證；低頻 soak 仍只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。P1 已完成本機 OpenBB-compatible market snapshot、topic alignment 與 TradingAgents run-plan gate；遠端 D1/R2 persistence、實際模型執行與第二意見尚未完成。後續順序固定為關閉 P0 soak → 完成 P1 遠端市場索引／第二意見 → MCP／Agent 使用者介面裁示。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -16,6 +16,15 @@
 - 爬取維持 Browser＋API＋RSS 分層，並按來源、資源與失敗類型選擇執行平台。
 - 交付順序以資料供應能力為先：P0 完成後先驗收 120 個不重複新聞品牌，再串接 OpenBB 與 TradingAgents；MCP 與 Agent 對外介面留到最後由使用者裁示。
 - P0 只預留穩定的 ID、schema、權限邊界與版本策略，不因預留 MCP 契約而提前實作 MCP Server 或 Chat Agent UI。
+
+### 2026-08-14 資料公開邊界確認
+
+維持原始 SB 計畫：公開 repository 是可重現的爬蟲引擎，不是採集成果的長期鏡像。GitHub Actions 可直接重抓公開來源，或讀取由 public-read Worker 依來源授權放行的資料；不需要把全文或原始 RSS payload 提交到 Git history。
+
+- GitHub public repo 只保存程式、來源定義、workflow、schema、hash、非敏感 fixture、摘要與可公開樣本。
+- 完整原始 payload 預設保存於 R2。只有 `rights.redistribution=full` 的資料，才可由 public-read Worker 提供穩定唯讀存取；`metadata_only` 與 `excerpt` 一律不公開全文。
+- 處理後的研究報告、議題判讀、完整私有證據與稽核封存維持 private R2；D1 只保存索引、授權／保留狀態與 append-only 稽核事件。
+- 「來源公開可取得」不等同「可公開再散布」。來源的授權、保留期限、撤回與刪除要求都由 D1 的來源權利欄位和 Worker 放行規則執行。
 
 ## 二、目標資料流
 
@@ -154,10 +163,10 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 | 階段 | 狀態 | 交付與驗證 |
 |---|---|---|
 | 0. 來源與路由 POC | Gate 2 新版驗收完成 | 120 個唯一品牌、現行 166 條 endpoint paths；GitHub-hosted 163 endpoint baseline 與四品牌 bounded batch 合併後，116 品牌成功（96.67%），四個來源保留為合規／技術邊界 |
-| 1. 資料契約 | 本機完成 | 八份 version 1 JSON Schema（含只讀 status response）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
+| 1. 資料契約 | 本機完成 | 已註冊的 version 1 JSON Schema（含只讀 status、market alignment、TradingAgents plan 與 private research report envelope）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
 | 3. GH 批次管線 | 手動 OIDC 韌性實接完成 | ingest／publish replay、invalid publish 保留 last-good、checkpoint catch-up、D1 原子 admission、action failure webhook、watchdog 與去重已實作；正式排程等有人訂閱的告警目的地後才開啟 |
-| 4. 議題雷達與研究 | 遠端垂直切片完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；OpenBB 正規化與選擇性 TradingAgents 待辦 |
+| 4. 議題雷達與研究 | 雷達遠端完成；P1 OpenBB／TradingAgents gate 與私有報告 ingest 本機完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；market snapshot、topic alignment、bounded TradingAgents run plan、research-report 私有 R2／D1 index 的 schema／CLI／workflow gate 與 OIDC ingest route 已完成本機 TDD，尚待正式 Worker 部署後讀回驗證；TradingAgents 實際模型與第二意見待辦 |
 | 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
 | 6. 穩定性驗收 | 部分完成 | 故障注入、外部 transport 與去重、額度拒絕的廉價路徑已遠端實測；有人訂閱的告警與連續 soak 尚未完成 |
 

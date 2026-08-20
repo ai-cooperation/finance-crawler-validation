@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/market-topic-alignment.schema.json",
+  "title": "Evidence-linked topic and market alignment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "alignment_id",
+    "topic_snapshot_id",
+    "market_snapshot_id",
+    "generated_at",
+    "partial",
+    "coverage_ratio",
+    "topics"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "alignment_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "topic_snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "market_snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "partial": { "type": "boolean" },
+    "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+    "topics": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/aligned_topic" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "aligned_topic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic_id",
+        "label",
+        "topic_score",
+        "market_direction",
+        "instrument_count",
+        "symbols",
+        "mean_change_24h_pct",
+        "evidence_ids"
+      ],
+      "properties": {
+        "topic_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "topic_score": { "type": "number", "minimum": 0 },
+        "market_direction": {
+          "enum": ["positive", "negative", "mixed", "not_covered"]
+        },
+        "instrument_count": { "type": "integer", "minimum": 0 },
+        "symbols": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "mean_change_24h_pct": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "null" }
+          ]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    }
+  }
+}

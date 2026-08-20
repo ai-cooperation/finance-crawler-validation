@@ -330,7 +330,7 @@ brands:
     canonical_domain: fa-mag.com
     region: US
     endpoints:
-      - {id: financial_advisor_magazine_html, transport: static_html, url: https://www.fa-mag.com/, required_capabilities: [http, static_html]}
+      - {id: financial_advisor_magazine_rss, transport: rss, url: https://www.fa-mag.com/rss.php, relay_path: /v1/feed/financial_advisor_magazine_rss, required_capabilities: [http, rss]}
       - {id: financial_advisor_magazine_browser, transport: browser, url: https://www.fa-mag.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: riabiz
@@ -452,7 +452,7 @@ brands:
     canonical_domain: etfstream.com
     region: UK
     endpoints:
-      - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, required_capabilities: [http, static_html]}
+      - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, relay_path: /v1/feed/etf_stream_html, required_capabilities: [http, static_html]}
       - {id: etf_stream_browser, transport: browser, url: https://www.etfstream.com/, required_capabilities: [http, javascript, chromium]}
   - <<: *finance_specialist_defaults
     id: citywire
@@ -535,7 +535,7 @@ brands:
     canonical_domain: financialexpress.com
     region: India
     endpoints:
-      - {id: financial_express_html, transport: static_html, url: https://www.financialexpress.com/market/, required_capabilities: [http, static_html]}
+      - {id: financial_express_api, transport: json_api, url: 'https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1', relay_path: /v1/feed/financial_express_api, required_capabilities: [http, json]}
   - <<: *finance_specialist_defaults
     id: businessline
     name: BusinessLine

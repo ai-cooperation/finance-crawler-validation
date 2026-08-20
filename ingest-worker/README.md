@@ -15,10 +15,16 @@ npm run test:coverage
 npm run deploy:dry
 ```
 
+P1 的 `/v1/ingest/market-alignment` 是同一個 GitHub OIDC 寫入邊界的窄路徑。它只接受已發布 run 的
+`market-alignment-envelope`，會驗證 market snapshot、topic alignment 與 run evidence，並將市場快照與對齊結果寫入 private R2、D1 index 與 `openbb_normalized` audit event；重送相同 payload 回傳 `replayed=true`。完整契約見 [`../docs/p1-openbb-alignment-spec.md`](../docs/p1-openbb-alignment-spec.md)。
+
+`/v1/ingest/tradingagents-plan` 只保存已通過 budget gate 的 bounded run plan；
+`/v1/ingest/research-report` 才接受實際的私有「第二意見」。兩者都要求同一個已發布 run、同一個 market alignment 與 run evidence，報告寫入 private R2、D1 index 與 append-only audit event，並以 `report_id`／payload hash 做冪等重放。此版本不在 workflow 中自動呼叫付費模型；沒有模型輸出時不會產生研究報告。
+
 部署前必須完成，否則 `oidc_not_configured` 是預期結果：
 
 1. 建立 remote D1 與 private R2，將實際 resource ID 寫入 Wrangler 環境設定。
-2. 依序套用 `migrations/0001_initial.sql`、`migrations/0002_ingest_receipts.sql` 與 `migrations/0003_operational_alerts.sql`。
+2. 依序套用 `migrations/0001_initial.sql`、`migrations/0002_ingest_receipts.sql`、`migrations/0003_operational_alerts.sql`、`migrations/0004_soak_observations.sql`、`migrations/0005_market_alignment.sql`、`migrations/0006_tradingagents_plans.sql` 與 `migrations/0007_research_reports.sql`。
 3. 將 `GITHUB_REPOSITORY_ID`、`GITHUB_OWNER_ID` 與 workflow ref 設成不可變的實際值，不可只信 repository name。
 4. GitHub workflow 只在手動垂直切片 job 開啟 `id-token: write`，取得指定 audience 的 OIDC token後呼叫 `/v1/ingest/items` 與 `/v1/ingest/publish`。選配 `verify_resilience` 會在同一輪真實 15 來源 payload 內驗證 replay 與 last-good，預設關閉，不另外多跑第二輪爬取。
 5. 使用 `ALERT_WEBHOOK_URL` Worker secret 接上外部失敗通知。`ALERT_WEBHOOK_FORMAT=auto` 會依精確官方 hostname 辨識 Slack Incoming Webhook、Telegram Bot API 與 ntfy；其他 HTTPS URL 使用 version 1 generic JSON。所有外送設 10 秒 timeout、不跟隨 redirect，只在 provider 回覆成功後寫入 D1 receipt。後續 admitted 且 publish 成功的 workflow 會先送出 action recovery，送達後才將既有 Action failure 標為 resolved；不刪除歷史告警。Workers fetch traces 會保存完整 URL，因此本 Worker 必須保持 traces 關閉，只保留無 secret 的結構化 logs。

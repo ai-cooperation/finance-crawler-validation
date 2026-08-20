@@ -86,6 +86,20 @@ def test_http_adapter_rejects_html_redirected_from_an_rss_endpoint() -> None:
     assert response.error == "invalid RSS/Atom feed: root element is html"
 
 
+def test_http_adapter_rejects_empty_rss_channel() -> None:
+    adapter = HttpAdapter(transport=httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            text="<rss version='2.0'><channel><title>The TRADE</title></channel></rss>",
+            headers={"Content-Type": "application/rss+xml"},
+        )
+    ))
+    response = asyncio.run(adapter.fetch(source("rss")))
+    asyncio.run(adapter.close())
+
+    assert response.error == "invalid RSS/Atom feed: feed has no items"
+
+
 def test_http_adapter_uses_feed_accept_header_and_cloudflare_relay_after_403() -> None:
     requests: list[httpx.Request] = []
 

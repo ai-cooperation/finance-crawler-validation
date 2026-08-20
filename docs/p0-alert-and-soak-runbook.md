@@ -1,6 +1,6 @@
 # P0 外部告警與低頻 soak runbook
 
-更新日期：2026-08-13
+更新日期：2026-08-14
 
 ## 目標與門檻
 
@@ -140,7 +140,7 @@ gh workflow run topic-radar.yml \
 - GitHub Actions、Workers、D1 與 R2 的實際用量記錄。
 - 所有 open、deduplicated 與 resolved 告警的真人收件證據。
 
-只有連續七日驗收證據齊全，才將 P0 關閉。P2 的 120 品牌驗收不重跑，已有的 114/120（95.00%）品牌級結果保持獨立證據。
+只有連續七日驗收證據齊全，才將 P0 關閉。P2 的 120 品牌驗收不重跑，已有的 116/120（96.67%）品牌級結果保持獨立證據。
 
 ### 私有 observation 與公開 artifact
 

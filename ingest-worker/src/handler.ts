@@ -3,7 +3,14 @@ import {
   AuthenticationError,
   authenticateGithubOidc,
 } from "./auth";
-import { HttpError, ingestItems, publishSnapshot } from "./storage";
+import {
+  HttpError,
+  ingestItems,
+  ingestMarketAlignment,
+  ingestResearchReport,
+  ingestTradingAgentsPlan,
+  publishSnapshot,
+} from "./storage";
 import {
   parseFreshnessPolicy,
   readStatus,
@@ -101,6 +108,9 @@ export function createHandler(
       if (![
         "/v1/ingest/items",
         "/v1/ingest/publish",
+        "/v1/ingest/market-alignment",
+        "/v1/ingest/tradingagents-plan",
+        "/v1/ingest/research-report",
         "/v1/run/plan",
         "/v1/alerts/action-failure",
         "/v1/alerts/action-recovery",
@@ -186,6 +196,48 @@ export function createHandler(
           }
           const result = await ingestItems(env, payload, dependencies.now());
           return jsonResponse({ ...result, request_id: requestId }, 202);
+        }
+
+        if (url.pathname === "/v1/ingest/market-alignment") {
+          if (stringField(payload, "workflow_run_id") !== auth.workflowRunId) {
+            throw new HttpError(403, "workflow_run_mismatch");
+          }
+          if (stringField(payload, "commit_sha") !== auth.commitSha) {
+            throw new HttpError(403, "commit_sha_mismatch");
+          }
+          const result = await ingestMarketAlignment(env, payload, dependencies.now());
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
+          );
+        }
+
+        if (url.pathname === "/v1/ingest/tradingagents-plan") {
+          if (stringField(payload, "workflow_run_id") !== auth.workflowRunId) {
+            throw new HttpError(403, "workflow_run_mismatch");
+          }
+          if (stringField(payload, "commit_sha") !== auth.commitSha) {
+            throw new HttpError(403, "commit_sha_mismatch");
+          }
+          const result = await ingestTradingAgentsPlan(env, payload, dependencies.now());
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
+          );
+        }
+
+        if (url.pathname === "/v1/ingest/research-report") {
+          if (stringField(payload, "workflow_run_id") !== auth.workflowRunId) {
+            throw new HttpError(403, "workflow_run_mismatch");
+          }
+          if (stringField(payload, "commit_sha") !== auth.commitSha) {
+            throw new HttpError(403, "commit_sha_mismatch");
+          }
+          const result = await ingestResearchReport(env, payload, dependencies.now());
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
+          );
         }
 
         const runId = stringField(payload, "run_id");

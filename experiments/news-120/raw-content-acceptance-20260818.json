@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "observation_unit": "unique_news_brand_latest",
+  "catalog_brands": 120,
+  "baseline_run": {
+    "run_id": "32112055769",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "7e895ce54393bee8f00169e5059f42a1369b5f76",
+    "successful_brands": 113,
+    "failed_brands": 7,
+    "endpoint_attempts": 144,
+    "raw_payloads": 139,
+    "raw_bytes": 8225522,
+    "hash_mismatches": 0,
+    "news_report_sha256": "7a88fbe70b047f8b2c733cd5d5cb236aabacefe2c223c8f4d7d5fd7031b1802e",
+    "raw_manifest_sha256": "725470265bf22d7388aa8cb2c13d8ef37cc427cfc32ebb111e6efbfdcda0bf74",
+    "artifact_id": "9315334853"
+  },
+  "recovery_run": {
+    "run_id": "32112558535",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "ca0f70246141eb0214630c609814056d6dc9a1d6",
+    "selected_brands": [
+      "benzinga",
+      "international_banker",
+      "financial_advisor_magazine",
+      "the_trade",
+      "leaprate",
+      "etf_stream",
+      "financial_express"
+    ],
+    "successful_brands": 3,
+    "failed_brands": 4,
+    "endpoint_attempts": 10,
+    "raw_payloads": 9,
+    "hash_mismatches": 0
+  },
+  "recovery_run_latest": {
+    "run_id": "32116022731",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "f25883d949630c71aacca497564ca19cd9a23610",
+    "selected_brands": [
+      "financial_advisor_magazine",
+      "the_trade",
+      "etf_stream",
+      "financial_express"
+    ],
+    "successful_brands": 2,
+    "failed_brands": 2,
+    "endpoint_attempts": 5,
+    "raw_payloads": 5,
+    "raw_bytes": 14271,
+    "hash_mismatches": 0,
+    "news_report_sha256": "692c1de4cf82a7c9ef546a833eeff5f2e00139bb277afcfcd7065fd2916f45f2",
+    "raw_manifest_sha256": "fc51022084b4506c1e2781edb021338020fcc18a2d0ff53543166a75f24a7445",
+    "artifact_id": "9316737318",
+    "cloudflare_relay_version": "5a6eb54a-6bda-4fba-b264-f2a02e003dc8"
+  },
+  "recovery_run_final": {
+    "run_id": "32116635535",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "89740ff9a1d1a8c61e9e676b8adc10bc06388032",
+    "selected_brands": [
+      "financial_advisor_magazine",
+      "the_trade",
+      "etf_stream",
+      "financial_express"
+    ],
+    "successful_brands": 3,
+    "failed_brands": 1,
+    "endpoint_attempts": 5,
+    "raw_payloads": 5,
+    "raw_bytes": 179394,
+    "hash_mismatches": 0,
+    "news_report_sha256": "bc8ba291fedf2c93646e17a4f6de0a6879df2202c17ed738af3d6de48ef0fd5d",
+    "raw_manifest_sha256": "7161c310f0c5f8d25b4b32b1d1fc1ae730597bcfc00ba58b64c5ecfd71a07dcd",
+    "artifact_id": "9316957480",
+    "cloudflare_relay_version": "72480e06-52e9-460f-8a02-7a097a2ce88a"
+  },
+  "strict_feed_validation_run": {
+    "run_id": "32119549550",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "62b21ec",
+    "selected_brands": ["the_trade"],
+    "successful_brands": 0,
+    "failed_brands": 1,
+    "endpoint_attempts": 2,
+    "raw_payloads": 1,
+    "hash_mismatches": 0,
+    "news_report_sha256": "ecb0246aafbba2fdd2f43506baa499f42737c02a18a6c9a11de10231a5cf4d07",
+    "raw_manifest_sha256": "afc867b3804d646f94b36ebd67d1dd5e6061b25541edf937dea3ab948e10b384",
+    "artifact_id": "9318017912",
+    "finding": "RSS channel returned zero item/entry elements; strict validator rejects empty feeds"
+  },
+  "strict_full_run": {
+    "run_id": "32119864710",
+    "branch": "agent/p2-news-catalog-revalidation",
+    "commit_sha": "43347c11079915b2cbe5b36378142b12b3d1cd3e",
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "failed_brand_ids": [
+      "international_banker",
+      "the_trade",
+      "etf_stream",
+      "abc_business"
+    ],
+    "endpoint_attempts": 141,
+    "raw_payloads": 136,
+    "raw_payloads_missing": 5,
+    "raw_bytes": 8948883,
+    "hash_mismatches": 0,
+    "rss_items": 2303,
+    "json_records": 21,
+    "successful_html_or_browser_payloads": 64,
+    "news_report_sha256": "bf59234563fa80785559aa5fc3918dfe2497d9ee720dc691e770079e22ec4ffd",
+    "raw_manifest_sha256": "ef4d0ef15488f89abbff2db26e0a7a7ca03d45b09fed769537c5523d15a9d8f",
+    "artifact_id": "9318211052"
+  },
+  "merged_latest": {
+    "observed_brands": 120,
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "brand_success_rate": 0.9667,
+    "failed_brand_ids": [
+      "international_banker",
+      "the_trade",
+      "etf_stream",
+      "abc_business"
+    ]
+  },
+  "interpretation": "The strict full run is the current source of truth for content coverage. It observed 116/120 brands with non-empty RSS/API/HTML/Browser content; 2,303 RSS items and 21 JSON records were present, while HTML/Browser success is measured as page text rather than a standardized article count. It does not mean all financial information for the day was collected. The four failures in this run are International Banker, The TRADE, ETF Stream, and ABC Business; prior bounded recoveries are retained as separate historical observations and are not silently merged into this run."
+}

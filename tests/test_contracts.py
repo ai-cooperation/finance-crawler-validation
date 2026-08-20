@@ -95,6 +95,43 @@ def topic_snapshot() -> dict[str, object]:
     }
 
 
+def research_report() -> dict[str, object]:
+    claim = {
+        "text": "Synthetic for testing only",
+        "confidence": 0.5,
+        "evidence_ids": ["a" * 64],
+    }
+    return {
+        "schema_version": 1,
+        "report_id": "report_20260820t040000z",
+        "topic_snapshot_id": "radar_20260810t020500z",
+        "plan_id": "plan_20260820t040000z",
+        "alignment_id": "align_20260820t035900z",
+        "market_snapshot_id": "market_20260820t035900z",
+        "topic_id": "digital_assets",
+        "generated_at": "2026-08-20T04:00:00Z",
+        "expires_at": "2026-08-21T04:00:00Z",
+        "model": "synthetic-test-model",
+        "agent_version": "tradingagents-deferred-v1",
+        "second_opinion": True,
+        "evidence_ids": ["a" * 64],
+        "bull_case": [claim],
+        "bear_case": [claim],
+        "risk_view": [claim],
+    }
+
+
+def research_report_envelope() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "operation": "upsert_research_report",
+        "run_id": "run_20260820t035848z",
+        "workflow_run_id": "32330093877",
+        "commit_sha": "d" * 40,
+        "report": research_report(),
+    }
+
+
 def status_response() -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -180,20 +217,37 @@ def test_all_versioned_contracts_are_loadable() -> None:
         {
             "audit-event",
             "ingest-envelope",
+            "market-alignment-envelope",
             "market-snapshot",
+            "market-topic-alignment",
             "raw-item",
             "research-report",
+            "research-report-envelope",
             "source-record",
             "soak-observation",
             "soak-usage",
             "status-response",
             "topic-snapshot",
+            "tradingagents-plan-envelope",
+            "tradingagents-run-plan",
         }
     )
     for name in CONTRACT_NAMES:
         schema = load_contract(name)
         assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert schema["$id"].endswith(f"/{name}.schema.json")
+
+
+def test_research_report_requires_plan_market_and_root_evidence_links() -> None:
+    validate_contract("research-report", research_report())
+    invalid = deepcopy(research_report())
+    del invalid["plan_id"]
+    with pytest.raises(ContractValidationError):
+        validate_contract("research-report", invalid)
+
+
+def test_research_report_envelope_accepts_private_ingest_shape() -> None:
+    validate_contract("research-report-envelope", research_report_envelope())
 
 
 @pytest.mark.parametrize(

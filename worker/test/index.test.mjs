@@ -14,7 +14,7 @@ test("health exposes only the fixed feed allowlist", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body.routes, Object.keys(TARGETS).sort());
-  assert.equal(body.routes.length, 10);
+  assert.equal(body.routes.length, 13);
   assert.equal(
     TARGETS.financial_wisdom_forum_feed.url,
     "https://www.financialwisdomforum.org/forum/app.php/feed",
@@ -29,6 +29,15 @@ test("health exposes only the fixed feed allowlist", async () => {
     TARGETS.advisor_hub_rss.url,
     "https://www.advisorhub.com/feed/",
   );
+  assert.equal(
+    TARGETS.financial_advisor_magazine_rss.url,
+    "https://www.fa-mag.com/rss.php",
+  );
+  assert.equal(
+    TARGETS.financial_express_api.url,
+    "https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1",
+  );
+  assert.equal(TARGETS.etf_stream_html.url, "https://www.etfstream.com/");
 });
 
 
@@ -72,6 +81,30 @@ test("feed response is streamed with bounded routing metadata", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("X-Crawler-Origin-Status"), "200");
   assert.equal(response.headers.get("ETag"), "feed-v1");
+  assert.match(await response.text(), /market/);
+});
+
+
+test("fixed JSON route preserves API content without opening a proxy", async () => {
+  let upstreamUrl = "";
+  let upstreamAccept = "";
+  const handler = createHandler(async (url, init) => {
+    upstreamUrl = url;
+    upstreamAccept = init.headers.Accept;
+    return new Response('[{"title":{"rendered":"market"}}]', {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  const response = await handler(
+    new Request("https://worker.example/v1/feed/financial_express_api"),
+  );
+
+  assert.equal(upstreamUrl, TARGETS.financial_express_api.url);
+  assert.match(upstreamAccept, /^application\/json/);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "application/json");
   assert.match(await response.text(), /market/);
 });
 
