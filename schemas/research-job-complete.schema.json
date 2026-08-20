@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-job-complete.schema.json",
+  "title": "Research job GitHub Actions completion callback",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "job_id",
+    "run_id",
+    "plan_id",
+    "alignment_id",
+    "research_target",
+    "research_requirement_id",
+    "research_source_ids",
+    "workflow_run_id",
+    "commit_sha"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "operation": { "const": "complete_research_job" },
+    "job_id": { "type": "string", "pattern": "^research_[a-z0-9_]{8,127}$" },
+    "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "plan_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "alignment_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "research_target": { "$ref": "#/$defs/target" },
+    "research_requirement_id": { "type": "string", "pattern": "^req_[a-z0-9_:-]{3,127}$" },
+    "research_source_ids": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9_:-]{1,128}$" }
+    },
+    "workflow_run_id": { "type": "string", "pattern": "^[0-9]{1,32}$" },
+    "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["equity", "etf", "crypto", "company", "industry", "topic", "url"] },
+        "symbol": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "market": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$" },
+        "url": { "type": "string", "format": "uri", "maxLength": 2000 }
+      }
+    }
+  }
+}

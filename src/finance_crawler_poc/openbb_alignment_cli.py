@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.openbb_alignment import build_market_snapshot, build_topic_market_alignment
@@ -16,6 +16,8 @@ def build_alignment_artifacts(
     topic_snapshot_path: Path,
     *,
     provider: str,
+    include_market_data: bool = True,
+    target: Mapping[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     try:
@@ -27,12 +29,23 @@ def build_alignment_artifacts(
         raise ValueError("alignment inputs must be a raw-item array and topic snapshot object")
     timestamp = generated_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     stamp = _timestamp_stamp(timestamp)
-    market_snapshot = build_market_snapshot(
-        raw_items,
-        snapshot_id=f"market_{stamp}",
-        as_of=timestamp,
-        provider=provider,
-    )
+    if include_market_data:
+        market_snapshot = build_market_snapshot(
+            raw_items,
+            snapshot_id=f"market_{stamp}",
+            as_of=timestamp,
+            provider=provider,
+            target=target,
+        )
+    else:
+        market_snapshot = {
+            "schema_version": 1,
+            "snapshot_id": f"market_{stamp}",
+            "as_of": timestamp,
+            "provider": "not_requested",
+            "instruments": [],
+        }
+        validate_contract("market-snapshot", market_snapshot)
     alignment = build_topic_market_alignment(
         topic_snapshot,
         market_snapshot,
@@ -48,6 +61,8 @@ def write_alignment_artifacts(
     output_directory: Path,
     *,
     provider: str,
+    include_market_data: bool = True,
+    target: Mapping[str, Any] | None = None,
     generated_at: str | None = None,
     workflow_run_id: str | None = None,
     commit_sha: str | None = None,
@@ -56,6 +71,8 @@ def write_alignment_artifacts(
         raw_items_path,
         topic_snapshot_path,
         provider=provider,
+        include_market_data=include_market_data,
+        target=target,
         generated_at=generated_at,
     )
     output_directory.mkdir(parents=True, exist_ok=True)
@@ -76,7 +93,8 @@ def write_alignment_artifacts(
         "schema_version": 1,
         "market_snapshot_id": market_snapshot["snapshot_id"],
         "alignment_id": alignment["alignment_id"],
-        "provider": provider,
+        "provider": market_snapshot["provider"],
+        "target": dict(target) if target is not None else None,
         "instruments": len(market_snapshot["instruments"]),
         "topics": len(alignment["topics"]),
         "coverage_ratio": alignment["coverage_ratio"],
@@ -107,6 +125,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--topic-snapshot", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--provider", default="coingecko")
+    parser.add_argument(
+        "--skip-market-data",
+        action="store_true",
+        help="Emit an explicit empty market snapshot when the requirement excludes market data",
+    )
+    parser.add_argument("--target-json", help="JSON target object used to scope market instruments")
     parser.add_argument("--generated-at")
     parser.add_argument("--workflow-run-id")
     parser.add_argument("--commit-sha")
@@ -115,17 +139,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    target = _parse_target(args.target_json)
     report = write_alignment_artifacts(
         args.raw_items,
         args.topic_snapshot,
         args.output,
         provider=args.provider,
+        include_market_data=not args.skip_market_data,
+        target=target,
         generated_at=args.generated_at,
         workflow_run_id=args.workflow_run_id,
         commit_sha=args.commit_sha,
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     return 0
+
+
+def _parse_target(value: str | None) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise ValueError("--target-json must be valid JSON") from exc
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("kind"), str):
+        raise ValueError("--target-json must be an object with a string kind")
+    return parsed
 
 
 if __name__ == "__main__":

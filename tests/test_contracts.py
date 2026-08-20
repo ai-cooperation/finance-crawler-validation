@@ -158,6 +158,111 @@ def status_response() -> dict[str, object]:
     }
 
 
+def research_requirement() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "requirement_id": "req_request-1",
+        "target": {"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        "question": "What are the current drivers and risks for BTC?",
+        "objective": "research",
+        "as_of": "latest",
+        "horizon": "months",
+        "constraints": {},
+        "requested_outputs": ["detailed_report", "evidence_appendix"],
+        "include_market_data": True,
+        "include_topic_radar": True,
+        "max_sources": 12,
+        "source_strategy": "actions",
+    }
+
+
+def source_bundle_manifest() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "manifest_id": "bundle_req_request-1",
+        "requirement_id": "req_request-1",
+        "strategy": "refresh",
+        "source_ids": ["coingecko_markets_api", "bbc_business_rss"],
+        "source_count": 2,
+        "layers": ["market", "news"],
+        "reused_snapshot_id": None,
+        "sufficiency": {
+            "status": "refresh_required",
+            "coverage_ratio": 0.5,
+            "reasons": ["snapshot_partial"],
+        },
+        "missing_data": ["snapshot_partial"],
+        "planner_version": "research-requirement-planner-v1",
+        "generated_at": "2026-08-20T04:30:00Z",
+        "reason": "explicit_refresh",
+    }
+
+
+def research_job_status() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "request_id": "request-1",
+        "job_id": "research_20260820041000_abc12345",
+        "status": "queued",
+        "target": {"kind": "crypto", "symbol": "BTC"},
+        "requirements": {"question": "What are the current drivers and risks for BTC?"},
+        "run_id": None,
+        "pack_id": None,
+        "report_count": 0,
+        "error_code": None,
+        "created_at": "2026-08-20T04:10:00Z",
+        "updated_at": "2026-08-20T04:10:00Z",
+        "completed_at": None,
+        "stage": "queued",
+        "progress": 0,
+        "retryable": True,
+        "next_action": "poll_job_status",
+        "planner": None,
+    }
+
+
+def research_job_complete() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "operation": "complete_research_job",
+        "job_id": "research_20260820041000_abc12345",
+        "run_id": "run_20260810t020500z",
+        "plan_id": "plan_20260820t040000z",
+        "alignment_id": "align_20260820t035900z",
+        "research_target": {"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        "research_requirement_id": "req_request-1",
+        "research_source_ids": [
+            "coingecko_markets_api",
+            "bbc_business_rss",
+            "hacker_news_finance_api",
+            "cnbc_top_news_rss",
+            "marketwatch_topstories_rss",
+            "money_stackexchange_api",
+            "quant_stackexchange_api",
+            "openbb_github_issues_api",
+            "tradingagents_github_issues_api",
+            "openbb_github_discussions_browser",
+            "tradingview_ideas_browser",
+            "bogleheads_investing_browser",
+        ],
+        "workflow_run_id": "32330093877",
+        "commit_sha": "d" * 40,
+    }
+
+
+def research_job_failure() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "operation": "fail_research_job",
+        "job_id": "research_20260820041000_abc12345",
+        "research_target": {"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        "research_requirement_id": "req_request-1",
+        "error_code": "actions_workflow_failed",
+        "workflow_run_id": "32330093877",
+        "commit_sha": "d" * 40,
+    }
+
+
 def soak_observation() -> dict[str, object]:
     return {
         "schema_version": 1,
@@ -221,12 +326,17 @@ def test_all_versioned_contracts_are_loadable() -> None:
             "market-snapshot",
             "market-topic-alignment",
             "raw-item",
+            "research-requirement",
             "research-report",
             "research-report-envelope",
+            "research-job-complete",
+            "research-job-failure",
+            "research-job-status",
             "source-record",
             "soak-observation",
             "soak-usage",
             "status-response",
+            "source-bundle-manifest",
             "topic-snapshot",
             "tradingagents-plan-envelope",
             "tradingagents-run-plan",
@@ -255,8 +365,13 @@ def test_research_report_envelope_accepts_private_ingest_shape() -> None:
     [
         ("source-record", source_record()),
         ("raw-item", raw_item()),
+        ("research-requirement", research_requirement()),
         ("topic-snapshot", topic_snapshot()),
         ("status-response", status_response()),
+        ("source-bundle-manifest", source_bundle_manifest()),
+        ("research-job-status", research_job_status()),
+        ("research-job-complete", research_job_complete()),
+        ("research-job-failure", research_job_failure()),
         ("soak-observation", soak_observation()),
     ],
 )

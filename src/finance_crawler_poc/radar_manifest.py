@@ -106,6 +106,35 @@ def load_radar_manifest(path: Path) -> RadarManifest:
     )
 
 
+def select_radar_sources(manifest: RadarManifest, source_ids: list[str]) -> RadarManifest:
+    """Return a target-scoped manifest without changing source definitions.
+
+    The target refresh path is still bounded to the validated 12–20 source radar
+    contract. Unknown or duplicated source IDs fail closed before any network
+    adapter is constructed.
+    """
+    if not 12 <= len(source_ids) <= 20:
+        raise RadarManifestError("selected radar manifest must contain 12 to 20 sources")
+    if len(source_ids) != len(set(source_ids)):
+        raise RadarManifestError("selected source_id values must be unique")
+    by_id = {source.source_id: source for source in manifest.sources}
+    unknown = [source_id for source_id in source_ids if source_id not in by_id]
+    if unknown:
+        raise RadarManifestError(f"unknown source in selected bundle: {unknown[0]}")
+    selected = tuple(by_id[source_id] for source_id in source_ids)
+    maximum_items = min(
+        manifest.maximum_items_per_run,
+        sum(source.max_items for source in selected),
+    )
+    minimum_successful = max(1, int(len(selected) * 0.8 + 0.999999))
+    return RadarManifest(
+        version=manifest.version,
+        minimum_successful_sources=minimum_successful,
+        maximum_items_per_run=maximum_items,
+        sources=selected,
+    )
+
+
 def _parse_source(raw: Any, index: int) -> RadarSource:
     if not isinstance(raw, dict) or set(raw) != SOURCE_KEYS:
         raise RadarManifestError(f"source {index} has invalid fields")

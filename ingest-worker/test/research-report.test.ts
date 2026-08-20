@@ -514,6 +514,10 @@ describe("research report ingest", () => {
       runAi: async (_env, model, input) => {
         expect(model).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
         expect(input).toMatchObject({ temperature: 0 });
+        expect((input.messages as Array<{ content: string }>)[0].content)
+          .toContain("Do not give a buy or sell instruction");
+        expect((input.messages as Array<{ content: string }>)[1].content).toContain("RESEARCH_TARGET=crypto:BTC");
+        expect((input.messages as Array<{ content: string }>)[1].content).toContain("RESEARCH_QUESTION=What are the current drivers and risks for BTC?");
         return {
           response: JSON.stringify({
             bull_case: [{
@@ -529,6 +533,21 @@ describe("research report ingest", () => {
             risk_view: [{
               text: "The evidence set is narrow and should not be treated as a forecast.",
               confidence: 0.9,
+              evidence_ids: [ITEM_ID],
+            }],
+            summary: "Bitcoin is supported by constructive momentum, but the evidence base is narrow.",
+            catalysts: [{
+              text: "Sustained activity would support the constructive case.",
+              confidence: 0.55,
+              evidence_ids: [ITEM_ID],
+            }],
+            failure_conditions: [{
+              text: "A reversal with no confirming breadth would weaken the case.",
+              confidence: 0.7,
+              evidence_ids: [ITEM_ID],
+            }],
+            data_gaps: [{
+              text: "Independent source confirmation is still needed.",
               evidence_ids: [ITEM_ID],
             }],
           }),
@@ -548,6 +567,8 @@ describe("research report ingest", () => {
           commit_sha: COMMIT_SHA,
           plan_id: PLAN_ID,
           alignment_id: ALIGNMENT_ID,
+          target: { kind: "crypto", symbol: "BTC" },
+          research_question: "What are the current drivers and risks for BTC?",
           authorize_model_execution: true,
           max_reports: 1,
         }),
@@ -557,6 +578,18 @@ describe("research report ingest", () => {
     expect(await response.json()).toMatchObject({
       report_count: 1,
       reports: [{ report_id: `report_${RUN_ID}_digital_assets`, replayed: false }],
+    });
+    const storedReport = await env.RAW_OBJECTS.get(`reports/report_${RUN_ID}_digital_assets.json`);
+    expect(storedReport).not.toBeNull();
+    expect(await storedReport!.json()).toMatchObject({
+      report_profile: "detailed_traceable",
+      research_question: "What are the current drivers and risks for BTC?",
+      target: { kind: "crypto", symbol: "BTC" },
+      summary: "Bitcoin is supported by constructive momentum, but the evidence base is narrow.",
+      catalysts: [{ text: "Sustained activity would support the constructive case." }],
+      failure_conditions: [{ text: "A reversal with no confirming breadth would weaken the case." }],
+      data_gaps: [{ text: "Independent source confirmation is still needed.", evidence_ids: [ITEM_ID] }],
+      recommendation_status: "research_only",
     });
     const row = await env.DB.prepare(
       "SELECT report_id, model, agent_version FROM research_reports",
@@ -590,5 +623,119 @@ describe("research report ingest", () => {
       report_count: 1,
       reports: [{ replayed: true }],
     });
+  });
+
+  it("honors the compact report profile", async () => {
+    await arrange();
+    let aiCalls = 0;
+    const handler = createHandler({
+      authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
+      now: () => new Date("2026-08-20T04:10:00Z"),
+      runAi: async (_env, _model, input) => {
+        aiCalls += 1;
+        const system = (input.messages as Array<{ content: string }>)[0].content;
+        const user = (input.messages as Array<{ content: string }>)[1].content;
+        expect(system).toContain("compact_traceable");
+        expect(user).toContain("REPORT_PROFILE=compact_traceable");
+        expect(input.max_tokens).toBe(800);
+        return {
+          response: JSON.stringify({
+            bull_case: [{ text: "compact positive", confidence: 0.7, evidence_ids: [ITEM_ID] }],
+            bear_case: [{ text: "compact negative", confidence: 0.6, evidence_ids: [ITEM_ID] }],
+            risk_view: [{ text: "compact risk", confidence: 0.8, evidence_ids: [ITEM_ID] }],
+          }),
+        };
+      },
+    });
+    const compactResponse = await handler.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          operation: "generate_research_reports",
+          run_id: RUN_ID,
+          workflow_run_id: "32330093877",
+          commit_sha: COMMIT_SHA,
+          plan_id: PLAN_ID,
+          alignment_id: ALIGNMENT_ID,
+          target: { kind: "crypto", symbol: "BTC" },
+          authorize_model_execution: true,
+          report_profile: "compact_traceable",
+          requested_outputs: ["quick_card", "evidence_appendix"],
+          max_reports: 1,
+        }),
+      },
+    ), env);
+    expect(compactResponse.status).toBe(200);
+    expect(await compactResponse.json()).toMatchObject({ report_count: 1 });
+    expect(aiCalls).toBe(1);
+    const compactReport = await env.DB.prepare("SELECT report_id, report_profile FROM research_reports").first();
+    expect(compactReport).toEqual({
+      report_id: `report_${RUN_ID}_digital_assets`,
+      report_profile: "compact_traceable",
+    });
+
+    const conflictingProfileResponse = await handler.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          operation: "generate_research_reports",
+          run_id: RUN_ID,
+          workflow_run_id: "32330093877",
+          commit_sha: COMMIT_SHA,
+          plan_id: PLAN_ID,
+          alignment_id: ALIGNMENT_ID,
+          target: { kind: "crypto", symbol: "BTC" },
+          authorize_model_execution: true,
+          report_profile: "detailed_traceable",
+          requested_outputs: ["detailed_report", "evidence_appendix"],
+          max_reports: 1,
+        }),
+      },
+    ), env);
+    expect(conflictingProfileResponse.status).toBe(409);
+
+  });
+
+  it("skips model execution when only the evidence appendix is requested", async () => {
+    await arrange();
+    let aiCalls = 0;
+    const handler = createHandler({
+      authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
+      now: () => new Date("2026-08-20T04:10:00Z"),
+      runAi: async () => {
+        aiCalls += 1;
+        return {};
+      },
+    });
+    const appendixOnlyResponse = await handler.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          operation: "generate_research_reports",
+          run_id: RUN_ID,
+          workflow_run_id: "32330093877",
+          commit_sha: COMMIT_SHA,
+          plan_id: PLAN_ID,
+          alignment_id: ALIGNMENT_ID,
+          target: { kind: "crypto", symbol: "BTC" },
+          authorize_model_execution: true,
+          report_profile: "detailed_traceable",
+          requested_outputs: ["evidence_appendix"],
+          max_reports: 1,
+        }),
+      },
+    ), env);
+    expect(appendixOnlyResponse.status).toBe(200);
+    expect(await appendixOnlyResponse.json()).toMatchObject({ report_count: 0, reports: [] });
+    expect(aiCalls).toBe(0);
   });
 });

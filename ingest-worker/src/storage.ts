@@ -612,8 +612,8 @@ export async function ingestResearchReport(
         `INSERT INTO research_reports (
           report_id, run_id, topic_snapshot_id, plan_id, alignment_id,
           market_snapshot_id, topic_id, object_key, content_sha256,
-          model, agent_version, generated_at, expires_at, evidence_count, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          model, agent_version, report_profile, generated_at, expires_at, evidence_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
         report.report_id,
         envelope.run_id,
@@ -626,6 +626,7 @@ export async function ingestResearchReport(
         contentHash,
         report.model,
         report.agent_version,
+        report.report_profile ?? "detailed_traceable",
         report.generated_at,
         report.expires_at,
         report.evidence_ids.length,
@@ -905,7 +906,7 @@ async function assertResearchReportEvidenceBelongsToRun(
   }
 }
 
-async function readPrivateJson(
+export async function readPrivateJson(
   bucket: R2Bucket,
   objectKey: string,
   kind: string,
@@ -926,7 +927,7 @@ async function readPrivateJson(
   }
 }
 
-async function buildAuditStatement(
+export async function buildAuditStatement(
   db: D1Database,
   runId: string,
   stage: string,
@@ -964,7 +965,7 @@ function rawObjectKey(item: RawItem): string {
   return `raw/${item.source_id}/${item.item_id}.json`;
 }
 
-async function sha256Hex(value: string): Promise<string> {
+export async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

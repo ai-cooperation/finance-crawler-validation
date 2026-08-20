@@ -90,6 +90,32 @@ def test_market_snapshot_is_openbb_compatible_and_traceable() -> None:
     assert snapshot["instruments"][1]["change_24h_pct"] == -2.0
 
 
+def test_market_snapshot_filters_to_requested_target_symbol() -> None:
+    snapshot = build_market_snapshot(
+        [
+            market_item("b" * 64, "eth", "Ethereum", 1900.0, -2.0),
+            market_item("a" * 64, "btc", "Bitcoin", 64000.0, 4.0),
+        ],
+        snapshot_id="market_20260820t035900z",
+        as_of="2026-08-20T03:59:00Z",
+        provider="coingecko",
+        target={"kind": "crypto", "symbol": "BTC"},
+    )
+
+    assert [instrument["symbol"] for instrument in snapshot["instruments"]] == ["BTC"]
+
+
+def test_market_snapshot_fails_closed_when_requested_target_is_not_observed() -> None:
+    with pytest.raises(ValueError, match="target market instrument not found"):
+        build_market_snapshot(
+            [market_item("a" * 64, "btc", "Bitcoin", 64000.0, 4.0)],
+            snapshot_id="market_20260820t035900z",
+            as_of="2026-08-20T03:59:00Z",
+            provider="coingecko",
+            target={"kind": "crypto", "symbol": "SOL"},
+        )
+
+
 def test_market_snapshot_rejects_malformed_market_payload() -> None:
     malformed = market_item("a" * 64, "btc", "Bitcoin", 64000.0, 4.0)
     malformed["content"] = "not-json"

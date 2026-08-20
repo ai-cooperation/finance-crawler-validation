@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-target-binding-and-market-scope",
+  "observed_at": "2026-08-20T16:09:28Z",
+  "test_commands": [
+    "npm test -- --run test/research-job.test.ts test/research-planner.test.ts test/research-report.test.ts",
+    "uv run pytest -q tests/test_openbb_alignment.py tests/test_openbb_alignment_cli.py tests/test_contracts.py tests/test_workflow_contract.py"
+  ],
+  "test_result": {
+    "worker_tests": 29,
+    "worker_passed": 29,
+    "python_tests": 29,
+    "python_passed": 29
+  },
+  "checks": {
+    "research_prompt_contains_target_and_question": "passed",
+    "openbb_alignment_filters_requested_symbol": "passed",
+    "missing_target_market_data_fails_closed": "passed",
+    "actions_callback_rejects_target_mismatch": "passed",
+    "workflow_dispatch_carries_target_json": "passed",
+    "equity_market_request_without_provider_is_blocked": "passed"
+  },
+  "limitations": [
+    "Target-aware behavior is locally verified; the remote Worker and workflow still need deployment and a real Actions run.",
+    "The currently wired market provider is CoinGecko crypto; non-crypto market requests remain explicitly blocked until an appropriate provider is added."
+  ]
+}

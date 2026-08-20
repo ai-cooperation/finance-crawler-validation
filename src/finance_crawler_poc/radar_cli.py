@@ -12,7 +12,7 @@ from typing import Any, Sequence
 from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.radar import build_topic_snapshot
 from finance_crawler_poc.radar_collect import RadarCollection, collect_radar_sources
-from finance_crawler_poc.radar_manifest import RadarManifest, load_radar_manifest
+from finance_crawler_poc.radar_manifest import RadarManifest, load_radar_manifest, select_radar_sources
 from finance_crawler_poc.radar_run_plan import build_catchup_windows, parse_worker_run_plan
 
 
@@ -98,9 +98,13 @@ async def run_radar(
     commit_sha: str,
     now: datetime | None = None,
     run_plan_path: Path | None = None,
+    source_ids: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     manifest_bytes = manifest_path.read_bytes()
     manifest = load_radar_manifest(manifest_path)
+    if source_ids is not None:
+        manifest = select_radar_sources(manifest, list(source_ids))
+        manifest_bytes += ("\nselected:" + ",".join(source_ids)).encode("utf-8")
     run_time = now or datetime.now(timezone.utc)
     collected_at = run_time.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     catchup_windows = None
@@ -177,6 +181,10 @@ def build_parser() -> argparse.ArgumentParser:
         default=os.environ.get("GITHUB_SHA", "0" * 40),
         help="GitHub commit SHA; use 40 zeros for a local-only validation run",
     )
+    parser.add_argument(
+        "--source-ids",
+        help="Comma-separated target-scoped source IDs; must contain 12–20 manifest sources",
+    )
     return parser
 
 
@@ -189,6 +197,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             workflow_run_id=args.workflow_run_id,
             commit_sha=args.commit_sha,
             run_plan_path=args.run_plan,
+            source_ids=(
+                [source_id.strip() for source_id in args.source_ids.split(",") if source_id.strip()]
+                if args.source_ids
+                else None
+            ),
         )
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))

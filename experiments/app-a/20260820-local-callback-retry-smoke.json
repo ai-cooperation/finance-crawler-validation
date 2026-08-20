@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-mcp-callback-retry-smoke",
+  "observed_at": "2026-08-20T16:22:34Z",
+  "client": "OpenCode-compatible MCP handler fixture",
+  "worker": "local Wrangler / finance-crawler-report-generator",
+  "checks": {
+    "actions_callback_binds_requirement_id": "passed",
+    "mismatched_requirement_callback_rejected": "passed",
+    "callback_without_recorded_dispatch_rejected": "passed",
+    "callback_source_bundle_binding_rejected": "passed",
+    "callback_run_source_allowlist_checked": "passed",
+    "unapproved_run_source_rejected": "passed",
+    "actions_failure_callback_transitions_failed": "passed",
+    "target_identity_normalized_before_dispatch": "passed",
+    "failure_callback_target_binding_rejected": "passed",
+    "failure_callback_handler_route_reaches_oidc_boundary": "passed",
+    "blocked_actions_retry_reuses_job": "passed",
+    "latest_published_retry_requeues_background_job": "passed",
+    "duplicate_dispatch_suppressed_by_dispatch_id": "passed"
+  },
+  "test_command": "npm test -- --run test/research-job.test.ts",
+  "test_result": {
+    "test_files": 1,
+    "tests": 17,
+    "passed": 17
+  },
+  "limitations": [
+    "This is a local contract/integration smoke; it is not remote GitHub Actions execution.",
+    "A real Gate A still requires deployment, GITHUB_DISPATCH_TOKEN, OIDC callback, and D1/R2 read-back."
+  ]
+}

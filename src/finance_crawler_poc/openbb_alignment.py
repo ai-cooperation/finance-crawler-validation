@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any, Mapping
 
 from finance_crawler_poc.contracts import validate_contract
 
@@ -19,6 +19,7 @@ def build_market_snapshot(
     snapshot_id: str,
     as_of: str,
     provider: str,
+    target: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Normalize collected market evidence into the OpenBB-facing contract.
 
@@ -85,6 +86,15 @@ def build_market_snapshot(
             )
     if not seen_market_item or not instruments_by_symbol:
         raise ValueError("no market data items")
+    requested_symbol = _target_symbol(target)
+    if requested_symbol is not None:
+        instruments_by_symbol = {
+            symbol: instrument
+            for symbol, instrument in instruments_by_symbol.items()
+            if symbol == requested_symbol
+        }
+        if not instruments_by_symbol:
+            raise ValueError(f"target market instrument not found: {requested_symbol}")
     snapshot = {
         "schema_version": 1,
         "snapshot_id": snapshot_id,
@@ -94,6 +104,17 @@ def build_market_snapshot(
     }
     validate_contract("market-snapshot", snapshot)
     return snapshot
+
+
+def _target_symbol(target: Mapping[str, Any] | None) -> str | None:
+    if target is None:
+        return None
+    symbol = target.get("symbol")
+    if symbol is None:
+        return None
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise ValueError("target symbol must be a non-empty string")
+    return symbol.strip().upper()
 
 
 def build_topic_market_alignment(

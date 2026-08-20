@@ -8,6 +8,11 @@ import rawItemSchema from "../../schemas/raw-item.schema.json";
 import researchReportEnvelopeSchema from "../../schemas/research-report-envelope.schema.json";
 import researchReportSchema from "../../schemas/research-report.schema.json";
 import researchAgentRequestSchema from "../../schemas/research-agent-request.schema.json";
+import researchJobSchema from "../../schemas/research-job.schema.json";
+import researchPackSchema from "../../schemas/research-pack.schema.json";
+import researchJobCompleteSchema from "../../schemas/research-job-complete.schema.json";
+import researchJobFailureSchema from "../../schemas/research-job-failure.schema.json";
+import researchJobStatusSchema from "../../schemas/research-job-status.schema.json";
 import topicSnapshotSchema from "../../schemas/topic-snapshot.schema.json";
 import tradingAgentsPlanEnvelopeSchema from "../../schemas/tradingagents-plan-envelope.schema.json";
 import tradingAgentsRunPlanSchema from "../../schemas/tradingagents-run-plan.schema.json";
@@ -202,6 +207,34 @@ export interface ResearchClaim {
   evidence_ids: string[];
 }
 
+export interface ResearchEvidenceNote {
+  text: string;
+  evidence_ids: string[];
+}
+
+export type ResearchEvidenceClaimCategory =
+  | "bull_case"
+  | "bear_case"
+  | "risk_view"
+  | "catalyst"
+  | "failure_condition"
+  | "data_gap";
+
+export interface ResearchEvidenceGraphClaim {
+  claim_id: string;
+  report_id: string;
+  topic_id: string;
+  category: ResearchEvidenceClaimCategory;
+  text: string;
+  confidence?: number;
+  evidence_ids: string[];
+}
+
+export interface ResearchEvidenceGraph {
+  schema_version: 1;
+  claims: ResearchEvidenceGraphClaim[];
+}
+
 export interface ResearchReport {
   schema_version: 1;
   report_id: string;
@@ -214,11 +247,20 @@ export interface ResearchReport {
   expires_at: string;
   model: string;
   agent_version: string;
+  report_profile?: "detailed_traceable" | "compact_traceable";
+  research_question?: string;
+  target?: ResearchTarget;
+  as_of?: string;
+  summary?: string;
   second_opinion: true;
   evidence_ids: string[];
   bull_case: ResearchClaim[];
   bear_case: ResearchClaim[];
   risk_view: ResearchClaim[];
+  catalysts?: ResearchClaim[];
+  failure_conditions?: ResearchClaim[];
+  data_gaps?: ResearchEvidenceNote[];
+  recommendation_status?: "research_only" | "monitor" | "requires_human_review";
 }
 
 export interface ResearchReportEnvelope {
@@ -238,9 +280,124 @@ export interface ResearchAgentRequest {
   commit_sha: string;
   plan_id: string;
   alignment_id: string;
+  target?: ResearchTarget;
+  research_question?: string;
   authorize_model_execution: true;
+  report_profile?: "detailed_traceable" | "compact_traceable";
+  requested_outputs?: Array<"quick_card" | "detailed_report" | "evidence_appendix">;
   model?: string;
   max_reports?: number;
+}
+
+export interface ResearchTarget {
+  kind: "equity" | "etf" | "crypto" | "company" | "industry" | "topic" | "url";
+  symbol?: string;
+  name?: string;
+  market?: string;
+  url?: string;
+}
+
+export interface ResearchRequirements {
+  question: string;
+  source_strategy: "latest_published" | "actions";
+  include_market_data: boolean;
+  include_topic_radar: boolean;
+  report_profile: "detailed_traceable" | "compact_traceable";
+  max_sources: number;
+  objective?: "screen" | "research" | "monitor" | "compare" | "due_diligence" | "meeting_battle_card" | "decision_support";
+  as_of?: string;
+  horizon?: "intraday" | "days" | "months" | "years" | "transaction";
+  constraints?: {
+    currency?: string;
+    risk_tolerance?: string;
+    jurisdiction?: string;
+    portfolio_context_ref?: string;
+  };
+  requested_outputs?: Array<"quick_card" | "detailed_report" | "evidence_appendix">;
+}
+
+export interface ResearchJobRequest {
+  schema_version: 1;
+  operation: "submit_research_job";
+  idempotency_key: string;
+  target: ResearchTarget;
+  requirements: ResearchRequirements;
+}
+
+export interface ResearchJobCompletionRequest {
+  schema_version: 1;
+  operation: "complete_research_job";
+  job_id: string;
+  run_id: string;
+  plan_id: string;
+  alignment_id: string;
+  research_target: ResearchTarget;
+  research_requirement_id: string;
+  research_source_ids: string[];
+  workflow_run_id: string;
+  commit_sha: string;
+}
+
+export interface ResearchJobFailureRequest {
+  schema_version: 1;
+  operation: "fail_research_job";
+  job_id: string;
+  research_target: ResearchTarget;
+  research_requirement_id: string;
+  error_code:
+    | "actions_admission_denied"
+    | "actions_workflow_failed"
+    | "actions_callback_failed"
+    | "target_market_data_unavailable"
+    | "research_pipeline_failed";
+  workflow_run_id: string;
+  commit_sha: string;
+}
+
+export interface ResearchPack {
+  schema_version: 1;
+  pack_id: string;
+  job_id: string;
+  target: ResearchTarget;
+  question: string;
+  as_of: string;
+  source_bundle: {
+    run_id: string;
+    snapshot_id: string;
+    source_count: number;
+    item_ids: string[];
+    source_manifest_hash: string;
+  };
+  requirement?: object;
+  source_bundle_plan?: object;
+  topics: RadarTopic[];
+  market: MarketSnapshot | null;
+  reports: ResearchReport[];
+  /**
+   * Derived, stable claim-to-evidence edges. This is optional for replaying
+   * legacy v1 packs, but every newly generated pack must include it.
+   */
+  evidence_graph?: ResearchEvidenceGraph;
+  evidence: Array<{
+    evidence_id: string;
+    source_id: string;
+    canonical_url: string;
+    content_sha256: string;
+    title: string;
+    summary: string;
+    published_at: string | null;
+  }>;
+  quality: {
+    partial: boolean;
+    stale: boolean;
+    failed_sources: string[];
+    coverage_ratio: number;
+  };
+  producer: {
+    pipeline_version: string;
+    model: string;
+    audit_event_ids: string[];
+  };
 }
 
 const ingestValidator = new Validator(ingestEnvelopeSchema as Schema, "2020-12", false);
@@ -274,6 +431,23 @@ const researchReportEnvelopeValidator = new Validator(
 );
 const researchAgentRequestValidator = new Validator(
   researchAgentRequestSchema as Schema,
+  "2020-12",
+  false,
+);
+const researchJobValidator = new Validator(researchJobSchema as Schema, "2020-12", false);
+const researchPackValidator = new Validator(researchPackSchema as Schema, "2020-12", false);
+const researchJobCompleteValidator = new Validator(
+  researchJobCompleteSchema as Schema,
+  "2020-12",
+  false,
+);
+const researchJobFailureValidator = new Validator(
+  researchJobFailureSchema as Schema,
+  "2020-12",
+  false,
+);
+const researchJobStatusValidator = new Validator(
+  researchJobStatusSchema as Schema,
   "2020-12",
   false,
 );
@@ -412,6 +586,69 @@ export function validateResearchAgentRequest(payload: unknown): ResearchAgentReq
     researchAgentRequestValidator,
     payload,
   );
+  return payload;
+}
+
+export function validateResearchJobRequest(payload: unknown): ResearchJobRequest {
+  assertValid<ResearchJobRequest>("research-job", researchJobValidator, payload);
+  if (payload.target.kind === "url" && !payload.target.url) {
+    throw new PayloadValidationError("research-job", ["$.target.url: required for url target"]);
+  }
+  if (["equity", "etf", "crypto"].includes(payload.target.kind) && !payload.target.symbol) {
+    throw new PayloadValidationError("research-job", [
+      "$.target.symbol: required for market instruments",
+    ]);
+  }
+  return payload;
+}
+
+export function validateResearchPack(payload: unknown): ResearchPack {
+  assertValid<ResearchPack>("research-pack", researchPackValidator, payload);
+  if (payload.evidence_graph) {
+    const evidenceIds = new Set(payload.evidence.map((item) => item.evidence_id));
+    const reportIds = new Set(payload.reports.map((report) => report.report_id));
+    for (const claim of payload.evidence_graph.claims) {
+      if (!reportIds.has(claim.report_id)) {
+        throw new PayloadValidationError("research-pack", [
+          `$.evidence_graph.claims.${claim.claim_id}: report_id is absent from reports`,
+        ]);
+      }
+      for (const evidenceId of claim.evidence_ids) {
+        if (!evidenceIds.has(evidenceId)) {
+          throw new PayloadValidationError("research-pack", [
+            `$.evidence_graph.claims.${claim.claim_id}: evidence id is absent from evidence`,
+          ]);
+        }
+      }
+    }
+  }
+  return payload;
+}
+
+export function validateResearchJobCompletion(
+  payload: unknown,
+): ResearchJobCompletionRequest {
+  assertValid<ResearchJobCompletionRequest>(
+    "research-job-complete",
+    researchJobCompleteValidator,
+    payload,
+  );
+  return payload;
+}
+
+export function validateResearchJobFailure(
+  payload: unknown,
+): ResearchJobFailureRequest {
+  assertValid<ResearchJobFailureRequest>(
+    "research-job-failure",
+    researchJobFailureValidator,
+    payload,
+  );
+  return payload;
+}
+
+export function validateResearchJobStatus(payload: unknown): Record<string, unknown> {
+  assertValid<Record<string, unknown>>("research-job-status", researchJobStatusValidator, payload);
   return payload;
 }
 

@@ -2,6 +2,8 @@ import {
   type AuthContext,
   AuthenticationError,
   authenticateGithubOidc,
+  authenticateMcp,
+  type McpAuthContext,
 } from "./auth";
 import {
   HttpError,
@@ -34,23 +36,33 @@ import {
 } from "./watchdog";
 import { observeScheduledSoak } from "./soak";
 import { generateResearchReports, type AiRunner } from "./research-agent";
+import {
+  executeSubmittedJob,
+  handleMcpRequest,
+} from "./mcp";
+import { completeResearchJob, failResearchJob } from "./research-jobs";
 
 
 const MAX_JSON_BYTES = 2_000_000;
 
 type Authenticator = (request: Request, env: Env) => Promise<AuthContext>;
+type McpAuthenticator = (request: Request, env: Env) => Promise<McpAuthContext>;
 
 export interface HandlerDependencies {
   authenticate: Authenticator;
+  authenticateMcp: McpAuthenticator;
   now: () => Date;
   alertFetch: typeof fetch;
+  dispatchFetch: typeof fetch;
   runAi: AiRunner;
 }
 
 const defaultDependencies: HandlerDependencies = {
   authenticate: authenticateGithubOidc,
+  authenticateMcp,
   now: () => new Date(),
   alertFetch: fetch,
+  dispatchFetch: fetch,
   runAi: async (env, model, input) => env.AI.run(model, input),
 };
 
@@ -83,7 +95,7 @@ export function createHandler(
         throw error;
       }
     },
-    async fetch(request: Request, env: Env): Promise<Response> {
+    async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
       const requestId = crypto.randomUUID();
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/health") {
@@ -108,6 +120,58 @@ export function createHandler(
           );
         }
       }
+      if (url.pathname === "/mcp") {
+        if (request.method === "GET") {
+          try {
+            await dependencies.authenticateMcp(request, env);
+            const sessionId = crypto.randomUUID();
+            return mcpSseEndpointResponse(url.pathname, sessionId);
+          } catch (error) {
+            const normalized = normalizeError(error);
+            return jsonResponse(
+              { error: normalized.code, details: normalized.details, request_id: requestId },
+              normalized.status,
+            );
+          }
+        }
+        if (request.method !== "POST") {
+          return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
+        }
+        try {
+          const auth = await dependencies.authenticateMcp(request, env);
+          const payload = await readBoundedJson(request, MAX_JSON_BYTES);
+          const mcp = await handleMcpRequest(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            { runAi: dependencies.runAi, dispatchFetch: dependencies.dispatchFetch },
+          );
+          if (mcp.execute_job_id && ctx) {
+            ctx.waitUntil(
+              executeSubmittedJob(
+                env,
+                mcp.execute_job_id,
+                { runAi: dependencies.runAi },
+                dependencies.now(),
+              ).catch((error) => {
+                console.error(JSON.stringify({
+                  event: "research_job_background_failed",
+                  job_id: mcp.execute_job_id,
+                  error: error instanceof Error ? error.message : String(error),
+                }));
+              }),
+            );
+          }
+          return jsonResponse(mcp.response, 200);
+        } catch (error) {
+          const normalized = normalizeError(error);
+          return jsonResponse(
+            { error: normalized.code, details: normalized.details, request_id: requestId },
+            normalized.status,
+          );
+        }
+      }
       if (![
         "/v1/ingest/items",
         "/v1/ingest/publish",
@@ -115,6 +179,8 @@ export function createHandler(
         "/v1/ingest/tradingagents-plan",
         "/v1/ingest/research-report",
         "/v1/agent/research-reports",
+        "/v1/research/jobs/complete",
+        "/v1/research/jobs/fail",
         "/v1/run/plan",
         "/v1/alerts/action-failure",
         "/v1/alerts/action-recovery",
@@ -254,6 +320,25 @@ export function createHandler(
           );
           return jsonResponse({ ...result, request_id: requestId }, 200);
         }
+        if (url.pathname === "/v1/research/jobs/complete") {
+          const result = await completeResearchJob(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            { runAi: dependencies.runAi },
+          );
+          return jsonResponse({ ...result, request_id: requestId }, 200);
+        }
+        if (url.pathname === "/v1/research/jobs/fail") {
+          const result = await failResearchJob(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+          );
+          return jsonResponse({ ...result, request_id: requestId }, 200);
+        }
 
         const runId = stringField(payload, "run_id");
         if (runId === null) throw new HttpError(422, "invalid_payload");
@@ -359,6 +444,20 @@ function jsonResponse(payload: object, status: number): Response {
     headers: {
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+function mcpSseEndpointResponse(pathname: string, sessionId: string): Response {
+  const body = `event: endpoint\ndata: ${pathname}?sessionId=${encodeURIComponent(sessionId)}\n\n`;
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Mcp-Session-Id": sessionId,
+      "Access-Control-Allow-Origin": "*",
     },
   });
 }

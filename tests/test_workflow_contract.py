@@ -46,6 +46,30 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "contents: read" in workflow
     assert "issues: write" in workflow
     assert "finance-topic-radar" in workflow
+    assert "research_job_id:" in workflow
+    assert "research_source_ids:" in workflow
+    assert "research_requirement_id:" in workflow
+    assert "research_target:" in workflow
+    assert "research_include_market_data:" in workflow
+    assert "RESEARCH_INCLUDE_MARKET_DATA: ${{ inputs.research_include_market_data }}" in workflow
+    assert 'align_args+=(--skip-market-data)' in workflow
+    assert "RESEARCH_TARGET: ${{ inputs.research_target }}" in workflow
+    assert '--argjson research_target "$target_json"' in workflow
+    assert "RESEARCH_REQUIREMENT_ID: ${{ inputs.research_requirement_id }}" in workflow
+    assert "RESEARCH_TARGET: ${{ inputs.research_target }}" in workflow
+    assert '--argjson research_target "$target_json"' in workflow
+    assert '--arg research_requirement_id "$requirement_id"' in workflow
+    assert '--argjson research_source_ids "$source_ids_json"' in workflow
+    assert "research_source_ids: $research_source_ids" in workflow
+    assert "research_requirement_id: $research_requirement_id" in workflow
+    assert "--source-ids" in workflow
+    assert "Complete actions-backed research job" in workflow
+    assert "Mark actions-backed research job blocked by admission" in workflow
+    assert "Mark actions-backed research job failed" in workflow
+    assert '"$INGEST_WORKER_URL/v1/research/jobs/fail"' in workflow
+    assert 'operation: "fail_research_job"' in workflow
+    assert 'error_code: "actions_admission_denied"' in workflow
+    assert 'error_code: "actions_workflow_failed"' in workflow
     assert "ACTIONS_ID_TOKEN_REQUEST_URL" in workflow
     assert "ACTIONS_ID_TOKEN_REQUEST_TOKEN" in workflow
     assert "finance-crawler-validation-ingest" in workflow
@@ -55,6 +79,7 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert '"$INGEST_WORKER_URL/v1/ingest/market-alignment"' in workflow
     assert '"$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"' in workflow
     assert "finance-openbb-align" in workflow
+    assert "--target-json \"$TARGET_JSON\"" in workflow
     assert "market-alignment-envelope.json" in workflow
     assert "finance-tradingagents-plan" in workflow
     assert "tradingagents-plan-envelope.json" in workflow

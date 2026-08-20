@@ -43,6 +43,31 @@ on:
         required: false
         type: string
         default: ""
+      research_job_id:
+        description: Existing actions-backed research job to complete after this collection run
+        required: false
+        type: string
+        default: ""
+      research_source_ids:
+        description: JSON array of approved source IDs for a target-specific refresh
+        required: false
+        type: string
+        default: ""
+      research_requirement_id:
+        description: Planner requirement ID for the target-specific refresh
+        required: false
+        type: string
+        default: ""
+      research_target:
+        description: JSON target object for target-scoped market alignment
+        required: false
+        type: string
+        default: ""
+      research_include_market_data:
+        description: Whether this research run requires a market-data snapshot
+        required: false
+        type: string
+        default: "true"
 
 permissions:
   contents: read
@@ -249,12 +274,39 @@ jobs:
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
+          RESEARCH_SOURCE_IDS: ${{ inputs.research_source_ids }}
+          RESEARCH_TARGET: ${{ inputs.research_target }}
+          RESEARCH_INCLUDE_MARKET_DATA: ${{ inputs.research_include_market_data }}
         run: |
           set -euo pipefail
           test -n "$INGEST_WORKER_URL"
           mkdir -p artifacts/topic-radar
-          finance-topic-radar-plan \
-            --manifest radar-sources.yaml \
+          include_market_data="${RESEARCH_INCLUDE_MARKET_DATA:-true}"
+          if [[ "$include_market_data" != "true" && "$include_market_data" != "false" ]]; then
+            echo "::error title=Invalid market-data boundary::research_include_market_data must be true or false."
+            exit 2
+          fi
+          echo "include_market_data=$include_market_data" >>"$GITHUB_OUTPUT"
+          source_ids_csv=""
+          if [[ -n "$RESEARCH_SOURCE_IDS" ]]; then
+            source_ids_csv="$(jq -er '
+              if type == "array" and (length >= 12 and length <= 20) and all(.[]; type == "string")
+              then join(",") else error("research_source_ids must be a 12–20 item string array") end
+            ' <<<"$RESEARCH_SOURCE_IDS")"
+          fi
+          target_json=""
+          if [[ -n "$RESEARCH_TARGET" ]]; then
+            jq -e '
+              type == "object" and
+              (.kind | IN("equity", "etf", "crypto", "company", "industry", "topic", "url"))
+            ' <<<"$RESEARCH_TARGET" >/dev/null
+            target_json="$RESEARCH_TARGET"
+          fi
+          plan_args=(--manifest radar-sources.yaml)
+          if [[ -n "$source_ids_csv" ]]; then
+            plan_args+=(--source-ids "$source_ids_csv")
+          fi
+          finance-topic-radar-plan "${plan_args[@]}" \
             --output "$RUNNER_TEMP/run-plan-request.json"
           oidc_response="$(curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
@@ -269,11 +321,64 @@ jobs:
           jq -er '.admitted | type == "boolean"' artifacts/topic-radar/run-plan.json >/dev/null
           admitted="$(jq -r '.admitted' artifacts/topic-radar/run-plan.json)"
           echo "admitted=$admitted" >>"$GITHUB_OUTPUT"
+          echo "source_ids=$source_ids_csv" >>"$GITHUB_OUTPUT"
           if [[ "$admitted" != "true" ]]; then
             reason="$(jq -er '.reason' artifacts/topic-radar/run-plan.json)"
             retry="$(jq -er '.retry_after_seconds' artifacts/topic-radar/run-plan.json)"
             echo "::notice title=Topic radar quota guard::Skipped before Browser setup: $reason; retry after ${retry}s"
           fi
+
+      # A denied admission does not fail the collection workflow, but an
+      # actions-backed research job still needs a terminal state. Report the
+      # denial immediately so the MCP client can offer a bounded retry instead
+      # of polling a job that will never start.
+      - name: Mark actions-backed research job blocked by admission
+        if: >-
+          steps.admission.outputs.admitted == 'false' &&
+          inputs.research_job_id != '' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+          RESEARCH_JOB_ID: ${{ inputs.research_job_id }}
+          RESEARCH_REQUIREMENT_ID: ${{ inputs.research_requirement_id }}
+          RESEARCH_TARGET: ${{ inputs.research_target }}
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          test -n "$RESEARCH_JOB_ID"
+          test -n "$RESEARCH_REQUIREMENT_ID"
+          target_json="$RESEARCH_TARGET"
+          jq -e 'type == "object" and (.kind | IN("equity", "etf", "crypto", "company", "industry", "topic", "url"))' <<<"$target_json" >/dev/null
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg job_id "$RESEARCH_JOB_ID" \
+            --argjson research_target "$target_json" \
+            --arg research_requirement_id "$RESEARCH_REQUIREMENT_ID" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            '{
+              schema_version: 1,
+              operation: "fail_research_job",
+              job_id: $job_id,
+              research_target: $research_target,
+              research_requirement_id: $research_requirement_id,
+              error_code: "actions_admission_denied",
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha
+            }' >"$RUNNER_TEMP/research-job-failure.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/research-job-failure.json" \
+            "$INGEST_WORKER_URL/v1/research/jobs/fail")"
+          jq -e '.status | IN("blocked", "failed")' <<<"$response"
 
       - name: Install full collector
         if: >-
@@ -300,11 +405,18 @@ jobs:
           !inputs.verify_freshness_watchdog &&
           !inputs.verify_soak_boundary &&
           !inputs.verify_research_reports
-        run: >-
-          finance-topic-radar
-          --manifest radar-sources.yaml
-          --run-plan artifacts/topic-radar/run-plan.json
-          --output artifacts/topic-radar
+        env:
+          SOURCE_IDS: ${{ steps.admission.outputs.source_ids }}
+        run: |
+          set -euo pipefail
+          collect_args=(
+            --manifest radar-sources.yaml
+            --run-plan artifacts/topic-radar/run-plan.json
+          )
+          if [[ -n "$SOURCE_IDS" ]]; then
+            collect_args+=(--source-ids "$SOURCE_IDS")
+          fi
+          finance-topic-radar "${collect_args[@]}" --output artifacts/topic-radar
 
       - name: Build OpenBB-compatible market alignment
         if: >-
@@ -313,12 +425,24 @@ jobs:
           !inputs.verify_freshness_watchdog &&
           !inputs.verify_soak_boundary &&
           !inputs.verify_research_reports
-        run: >-
-          finance-openbb-align
-          --raw-items artifacts/topic-radar/raw-items.json
-          --topic-snapshot artifacts/topic-radar/topic-snapshot.json
-          --output artifacts/topic-radar
-          --provider coingecko
+        env:
+          TARGET_JSON: ${{ inputs.research_target }}
+          INCLUDE_MARKET_DATA: ${{ inputs.research_include_market_data }}
+        run: |
+          set -euo pipefail
+          align_args=(
+            --raw-items artifacts/topic-radar/raw-items.json
+            --topic-snapshot artifacts/topic-radar/topic-snapshot.json
+            --output artifacts/topic-radar
+            --provider coingecko
+          )
+          if [[ -n "$TARGET_JSON" ]]; then
+            align_args+=(--target-json "$TARGET_JSON")
+          fi
+          if [[ "${INCLUDE_MARKET_DATA:-true}" == "false" ]]; then
+            align_args+=(--skip-market-data)
+          fi
+          finance-openbb-align "${align_args[@]}"
 
       - name: Build bounded TradingAgents run plan
         if: >-
@@ -377,6 +501,130 @@ jobs:
             --header "Content-Type: application/json" \
             --data-binary @artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json \
             "$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"
+
+      - name: Complete actions-backed research job
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          inputs.research_job_id != '' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+          RESEARCH_JOB_ID: ${{ inputs.research_job_id }}
+          RESEARCH_SOURCE_IDS: ${{ inputs.research_source_ids }}
+          RESEARCH_REQUIREMENT_ID: ${{ inputs.research_requirement_id }}
+          RESEARCH_TARGET: ${{ inputs.research_target }}
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          test -n "$RESEARCH_JOB_ID"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          run_id="$(jq -er '.run_id' artifacts/topic-radar/ingest-envelope.json)"
+          workflow_run_id="$(jq -er '.workflow_run_id' artifacts/topic-radar/ingest-envelope.json)"
+          commit_sha="$(jq -er '.commit_sha' artifacts/topic-radar/ingest-envelope.json)"
+          plan_id="$(jq -er '.plan.plan_id' artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json)"
+          alignment_id="$(jq -er '.plan.alignment_id' artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json)"
+          requirement_id="$RESEARCH_REQUIREMENT_ID"
+          test -n "$requirement_id"
+          target_json="$RESEARCH_TARGET"
+          jq -e '
+            type == "object" and
+            (.kind | IN("equity", "etf", "crypto", "company", "industry", "topic", "url"))
+          ' <<<"$target_json" >/dev/null
+          source_ids_json="$RESEARCH_SOURCE_IDS"
+          jq -e '
+            type == "array" and (length >= 12 and length <= 20) and
+            all(.[]; type == "string") and (length == (unique | length))
+          ' <<<"$source_ids_json" >/dev/null
+          jq -n \
+            --arg job_id "$RESEARCH_JOB_ID" \
+            --arg run_id "$run_id" \
+            --arg plan_id "$plan_id" \
+            --arg alignment_id "$alignment_id" \
+            --argjson research_target "$target_json" \
+            --arg research_requirement_id "$requirement_id" \
+            --argjson research_source_ids "$source_ids_json" \
+            --arg workflow_run_id "$workflow_run_id" \
+            --arg commit_sha "$commit_sha" \
+            '{
+              schema_version: 1,
+              operation: "complete_research_job",
+              job_id: $job_id,
+              run_id: $run_id,
+              plan_id: $plan_id,
+              alignment_id: $alignment_id,
+              research_target: $research_target,
+              research_requirement_id: $research_requirement_id,
+              research_source_ids: $research_source_ids,
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha
+            }' >"$RUNNER_TEMP/research-job-complete.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/research-job-complete.json" \
+            "$INGEST_WORKER_URL/v1/research/jobs/complete")"
+          jq -e '.status | IN("completed", "partial")' <<<"$response"
+
+      # Any admitted Actions failure, including a failed completion callback,
+      # must transition the submitted job out of queued/running. This step is
+      # intentionally before the external alert so the durable job state is
+      # attempted first; a callback outage then remains visible as a normal
+      # workflow failure and is handled by the alert path below.
+      - name: Mark actions-backed research job failed
+        if: >-
+          failure() &&
+          steps.admission.outputs.admitted != 'false' &&
+          inputs.research_job_id != '' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+          RESEARCH_JOB_ID: ${{ inputs.research_job_id }}
+          RESEARCH_REQUIREMENT_ID: ${{ inputs.research_requirement_id }}
+          RESEARCH_TARGET: ${{ inputs.research_target }}
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          test -n "$RESEARCH_JOB_ID"
+          test -n "$RESEARCH_REQUIREMENT_ID"
+          target_json="$RESEARCH_TARGET"
+          jq -e 'type == "object" and (.kind | IN("equity", "etf", "crypto", "company", "industry", "topic", "url"))' <<<"$target_json" >/dev/null
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg job_id "$RESEARCH_JOB_ID" \
+            --argjson research_target "$target_json" \
+            --arg research_requirement_id "$RESEARCH_REQUIREMENT_ID" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            '{
+              schema_version: 1,
+              operation: "fail_research_job",
+              job_id: $job_id,
+              research_target: $research_target,
+              research_requirement_id: $research_requirement_id,
+              error_code: "actions_workflow_failed",
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha
+            }' >"$RUNNER_TEMP/research-job-failure.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/research-job-failure.json" \
+            "$INGEST_WORKER_URL/v1/research/jobs/fail")"
+          jq -e '.status | IN("blocked", "failed")' <<<"$response"
 
       - name: Verify replay and last-good resilience
         if: >-

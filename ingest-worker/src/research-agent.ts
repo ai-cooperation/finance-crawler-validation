@@ -1,10 +1,12 @@
 import {
   type ResearchAgentRequest,
   type ResearchClaim,
+  type ResearchEvidenceNote,
   type ResearchReport,
   type RadarTopic,
   type TopicSnapshot,
   type TradingAgentsRunPlan,
+  type ResearchTarget,
   validateResearchAgentRequest,
   validateTopicSnapshot,
   validateTradingAgentsRunPlan,
@@ -26,6 +28,10 @@ const RESEARCH_RESPONSE_SCHEMA = {
       bull_case: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
       bear_case: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
       risk_view: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+      summary: { type: "string", minLength: 1, maxLength: 2000 },
+      catalysts: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+      failure_conditions: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+      data_gaps: { type: "array", maxItems: 12, items: { "$ref": "#/$defs/evidence_note" } },
     },
     required: ["bull_case", "bear_case", "risk_view"],
     additionalProperties: false,
@@ -38,6 +44,15 @@ const RESEARCH_RESPONSE_SCHEMA = {
           evidence_ids: { type: "array", minItems: 1, items: { type: "string" } },
         },
         required: ["text", "confidence", "evidence_ids"],
+        additionalProperties: false,
+      },
+      evidence_note: {
+        type: "object",
+        properties: {
+          text: { type: "string", minLength: 1, maxLength: 500 },
+          evidence_ids: { type: "array", minItems: 1, items: { type: "string" } },
+        },
+        required: ["text", "evidence_ids"],
         additionalProperties: false,
       },
     },
@@ -57,6 +72,16 @@ export interface ResearchGenerationResult {
   model: string;
   report_count: number;
   reports: ResearchReportResult[];
+}
+
+interface ParsedResearchOutput {
+  bull_case: ResearchClaim[];
+  bear_case: ResearchClaim[];
+  risk_view: ResearchClaim[];
+  summary?: string;
+  catalysts: ResearchClaim[];
+  failure_conditions: ResearchClaim[];
+  data_gaps: ResearchEvidenceNote[];
 }
 
 interface StoredRow {
@@ -162,6 +187,10 @@ export async function generateResearchReports(
     throw new HttpError(409, "plan_request_conflict");
   }
 
+  const reportProfile = request.report_profile ?? "detailed_traceable";
+  const requestedOutputs = request.requested_outputs ?? ["detailed_report", "evidence_appendix"];
+  const reportRequested = requestedOutputs.includes("quick_card") || requestedOutputs.includes("detailed_report");
+
   const alignmentRow = await env.DB.prepare(
     `SELECT run_id, topic_snapshot_id, market_snapshot_id, object_key
      FROM topic_market_alignments WHERE alignment_id = ?`,
@@ -201,6 +230,17 @@ export async function generateResearchReports(
   );
 
   if (plan.decision !== "eligible") throw new HttpError(409, "plan_not_eligible");
+  if (!reportRequested) {
+    return {
+      run_id: request.run_id,
+      plan_id: request.plan_id,
+      alignment_id: request.alignment_id,
+      model: request.model ?? DEFAULT_RESEARCH_MODEL,
+      report_count: 0,
+      reports: [],
+    };
+  }
+
   const selectedTopics = plan.topics
     .filter((topic) => topic.decision === "run")
     .slice(0, request.max_reports ?? plan.budget.max_topics);
@@ -230,6 +270,13 @@ export async function generateResearchReports(
     ).bind(reportId).first<StoredRow>();
     if (existing) {
       const stored = await readJson(env.RAW_OBJECTS, existing.object_key, "research_report");
+      const storedProfile = isRecord(stored) &&
+        (stored.report_profile === "compact_traceable" || stored.report_profile === "detailed_traceable")
+        ? stored.report_profile
+        : "detailed_traceable";
+      if (storedProfile !== reportProfile) {
+        throw new HttpError(409, "report_profile_conflict", [reportId]);
+      }
       const replayEnvelope = {
         schema_version: 1,
         operation: "upsert_research_report",
@@ -246,19 +293,28 @@ export async function generateResearchReports(
       messages: [
         {
           role: "system",
-          content: "You are a cautious financial research second-opinion assistant. Do not give a buy or sell instruction. Return only valid JSON with exactly three arrays: bull_case, bear_case, risk_view. Each array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each text under 400 characters.",
+          content: `You are a cautious financial research second-opinion assistant. The requested report profile is ${reportProfile}. Do not give a buy or sell instruction. Return only valid JSON with bull_case, bear_case, risk_view, and optional summary, catalysts, failure_conditions, data_gaps. Each claim array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each claim text under ${reportProfile === "compact_traceable" ? 240 : 400} characters.`,
         },
         {
           role: "user",
-          content: buildPrompt(topic, plannedTopic.market_direction, alignmentTopic, market, evidence),
+          content: buildPrompt(
+            topic,
+            plannedTopic.market_direction,
+            alignmentTopic,
+            market,
+            evidence,
+            request.target,
+            request.research_question,
+            reportProfile,
+          ),
         },
       ],
-      max_tokens: Math.min(plan.budget.max_tokens, 1200),
+      max_tokens: Math.min(plan.budget.max_tokens, reportProfile === "compact_traceable" ? 800 : 1200),
       temperature: 0,
       seed: 42,
       response_format: RESEARCH_RESPONSE_SCHEMA,
     });
-    const claims = parseModelClaims(output, new Set(evidenceIds));
+    const parsedOutput = parseResearchOutput(output, new Set(evidenceIds));
     const generatedAt = now.toISOString();
     const report: ResearchReport = {
       schema_version: 1,
@@ -272,11 +328,20 @@ export async function generateResearchReports(
       expires_at: new Date(now.getTime() + REPORT_TTL_MS).toISOString(),
       model,
       agent_version: RESEARCH_AGENT_VERSION,
+      report_profile: reportProfile,
+      ...(request.research_question === undefined ? {} : { research_question: request.research_question }),
+      ...(request.target === undefined ? {} : { target: request.target }),
+      as_of: topicSnapshot.as_of,
+      summary: parsedOutput.summary ?? buildFallbackSummary(topic.label),
       second_opinion: true,
       evidence_ids: evidenceIds,
-      bull_case: claims.bull_case,
-      bear_case: claims.bear_case,
-      risk_view: claims.risk_view,
+      bull_case: parsedOutput.bull_case,
+      bear_case: parsedOutput.bear_case,
+      risk_view: parsedOutput.risk_view,
+      catalysts: parsedOutput.catalysts,
+      failure_conditions: parsedOutput.failure_conditions,
+      data_gaps: parsedOutput.data_gaps,
+      recommendation_status: "research_only",
     };
     reports.push(await ingestResearchReport(env, {
       schema_version: 1,
@@ -302,6 +367,18 @@ export function parseModelClaims(
   output: unknown,
   allowedEvidenceIds: Set<string>,
 ): Pick<ResearchReport, "bull_case" | "bear_case" | "risk_view"> {
+  const parsed = parseResearchOutput(output, allowedEvidenceIds);
+  return {
+    bull_case: parsed.bull_case,
+    bear_case: parsed.bear_case,
+    risk_view: parsed.risk_view,
+  };
+}
+
+function parseResearchOutput(
+  output: unknown,
+  allowedEvidenceIds: Set<string>,
+): ParsedResearchOutput {
   const text = modelText(output);
   const parsed = parseJsonObject(text);
   const result: Record<string, unknown> = isRecord(parsed) ? parsed : {};
@@ -309,7 +386,52 @@ export function parseModelClaims(
     bull_case: parseClaims(result.bull_case, "bull_case", allowedEvidenceIds),
     bear_case: parseClaims(result.bear_case, "bear_case", allowedEvidenceIds),
     risk_view: parseClaims(result.risk_view, "risk_view", allowedEvidenceIds),
+    summary: optionalText(result.summary, "summary"),
+    catalysts: optionalClaims(result.catalysts, "catalysts", allowedEvidenceIds),
+    failure_conditions: optionalClaims(result.failure_conditions, "failure_conditions", allowedEvidenceIds),
+    data_gaps: optionalEvidenceNotes(result.data_gaps, "data_gaps", allowedEvidenceIds),
   };
+}
+
+function optionalText(value: unknown, field: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || value.trim().length === 0 || value.length > 2000) {
+    throw new HttpError(502, "model_output_invalid", [`${field}: expected non-empty text`]);
+  }
+  return value.trim();
+}
+
+function optionalClaims(
+  value: unknown,
+  field: string,
+  allowedEvidenceIds: Set<string>,
+): ResearchClaim[] {
+  if (value === undefined) return [];
+  return parseClaims(value, field, allowedEvidenceIds);
+}
+
+function optionalEvidenceNotes(
+  value: unknown,
+  field: string,
+  allowedEvidenceIds: Set<string>,
+): ResearchEvidenceNote[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 12) {
+    throw new HttpError(502, "model_output_invalid", [`${field}: expected up to 12 evidence notes`]);
+  }
+  return value.map((item, index) => {
+    if (!isRecord(item) || typeof item.text !== "string" || item.text.trim().length === 0 || item.text.length > 500 || !Array.isArray(item.evidence_ids) || item.evidence_ids.length < 1 || item.evidence_ids.some((id) => typeof id !== "string" || !allowedEvidenceIds.has(id))) {
+      throw new HttpError(502, "model_output_invalid", [`${field}[${index}]`]);
+    }
+    return {
+      text: item.text.trim(),
+      evidence_ids: uniqueStrings(item.evidence_ids as string[]),
+    };
+  });
+}
+
+function buildFallbackSummary(topicLabel: string): string {
+  return `Evidence-linked second opinion for ${topicLabel}; this is research-only and not a buy or sell instruction.`;
 }
 
 function parseClaims(
@@ -388,6 +510,9 @@ function buildPrompt(
   alignment: AlignedTopicView | undefined,
   market: MarketSnapshotView,
   evidence: EvidenceView[],
+  target?: ResearchTarget,
+  researchQuestion?: string,
+  reportProfile: "detailed_traceable" | "compact_traceable" = "detailed_traceable",
 ): string {
   const marketLines = market.instruments.slice(0, 8).map((instrument) =>
     `${instrument.symbol}: price=${instrument.price ?? "n/a"}, 24h_change=${instrument.change_24h_pct ?? "n/a"}`,
@@ -402,6 +527,9 @@ function buildPrompt(
     `CONTENT=${item.content.slice(0, MAX_EVIDENCE_CHARS)}`,
   ].join("\n")).join("\n---\n");
   return [
+    `RESEARCH_TARGET=${target ? targetLabel(target) : "not_provided"}`,
+    `RESEARCH_QUESTION=${researchQuestion ?? "not_provided"}`,
+    `REPORT_PROFILE=${reportProfile}`,
     `TOPIC_ID=${topic.topic_id}`,
     `TOPIC_LABEL=${topic.label}`,
     `TOPIC_SCORE=${topic.score}`,
@@ -418,6 +546,11 @@ function buildPrompt(
     evidenceLines,
     "Use only the exact EVIDENCE_ID values above. State uncertainty when evidence is sparse or contradictory.",
   ].join("\n");
+}
+
+function targetLabel(target: ResearchTarget): string {
+  const identifier = target.symbol ?? target.name ?? target.url ?? "unidentified";
+  return `${target.kind}:${identifier}`;
 }
 
 function asTopicSnapshot(value: unknown): TopicSnapshot {
