@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/tradingagents-plan-envelope.schema.json",
+  "title": "GitHub Actions TradingAgents plan ingest envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation", "run_id", "workflow_run_id", "commit_sha", "plan"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "operation": { "const": "upsert_tradingagents_plan" },
+    "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "workflow_run_id": { "type": "string", "pattern": "^[0-9]{1,32}$" },
+    "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "plan": { "type": "object" }
+  }
+}

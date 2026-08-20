@@ -1,10 +1,17 @@
 import {
   type IngestEnvelope,
+  type MarketAlignmentEnvelope,
+  type ResearchReportEnvelope,
+  type TradingAgentsPlanEnvelope,
   PayloadValidationError,
   type RawItem,
   type SourceCheckpoint,
   type TopicSnapshot,
   validateIngestEnvelope,
+  validateMarketAlignmentEnvelope,
+  validateResearchReportEnvelope,
+  validateTradingAgentsRunPlan,
+  validateTradingAgentsPlanEnvelope,
   validateTopicSnapshot,
 } from "./contracts";
 import { canonicalJson } from "./canonical-json";
@@ -36,6 +43,36 @@ export interface PublishResult {
   run_id: string;
   snapshot_id: string;
   topic_count: number;
+  status: "published";
+  replayed: boolean;
+}
+
+export interface MarketAlignmentResult {
+  run_id: string;
+  market_snapshot_id: string;
+  alignment_id: string;
+  instrument_count: number;
+  topic_count: number;
+  status: "published";
+  replayed: boolean;
+}
+
+export interface TradingAgentsPlanResult {
+  run_id: string;
+  plan_id: string;
+  alignment_id: string;
+  topic_count: number;
+  decision: "eligible" | "skipped";
+  status: "published";
+  replayed: boolean;
+}
+
+export interface ResearchReportResult {
+  run_id: string;
+  report_id: string;
+  plan_id: string;
+  alignment_id: string;
+  topic_id: string;
   status: "published";
   replayed: boolean;
 }
@@ -203,6 +240,409 @@ export async function publishSnapshot(
     run_id: snapshot.run_id,
     snapshot_id: snapshot.snapshot_id,
     topic_count: snapshot.topics.length,
+    status: "published",
+    replayed: false,
+  };
+}
+
+export async function ingestMarketAlignment(
+  env: Env,
+  payload: unknown,
+  now: Date,
+): Promise<MarketAlignmentResult> {
+  const envelope = validateOrHttp(() => validateMarketAlignmentEnvelope(payload));
+  const run = await env.DB.prepare(
+    "SELECT snapshot_id, status FROM runs WHERE run_id = ?",
+  ).bind(envelope.run_id).first<{ snapshot_id: string; status: string }>();
+  if (!run) throw new HttpError(409, "run_not_found");
+  if (run.status !== "published") throw new HttpError(409, "run_not_published");
+  if (envelope.alignment.topic_snapshot_id !== run.snapshot_id) {
+    throw new HttpError(409, "alignment_topic_run_conflict");
+  }
+  await assertAlignmentEvidenceBelongsToRun(env.DB, envelope);
+
+  const marketSerialized = canonicalJson(envelope.market_snapshot);
+  const alignmentSerialized = canonicalJson(envelope.alignment);
+  const marketHash = await sha256Hex(marketSerialized);
+  const alignmentHash = await sha256Hex(alignmentSerialized);
+  const existing = await env.DB.prepare(
+    `SELECT run_id, market_snapshot_id, content_sha256
+     FROM topic_market_alignments WHERE alignment_id = ?`,
+  ).bind(envelope.alignment.alignment_id).first<{
+    run_id: string;
+    market_snapshot_id: string;
+    content_sha256: string;
+  }>();
+  if (existing !== null) {
+    if (
+      existing.run_id !== envelope.run_id ||
+      existing.market_snapshot_id !== envelope.market_snapshot.snapshot_id ||
+      existing.content_sha256 !== alignmentHash
+    ) {
+      throw new HttpError(409, "alignment_payload_conflict");
+    }
+    return {
+      run_id: envelope.run_id,
+      market_snapshot_id: envelope.market_snapshot.snapshot_id,
+      alignment_id: envelope.alignment.alignment_id,
+      instrument_count: envelope.market_snapshot.instruments.length,
+      topic_count: envelope.alignment.topics.length,
+      status: "published",
+      replayed: true,
+    };
+  }
+  const marketExisting = await env.DB.prepare(
+    "SELECT run_id, content_sha256 FROM market_snapshots WHERE snapshot_id = ?",
+  ).bind(envelope.market_snapshot.snapshot_id).first<{
+    run_id: string;
+    content_sha256: string;
+  }>();
+  if (marketExisting !== null && (
+    marketExisting.run_id !== envelope.run_id || marketExisting.content_sha256 !== marketHash
+  )) {
+    throw new HttpError(409, "market_snapshot_payload_conflict");
+  }
+
+  const marketObjectKey = `market/${envelope.market_snapshot.snapshot_id}.json`;
+  const alignmentObjectKey = `alignments/${envelope.alignment.alignment_id}.json`;
+  try {
+    if (marketExisting === null) {
+      await env.RAW_OBJECTS.put(marketObjectKey, marketSerialized, {
+        httpMetadata: { contentType: "application/json" },
+        customMetadata: { content_sha256: marketHash, run_id: envelope.run_id },
+      });
+    }
+    await env.RAW_OBJECTS.put(alignmentObjectKey, alignmentSerialized, {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: { content_sha256: alignmentHash, run_id: envelope.run_id },
+    });
+  } catch (error) {
+    logStorageFailure("r2_market_alignment_write_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+
+  const happenedAt = now.toISOString();
+  const audit = await buildAuditStatement(
+    env.DB,
+    envelope.run_id,
+    "openbb_normalized",
+    alignmentHash,
+    happenedAt,
+  );
+  const statements: D1PreparedStatement[] = [];
+  if (marketExisting === null) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO market_snapshots (
+          snapshot_id, run_id, as_of, provider, object_key,
+          content_sha256, instrument_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        envelope.market_snapshot.snapshot_id,
+        envelope.run_id,
+        envelope.market_snapshot.as_of,
+        envelope.market_snapshot.provider,
+        marketObjectKey,
+        marketHash,
+        envelope.market_snapshot.instruments.length,
+        happenedAt,
+      ),
+    );
+  }
+  statements.push(
+    env.DB.prepare(
+      `INSERT INTO topic_market_alignments (
+        alignment_id, run_id, topic_snapshot_id, market_snapshot_id,
+        generated_at, partial, coverage_ratio, object_key,
+        content_sha256, topic_count, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      envelope.alignment.alignment_id,
+      envelope.run_id,
+      envelope.alignment.topic_snapshot_id,
+      envelope.alignment.market_snapshot_id,
+      envelope.alignment.generated_at,
+      envelope.alignment.partial ? 1 : 0,
+      envelope.alignment.coverage_ratio,
+      alignmentObjectKey,
+      alignmentHash,
+      envelope.alignment.topics.length,
+      happenedAt,
+    ),
+  );
+  statements.push(audit);
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    logStorageFailure("d1_market_alignment_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  return {
+    run_id: envelope.run_id,
+    market_snapshot_id: envelope.market_snapshot.snapshot_id,
+    alignment_id: envelope.alignment.alignment_id,
+    instrument_count: envelope.market_snapshot.instruments.length,
+    topic_count: envelope.alignment.topics.length,
+    status: "published",
+    replayed: false,
+  };
+}
+
+export async function ingestTradingAgentsPlan(
+  env: Env,
+  payload: unknown,
+  now: Date,
+): Promise<TradingAgentsPlanResult> {
+  const envelope = validateOrHttp(() => validateTradingAgentsPlanEnvelope(payload));
+  const alignmentId = envelope.plan.alignment_id;
+  if (alignmentId === null) throw new HttpError(422, "alignment_missing");
+  const run = await env.DB.prepare(
+    "SELECT snapshot_id, status FROM runs WHERE run_id = ?",
+  ).bind(envelope.run_id).first<{ snapshot_id: string; status: string }>();
+  if (!run) throw new HttpError(409, "run_not_found");
+  if (run.status !== "published") throw new HttpError(409, "run_not_published");
+  if (envelope.plan.topic_snapshot_id !== run.snapshot_id) {
+    throw new HttpError(409, "plan_topic_run_conflict");
+  }
+  const alignment = await env.DB.prepare(
+    `SELECT alignment_id FROM topic_market_alignments
+     WHERE alignment_id = ? AND run_id = ? AND topic_snapshot_id = ?`,
+  ).bind(alignmentId, envelope.run_id, run.snapshot_id)
+    .first<{ alignment_id: string }>();
+  if (!alignment) throw new HttpError(409, "alignment_not_found");
+  await assertPlanEvidenceBelongsToRun(env.DB, envelope);
+
+  const serialized = canonicalJson(envelope.plan);
+  const contentHash = await sha256Hex(serialized);
+  const existing = await env.DB.prepare(
+    `SELECT run_id, alignment_id, content_sha256, decision, topic_count
+     FROM tradingagents_plans WHERE plan_id = ?`,
+  ).bind(envelope.plan.plan_id).first<{
+    run_id: string;
+    alignment_id: string;
+    content_sha256: string;
+    decision: "eligible" | "skipped";
+    topic_count: number;
+  }>();
+  if (existing !== null) {
+    if (
+      existing.run_id !== envelope.run_id ||
+      existing.alignment_id !== alignmentId ||
+      existing.content_sha256 !== contentHash
+    ) {
+      throw new HttpError(409, "plan_payload_conflict");
+    }
+    return {
+      run_id: envelope.run_id,
+      plan_id: envelope.plan.plan_id,
+      alignment_id: alignmentId,
+      topic_count: Number(existing.topic_count),
+      decision: existing.decision,
+      status: "published",
+      replayed: true,
+    };
+  }
+
+  const objectKey = `plans/${envelope.plan.plan_id}.json`;
+  try {
+    await env.RAW_OBJECTS.put(objectKey, serialized, {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: { content_sha256: contentHash, run_id: envelope.run_id },
+    });
+  } catch (error) {
+    logStorageFailure("r2_tradingagents_plan_write_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  const happenedAt = now.toISOString();
+  const audit = await buildAuditStatement(
+    env.DB,
+    envelope.run_id,
+    "tradingagents_planned",
+    contentHash,
+    happenedAt,
+  );
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO tradingagents_plans (
+          plan_id, run_id, topic_snapshot_id, alignment_id,
+          decision, skip_reason, object_key, content_sha256,
+          topic_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        envelope.plan.plan_id,
+        envelope.run_id,
+        envelope.plan.topic_snapshot_id,
+        alignmentId,
+        envelope.plan.decision,
+        envelope.plan.skip_reason,
+        objectKey,
+        contentHash,
+        envelope.plan.topics.length,
+        happenedAt,
+      ),
+      audit,
+    ]);
+  } catch (error) {
+    logStorageFailure("d1_tradingagents_plan_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  return {
+    run_id: envelope.run_id,
+    plan_id: envelope.plan.plan_id,
+    alignment_id: alignmentId,
+    topic_count: envelope.plan.topics.length,
+    decision: envelope.plan.decision,
+    status: "published",
+    replayed: false,
+  };
+}
+
+export async function ingestResearchReport(
+  env: Env,
+  payload: unknown,
+  now: Date,
+): Promise<ResearchReportResult> {
+  const envelope = validateOrHttp(() => validateResearchReportEnvelope(payload));
+  const report = envelope.report;
+  const run = await env.DB.prepare(
+    "SELECT snapshot_id, status FROM runs WHERE run_id = ?",
+  ).bind(envelope.run_id).first<{ snapshot_id: string; status: string }>();
+  if (!run) throw new HttpError(409, "run_not_found");
+  if (run.status !== "published") throw new HttpError(409, "run_not_published");
+  if (report.topic_snapshot_id !== run.snapshot_id) {
+    throw new HttpError(409, "report_topic_run_conflict");
+  }
+
+  const plan = await env.DB.prepare(
+    `SELECT run_id, alignment_id, object_key
+     FROM tradingagents_plans WHERE plan_id = ?`,
+  ).bind(report.plan_id).first<{
+    run_id: string;
+    alignment_id: string;
+    object_key: string;
+  }>();
+  if (!plan) throw new HttpError(409, "plan_not_found");
+  if (plan.run_id !== envelope.run_id || plan.alignment_id !== report.alignment_id) {
+    throw new HttpError(409, "report_plan_conflict");
+  }
+
+  const alignment = await env.DB.prepare(
+    `SELECT market_snapshot_id FROM topic_market_alignments
+     WHERE alignment_id = ? AND run_id = ? AND topic_snapshot_id = ?`,
+  ).bind(report.alignment_id, envelope.run_id, run.snapshot_id)
+    .first<{ market_snapshot_id: string }>();
+  if (!alignment) throw new HttpError(409, "alignment_not_found");
+  if (alignment.market_snapshot_id !== report.market_snapshot_id) {
+    throw new HttpError(409, "report_market_conflict");
+  }
+
+  const snapshot = await env.DB.prepare(
+    "SELECT object_key FROM topic_snapshots WHERE snapshot_id = ? AND run_id = ?",
+  ).bind(report.topic_snapshot_id, envelope.run_id).first<{ object_key: string }>();
+  if (!snapshot) throw new HttpError(409, "topic_snapshot_not_found");
+  const snapshotPayload = await readPrivateJson(env.RAW_OBJECTS, snapshot.object_key, "topic_snapshot");
+  const topicSnapshot = validateOrHttp(() => validateTopicSnapshot(snapshotPayload));
+  if (!topicSnapshot.topics.some((topic) => topic.topic_id === report.topic_id)) {
+    throw new HttpError(409, "topic_not_found");
+  }
+
+  const planPayload = await readPrivateJson(env.RAW_OBJECTS, plan.object_key, "tradingagents_plan");
+  const runPlan = validateOrHttp(() => validateTradingAgentsRunPlan(planPayload));
+  const plannedTopic = runPlan.topics.find((topic) => topic.topic_id === report.topic_id);
+  if (!plannedTopic || plannedTopic.decision !== "run") {
+    throw new HttpError(409, "topic_not_planned");
+  }
+  await assertResearchReportEvidenceBelongsToRun(env.DB, envelope);
+
+  const serialized = canonicalJson(report);
+  const contentHash = await sha256Hex(serialized);
+  const existing = await env.DB.prepare(
+    `SELECT run_id, plan_id, alignment_id, content_sha256, topic_id
+     FROM research_reports WHERE report_id = ?`,
+  ).bind(report.report_id).first<{
+    run_id: string;
+    plan_id: string;
+    alignment_id: string;
+    content_sha256: string;
+    topic_id: string;
+  }>();
+  if (existing !== null) {
+    if (
+      existing.run_id !== envelope.run_id ||
+      existing.plan_id !== report.plan_id ||
+      existing.alignment_id !== report.alignment_id ||
+      existing.topic_id !== report.topic_id ||
+      existing.content_sha256 !== contentHash
+    ) {
+      throw new HttpError(409, "report_payload_conflict");
+    }
+    return {
+      run_id: envelope.run_id,
+      report_id: report.report_id,
+      plan_id: report.plan_id,
+      alignment_id: report.alignment_id,
+      topic_id: report.topic_id,
+      status: "published",
+      replayed: true,
+    };
+  }
+
+  const objectKey = `reports/${report.report_id}.json`;
+  try {
+    await env.RAW_OBJECTS.put(objectKey, serialized, {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: { content_sha256: contentHash, run_id: envelope.run_id },
+    });
+  } catch (error) {
+    logStorageFailure("r2_research_report_write_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  const happenedAt = now.toISOString();
+  const audit = await buildAuditStatement(
+    env.DB,
+    envelope.run_id,
+    "tradingagents_completed",
+    contentHash,
+    happenedAt,
+  );
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO research_reports (
+          report_id, run_id, topic_snapshot_id, plan_id, alignment_id,
+          market_snapshot_id, topic_id, object_key, content_sha256,
+          model, agent_version, generated_at, expires_at, evidence_count, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        report.report_id,
+        envelope.run_id,
+        report.topic_snapshot_id,
+        report.plan_id,
+        report.alignment_id,
+        report.market_snapshot_id,
+        report.topic_id,
+        objectKey,
+        contentHash,
+        report.model,
+        report.agent_version,
+        report.generated_at,
+        report.expires_at,
+        report.evidence_ids.length,
+        happenedAt,
+      ),
+      audit,
+    ]);
+  } catch (error) {
+    logStorageFailure("d1_research_report_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  return {
+    run_id: envelope.run_id,
+    report_id: report.report_id,
+    plan_id: report.plan_id,
+    alignment_id: report.alignment_id,
+    topic_id: report.topic_id,
     status: "published",
     replayed: false,
   };
@@ -400,6 +840,89 @@ async function assertEvidenceBelongsToRun(
     if (!runItemIds.has(itemId)) {
       throw new HttpError(422, "input_item_not_in_run", [itemId]);
     }
+  }
+}
+
+async function assertAlignmentEvidenceBelongsToRun(
+  db: D1Database,
+  envelope: MarketAlignmentEnvelope,
+): Promise<void> {
+  const results = await db.prepare(
+    "SELECT item_id FROM run_items WHERE run_id = ?",
+  ).bind(envelope.run_id).all<{ item_id: string }>();
+  const runItemIds = new Set(results.results.map((row) => row.item_id));
+  const evidenceIds = new Set<string>();
+  for (const instrument of envelope.market_snapshot.instruments) {
+    instrument.source_item_ids.forEach((itemId) => evidenceIds.add(itemId));
+  }
+  for (const topic of envelope.alignment.topics) {
+    topic.evidence_ids.forEach((itemId) => evidenceIds.add(itemId));
+  }
+  for (const evidenceId of evidenceIds) {
+    if (!runItemIds.has(evidenceId)) {
+      throw new HttpError(422, "evidence_not_in_run", [evidenceId]);
+    }
+  }
+}
+
+async function assertPlanEvidenceBelongsToRun(
+  db: D1Database,
+  envelope: TradingAgentsPlanEnvelope,
+): Promise<void> {
+  const results = await db.prepare(
+    "SELECT item_id FROM run_items WHERE run_id = ?",
+  ).bind(envelope.run_id).all<{ item_id: string }>();
+  const runItemIds = new Set(results.results.map((row) => row.item_id));
+  for (const topic of envelope.plan.topics) {
+    for (const evidenceId of topic.evidence_ids) {
+      if (!runItemIds.has(evidenceId)) {
+        throw new HttpError(422, "evidence_not_in_run", [evidenceId]);
+      }
+    }
+  }
+}
+
+async function assertResearchReportEvidenceBelongsToRun(
+  db: D1Database,
+  envelope: ResearchReportEnvelope,
+): Promise<void> {
+  const results = await db.prepare(
+    "SELECT item_id FROM run_items WHERE run_id = ?",
+  ).bind(envelope.run_id).all<{ item_id: string }>();
+  const runItemIds = new Set(results.results.map((row) => row.item_id));
+  const evidenceIds = new Set(envelope.report.evidence_ids);
+  for (const claim of [
+    ...envelope.report.bull_case,
+    ...envelope.report.bear_case,
+    ...envelope.report.risk_view,
+  ]) {
+    claim.evidence_ids.forEach((evidenceId) => evidenceIds.add(evidenceId));
+  }
+  for (const evidenceId of evidenceIds) {
+    if (!runItemIds.has(evidenceId)) {
+      throw new HttpError(422, "evidence_not_in_run", [evidenceId]);
+    }
+  }
+}
+
+async function readPrivateJson(
+  bucket: R2Bucket,
+  objectKey: string,
+  kind: string,
+): Promise<unknown> {
+  let object: R2ObjectBody | null;
+  try {
+    object = await bucket.get(objectKey);
+  } catch (error) {
+    logStorageFailure(`r2_${kind}_read_failed`, objectKey, error);
+    throw new HttpError(503, "storage_read_failed");
+  }
+  if (object === null) throw new HttpError(503, "storage_object_missing");
+  try {
+    return await object.json();
+  } catch (error) {
+    logStorageFailure(`r2_${kind}_parse_failed`, objectKey, error);
+    throw new HttpError(503, "storage_object_invalid");
   }
 }
 

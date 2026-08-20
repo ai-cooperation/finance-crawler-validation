@@ -52,6 +52,14 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "${{ vars.INGEST_WORKER_URL }}" in workflow
     assert '"$INGEST_WORKER_URL/v1/ingest/items"' in workflow
     assert '"$INGEST_WORKER_URL/v1/ingest/publish"' in workflow
+    assert '"$INGEST_WORKER_URL/v1/ingest/market-alignment"' in workflow
+    assert '"$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"' in workflow
+    assert "finance-openbb-align" in workflow
+    assert "market-alignment-envelope.json" in workflow
+    assert "finance-tradingagents-plan" in workflow
+    assert "tradingagents-plan-envelope.json" in workflow
+    assert "tradingagents-deferred" in workflow
+    assert "--max-usd 0" in workflow
     assert "finance-topic-radar-${{ github.run_id }}" in workflow
     assert "verify_resilience" in workflow
     assert "verify_alert_delivery" in workflow

@@ -216,6 +216,38 @@ jobs:
           --run-plan artifacts/topic-radar/run-plan.json
           --output artifacts/topic-radar
 
+      - name: Build OpenBB-compatible market alignment
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary
+        run: >-
+          finance-openbb-align
+          --raw-items artifacts/topic-radar/raw-items.json
+          --topic-snapshot artifacts/topic-radar/topic-snapshot.json
+          --output artifacts/topic-radar
+          --provider coingecko
+
+      - name: Build bounded TradingAgents run plan
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary
+        run: |
+          finance-tradingagents-plan \
+            --topic-snapshot artifacts/topic-radar/topic-snapshot.json \
+            --alignment artifacts/topic-radar/market-topic-alignment.json \
+            --output artifacts/topic-radar/tradingagents \
+            --plan-id "plan_${GITHUB_RUN_ID}" \
+            --created-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --max-topics 3 \
+            --max-claims-per-topic 6 \
+            --max-tokens 12000 \
+            --max-usd 0 \
+            --model tradingagents-deferred
+
       - name: Ingest and publish through GitHub OIDC
         if: >-
           steps.admission.outputs.admitted == 'true' &&
@@ -242,6 +274,16 @@ jobs:
             --header "Content-Type: application/json" \
             --data-binary @artifacts/topic-radar/topic-snapshot.json \
             "$INGEST_WORKER_URL/v1/ingest/publish"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/market-alignment-envelope.json \
+            "$INGEST_WORKER_URL/v1/ingest/market-alignment"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json \
+            "$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"
 
       - name: Verify replay and last-good resilience
         if: >-
