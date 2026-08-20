@@ -23,6 +23,26 @@ on:
         required: false
         type: boolean
         default: false
+      verify_research_reports:
+        description: Run Cloudflare Workers AI against an already-published plan and persist second opinions
+        required: false
+        type: boolean
+        default: false
+      research_run_id:
+        description: Published run to use for report-only validation
+        required: false
+        type: string
+        default: ""
+      research_plan_id:
+        description: Persisted TradingAgents plan to use for report-only validation
+        required: false
+        type: string
+        default: ""
+      research_alignment_id:
+        description: Persisted market alignment to use for report-only validation
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -42,7 +62,10 @@ jobs:
         if: >-
           (inputs.verify_alert_delivery && inputs.verify_freshness_watchdog) ||
           (inputs.verify_alert_delivery && inputs.verify_soak_boundary) ||
-          (inputs.verify_freshness_watchdog && inputs.verify_soak_boundary)
+          (inputs.verify_freshness_watchdog && inputs.verify_soak_boundary) ||
+          (inputs.verify_research_reports && inputs.verify_alert_delivery) ||
+          (inputs.verify_research_reports && inputs.verify_freshness_watchdog) ||
+          (inputs.verify_research_reports && inputs.verify_soak_boundary)
         run: |
           echo "::error title=Invalid alert validation::Select only one alert validation mode."
           exit 2
@@ -51,7 +74,8 @@ jobs:
         if: >-
           inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: |
           echo "::error title=Expected alert validation failure::This failure verifies the external notification path."
           exit 1
@@ -60,7 +84,8 @@ jobs:
         if: >-
           inputs.verify_freshness_watchdog &&
           !inputs.verify_alert_delivery &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -93,7 +118,8 @@ jobs:
         if: >-
           inputs.verify_soak_boundary &&
           !inputs.verify_alert_delivery &&
-          !inputs.verify_freshness_watchdog
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_research_reports
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -125,18 +151,70 @@ jobs:
           jq -e '.error == "schedule_identity_required"' \
             "$RUNNER_TEMP/soak-boundary-result.json" >/dev/null
 
+      - name: Generate and persist real Workers AI research reports
+        if: >-
+          inputs.verify_research_reports &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary
+        env:
+          INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
+          OIDC_AUDIENCE: finance-crawler-validation-ingest
+          RESEARCH_RUN_ID: ${{ inputs.research_run_id }}
+          RESEARCH_PLAN_ID: ${{ inputs.research_plan_id }}
+          RESEARCH_ALIGNMENT_ID: ${{ inputs.research_alignment_id }}
+        run: |
+          set -euo pipefail
+          test -n "$INGEST_WORKER_URL"
+          test -n "$RESEARCH_RUN_ID"
+          test -n "$RESEARCH_PLAN_ID"
+          test -n "$RESEARCH_ALIGNMENT_ID"
+          oidc_response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          oidc_token="$(jq -er '.value' <<<"$oidc_response")"
+          jq -n \
+            --arg run_id "$RESEARCH_RUN_ID" \
+            --arg workflow_run_id "$GITHUB_RUN_ID" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg plan_id "$RESEARCH_PLAN_ID" \
+            --arg alignment_id "$RESEARCH_ALIGNMENT_ID" \
+            '{
+              schema_version: 1,
+              operation: "generate_research_reports",
+              run_id: $run_id,
+              workflow_run_id: $workflow_run_id,
+              commit_sha: $commit_sha,
+              plan_id: $plan_id,
+              alignment_id: $alignment_id,
+              max_reports: 3
+            }' >"$RUNNER_TEMP/research-agent-request.json"
+          response="$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $oidc_token" \
+            --header "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/research-agent-request.json" \
+            "$INGEST_WORKER_URL/v1/agent/research-reports")"
+          jq -e '
+            (.report_count | type == "number") and
+            (.report_count >= 1) and
+            (.report_count == (.reports | length)) and
+            all(.reports[]; .status == "published" and (.report_id | startswith("report_")))
+          ' <<<"$response"
+
       - name: Check out repository
         if: >-
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
         if: >-
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
@@ -146,7 +224,8 @@ jobs:
         if: >-
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: |
           python -m pip install --disable-pip-version-check --no-deps -e .
           python -m pip install --disable-pip-version-check \
@@ -157,7 +236,8 @@ jobs:
         if: >-
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         id: admission
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
@@ -193,7 +273,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: python -m pip install --disable-pip-version-check -e .
 
       - name: Install Chromium and system dependencies
@@ -201,7 +282,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: python -m playwright install --with-deps chromium
 
       - name: Collect 15-source radar slice
@@ -209,7 +291,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: >-
           finance-topic-radar
           --manifest radar-sources.yaml
@@ -221,7 +304,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: >-
           finance-openbb-align
           --raw-items artifacts/topic-radar/raw-items.json
@@ -234,7 +318,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         run: |
           finance-tradingagents-plan \
             --topic-snapshot artifacts/topic-radar/topic-snapshot.json \
@@ -253,7 +338,8 @@ jobs:
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
-          !inputs.verify_soak_boundary
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -291,6 +377,7 @@ jobs:
           !inputs.verify_alert_delivery &&
           !inputs.verify_freshness_watchdog &&
           !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports &&
           inputs.verify_resilience
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
@@ -340,7 +427,7 @@ jobs:
       # admitted collection and publish path. Provider delivery happens before
       # D1 state changes, so a missing/rejected human channel leaves alerts open.
       - name: Resolve prior action failure alerts
-        if: success() && steps.admission.outputs.admitted == 'true'
+        if: success() && steps.admission.outputs.admitted == 'true' && !inputs.verify_research_reports
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -425,7 +512,7 @@ jobs:
           retention-days: 14
 
       - name: Deliver external failure alert through OIDC
-        if: failure()
+        if: failure() && !inputs.verify_research_reports
         env:
           INGEST_WORKER_URL: ${{ vars.INGEST_WORKER_URL }}
           OIDC_AUDIENCE: finance-crawler-validation-ingest
@@ -454,7 +541,7 @@ jobs:
             "$INGEST_WORKER_URL/v1/alerts/action-failure"
 
       - name: Open a failure alert issue
-        if: failure()
+        if: failure() && !inputs.verify_research_reports
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

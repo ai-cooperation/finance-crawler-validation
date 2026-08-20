@@ -7,6 +7,7 @@ import marketTopicAlignmentSchema from "../../schemas/market-topic-alignment.sch
 import rawItemSchema from "../../schemas/raw-item.schema.json";
 import researchReportEnvelopeSchema from "../../schemas/research-report-envelope.schema.json";
 import researchReportSchema from "../../schemas/research-report.schema.json";
+import researchAgentRequestSchema from "../../schemas/research-agent-request.schema.json";
 import topicSnapshotSchema from "../../schemas/topic-snapshot.schema.json";
 import tradingAgentsPlanEnvelopeSchema from "../../schemas/tradingagents-plan-envelope.schema.json";
 import tradingAgentsRunPlanSchema from "../../schemas/tradingagents-run-plan.schema.json";
@@ -229,6 +230,18 @@ export interface ResearchReportEnvelope {
   report: ResearchReport;
 }
 
+export interface ResearchAgentRequest {
+  schema_version: 1;
+  operation: "generate_research_reports";
+  run_id: string;
+  workflow_run_id: string;
+  commit_sha: string;
+  plan_id: string;
+  alignment_id: string;
+  model?: string;
+  max_reports?: number;
+}
+
 const ingestValidator = new Validator(ingestEnvelopeSchema as Schema, "2020-12", false);
 const marketSnapshotValidator = new Validator(marketSnapshotSchema as Schema, "2020-12", false);
 const marketTopicAlignmentValidator = new Validator(
@@ -255,6 +268,11 @@ const rawItemValidator = new Validator(rawItemSchema as Schema, "2020-12", false
 const researchReportValidator = new Validator(researchReportSchema as Schema, "2020-12", false);
 const researchReportEnvelopeValidator = new Validator(
   researchReportEnvelopeSchema as Schema,
+  "2020-12",
+  false,
+);
+const researchAgentRequestValidator = new Validator(
+  researchAgentRequestSchema as Schema,
   "2020-12",
   false,
 );
@@ -384,6 +402,15 @@ export function validateResearchReportEnvelope(payload: unknown): ResearchReport
       "$.expires_at: must be later than generated_at",
     ]);
   }
+  return payload;
+}
+
+export function validateResearchAgentRequest(payload: unknown): ResearchAgentRequest {
+  assertValid<ResearchAgentRequest>(
+    "research-agent-request",
+    researchAgentRequestValidator,
+    payload,
+  );
   return payload;
 }
 
