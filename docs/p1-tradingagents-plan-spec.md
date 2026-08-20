@@ -38,3 +38,4 @@
 - 冷凍雷達 run `run_20260818t145842z`：3 topics、market alignment coverage `1/3`；plan `plan_20260818t150000z` 判定 `eligible`，3 topics 可規劃，model 為 `tradingagents-deferred`、`max_usd=0`。
 - 這是 agent 執行前 gate，不是 TradingAgents 模型成功率或投資績效證據。
 - `/v1/ingest/research-report` 的本機測試覆蓋：私有 R2 物件、D1 索引、`tradingagents_completed` audit、冪等 replay、未選議題、過期時間、外部 evidence 與未標記 second opinion 均 fail closed；目前 5 個 Worker test files、73 tests 通過，branch coverage 80%。這些測試使用 synthetic fixture，不代表模型已執行或已產生真實投資意見。
+- Actions run `32333213987` 已遠端寫入 `plan_32333213987`，D1 顯示 `decision=eligible`、`topic_count=3`，R2 `plans/plan_32333213987.json` hash `dd22e56769175b9f8eda1d51c70d0a7ec37c2fe01fd169a819a18564d3cbd954` 與 audit 一致；本輪沒有呼叫模型，因此 `research_reports=0` 是預期的 budget gate 結果。
