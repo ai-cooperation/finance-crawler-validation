@@ -13,11 +13,36 @@ import type { AuthContext } from "./auth";
 import { HttpError, ingestResearchReport, type ResearchReportResult } from "./storage";
 
 
-export const DEFAULT_RESEARCH_MODEL = "@cf/meta/llama-3.2-3b-instruct";
+export const DEFAULT_RESEARCH_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 export const RESEARCH_AGENT_VERSION = "tradingagents-cloudflare-ai-v1";
 const MAX_EVIDENCE_ITEMS = 6;
 const MAX_EVIDENCE_CHARS = 1800;
 const REPORT_TTL_MS = 24 * 60 * 60 * 1000;
+const RESEARCH_RESPONSE_SCHEMA = {
+  type: "json_schema",
+  json_schema: {
+    type: "object",
+    properties: {
+      bull_case: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+      bear_case: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+      risk_view: { type: "array", minItems: 1, maxItems: 3, items: { "$ref": "#/$defs/claim" } },
+    },
+    required: ["bull_case", "bear_case", "risk_view"],
+    additionalProperties: false,
+    $defs: {
+      claim: {
+        type: "object",
+        properties: {
+          text: { type: "string" },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+          evidence_ids: { type: "array", minItems: 1, items: { type: "string" } },
+        },
+        required: ["text", "confidence", "evidence_ids"],
+        additionalProperties: false,
+      },
+    },
+  },
+} as const;
 
 export type AiRunner = (
   env: Env,
@@ -230,7 +255,8 @@ export async function generateResearchReports(
       ],
       max_tokens: Math.min(plan.budget.max_tokens, 1200),
       temperature: 0,
-      response_format: { type: "json_object" },
+      seed: 42,
+      response_format: RESEARCH_RESPONSE_SCHEMA,
     });
     const claims = parseModelClaims(output, new Set(evidenceIds));
     const generatedAt = now.toISOString();
