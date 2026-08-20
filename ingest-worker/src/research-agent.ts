@@ -472,7 +472,17 @@ function modelText(output: unknown): string {
   if (typeof output === "string") return output;
   if (isRecord(output)) {
     for (const key of ["response", "result", "text"]) {
-      if (typeof output[key] === "string") return output[key] as string;
+      const value = output[key];
+      if (typeof value === "string") return value;
+      // Workers AI JSON mode may return the parsed object under response.
+      // Convert only that structured response back to JSON for the strict
+      // contract parser; never accept arbitrary metadata as model content.
+      if (key === "response" && isRecord(value)) return JSON.stringify(value);
+      if (key === "result" && isRecord(value)) {
+        const nested = value.response;
+        if (typeof nested === "string") return nested;
+        if (isRecord(nested)) return JSON.stringify(nested);
+      }
     }
   }
   throw new HttpError(502, "model_output_invalid", ["response_text"]);
