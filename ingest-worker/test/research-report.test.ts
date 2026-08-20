@@ -289,6 +289,7 @@ describe("research report ingest", () => {
       commit_sha: COMMIT_SHA,
       plan_id: PLAN_ID,
       alignment_id: ALIGNMENT_ID,
+      authorize_model_execution: true,
     };
     const wrongWorkflow = createHandler({
       authenticate: async () => ({ workflowRunId: "other", commitSha: COMMIT_SHA }),
@@ -318,6 +319,7 @@ describe("research report ingest", () => {
       commit_sha: COMMIT_SHA,
       plan_id: PLAN_ID,
       alignment_id: alignmentId,
+      authorize_model_execution: true,
     });
     const call = async (payload: unknown) => createHandler({
       authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
@@ -546,6 +548,7 @@ describe("research report ingest", () => {
           commit_sha: COMMIT_SHA,
           plan_id: PLAN_ID,
           alignment_id: ALIGNMENT_ID,
+          authorize_model_execution: true,
           max_reports: 1,
         }),
       },
@@ -577,6 +580,7 @@ describe("research report ingest", () => {
           commit_sha: COMMIT_SHA,
           plan_id: PLAN_ID,
           alignment_id: ALIGNMENT_ID,
+          authorize_model_execution: true,
           max_reports: 1,
         }),
       },

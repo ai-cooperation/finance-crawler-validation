@@ -2,7 +2,7 @@
 
 更新日期：2026-08-20
 
-這一層先產生可稽核的 agent run plan，不執行 TradingAgents、不使用付費模型，也不產生 bull／bear 結論。只有 plan 的 `decision=eligible` 且後續 budget gate 放行時，才可建立 `research-report` 第二意見。研究報告的私有 R2／D1 ingest 邊界已在本機完成 TDD，但尚未部署到驗證帳號。
+這一層先產生可稽核的 agent run plan；真正的第二意見由獨立的報告模式呼叫 Cloudflare Workers AI。只有 plan 的 `decision=eligible`、OIDC 身份正確且 request 明確帶 `authorize_model_execution=true` 時，才會執行模型並建立 `research-report`。報告仍必須通過 evidence、schema、D1/R2 與 audit 邊界。
 
 ## 啟動規則
 
@@ -15,7 +15,7 @@
 
 ## Budget boundary
 
-`max_tokens`、`max_claims_per_topic`、`max_topics` 與 `max_usd` 都必須進入 plan。`model=tradingagents-deferred`、`max_usd=0` 只代表目前完成規劃與 evidence assembly，不代表已執行模型。真正執行前必須另設 provider／模型與費用批准。
+`max_tokens`、`max_claims_per_topic`、`max_topics` 與 `max_usd` 都必須進入 plan。`model=tradingagents-deferred` 只代表 plan 階段；真正執行使用獨立的 Workers AI model 與明確的 `authorize_model_execution=true` 閘門，模型用量不冒充 GitHub Actions 免費額度。
 
 真正產出的 `research-report` 必須同時引用 `plan_id`、`alignment_id`、`market_snapshot_id` 與根級 `evidence_ids`；bull／bear／risk claim 內的 evidence IDs 不能取代這些輸入關聯欄位。
 
@@ -38,4 +38,6 @@
 - 冷凍雷達 run `run_20260818t145842z`：3 topics、market alignment coverage `1/3`；plan `plan_20260818t150000z` 判定 `eligible`，3 topics 可規劃，model 為 `tradingagents-deferred`、`max_usd=0`。
 - 這是 agent 執行前 gate，不是 TradingAgents 模型成功率或投資績效證據。
 - `/v1/ingest/research-report` 的本機測試覆蓋：私有 R2 物件、D1 索引、`tradingagents_completed` audit、冪等 replay、未選議題、過期時間、外部 evidence 與未標記 second opinion 均 fail closed；目前 5 個 Worker test files、73 tests 通過，branch coverage 80%。這些測試使用 synthetic fixture，不代表模型已執行或已產生真實投資意見。
-- Actions run `32333213987` 已遠端寫入 `plan_32333213987`，D1 顯示 `decision=eligible`、`topic_count=3`，R2 `plans/plan_32333213987.json` hash `dd22e56769175b9f8eda1d51c70d0a7ec37c2fe01fd169a819a18564d3cbd954` 與 audit 一致；本輪沒有呼叫模型，因此 `research_reports=0` 是預期的 budget gate 結果。
+- Actions run `32333213987` 已遠端寫入 `plan_32333213987`，D1 顯示 `decision=eligible`、`topic_count=3`，R2 `plans/plan_32333213987.json` hash `dd22e56769175b9f8eda1d51c70d0a7ec37c2fe01fd169a819a18564d3cbd954` 與 audit 一致。
+- Actions run `32336183763` 以真實 Cloudflare Workers AI model `@cf/meta/llama-3.3-70b-instruct-fp8-fast` 執行 3 個 topic，回傳並保存三份 `research-report`：`report_run_20260820t044924z_digital_assets`、`report_run_20260820t044924z_equities_earnings`、`report_run_20260820t044924z_personal_finance`；D1 `tradingagents_completed` audit 為 3 筆，三個 R2 object hash 分別為 `bd5824fb8479332e3f427f4c5eb52adeb97c49bfa6ecb766bc9acc8721a92746`、`3e799ea15209f50c112afb4bdd3d57736bc97210df397d4fcce677e645e0673e`、`162fe1d0e09192918bee66eba5a3e467bd21a55be9589cbc1aaee3246e2e4163`。每份報告都含 bull／bear／risk、confidence、evidence IDs、model 與 agent version。
+- Actions run `32336289077` 對同一批報告完成無模型重放，三筆均回傳 `replayed=true`；因此模型執行與私有 persistence 不是預期值，而是可查回的真實輸出及冪等證據。
