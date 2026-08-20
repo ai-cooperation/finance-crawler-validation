@@ -259,6 +259,7 @@ describe("research report ingest", () => {
     expect(parseModelClaims(JSON.stringify(claims), allowed).bull_case).toHaveLength(1);
     expect(parseModelClaims({ response: claims }, allowed).bull_case).toHaveLength(1);
     expect(parseModelClaims({ result: JSON.stringify(claims) }, allowed).bear_case).toHaveLength(1);
+    expect(parseModelClaims({ result: { response: claims } }, allowed).bear_case).toHaveLength(1);
     expect(parseModelClaims({ text: "```json\n" + JSON.stringify(claims) + "\n```" }, allowed).risk_view)
       .toHaveLength(1);
     expect(() => parseModelClaims({ response: JSON.stringify({
@@ -268,6 +269,11 @@ describe("research report ingest", () => {
     }) }, allowed)).toThrow(/model_output_invalid/);
     expect(() => parseModelClaims({ response: JSON.stringify({
       bull_case: [{ text: "x", confidence: 0.5, evidence_ids: [] }],
+      bear_case: claims.bear_case,
+      risk_view: claims.risk_view,
+    }) }, allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims({ response: JSON.stringify({
+      bull_case: [{ text: "", confidence: 0.5, evidence_ids: [ITEM_ID] }],
       bear_case: claims.bear_case,
       risk_view: claims.risk_view,
     }) }, allowed)).toThrow(/model_output_invalid/);
@@ -504,7 +510,7 @@ describe("research report ingest", () => {
       authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
       now: () => new Date("2026-08-20T04:10:00Z"),
       runAi: async (_env, model, input) => {
-        expect(model).toBe("@cf/meta/llama-3.2-3b-instruct");
+        expect(model).toBe("@cf/meta/llama-3.3-70b-instruct-fp8-fast");
         expect(input).toMatchObject({ temperature: 0 });
         return {
           response: JSON.stringify({
@@ -554,7 +560,7 @@ describe("research report ingest", () => {
     ).first();
     expect(row).toEqual({
       report_id: `report_${RUN_ID}_digital_assets`,
-      model: "@cf/meta/llama-3.2-3b-instruct",
+      model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
       agent_version: "tradingagents-cloudflare-ai-v1",
     });
 
