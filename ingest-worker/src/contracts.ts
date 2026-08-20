@@ -238,6 +238,7 @@ export interface ResearchAgentRequest {
   commit_sha: string;
   plan_id: string;
   alignment_id: string;
+  authorize_model_execution: true;
   model?: string;
   max_reports?: number;
 }

@@ -1,7 +1,7 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
 更新日期：2026-08-20
-狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、116 成功（96.67%）驗收。P0 的 catch-up、D1 原子 admission、replay 去重與 failure-path 已完成遠端驗證；低頻 soak 仍只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。P1 的 OpenBB market snapshot、topic alignment 與 TradingAgents run-plan 已由 Actions run `32333213987` 完成遠端 D1/R2 persistence；實際模型執行與第二意見尚未開啟。後續順序固定為關閉 P0 soak → 啟用有預算的 P1 第二意見 → MCP／Agent 使用者介面裁示。
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、116 成功（96.67%）驗收。P0 的 catch-up、D1 原子 admission、replay 去重與 failure-path 已完成遠端驗證；低頻 soak 仍只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。P1 的 OpenBB market snapshot、topic alignment、TradingAgents run-plan 與真實 Workers AI 第二意見已完成遠端 D1/R2 persistence；下一關是 MCP／Agent 使用者介面裁示。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -166,7 +166,7 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 | 1. 資料契約 | 本機完成 | 已註冊的 version 1 JSON Schema（含只讀 status、market alignment、TradingAgents plan 與 private research report envelope）、嚴格邊界驗證、content-based item ID 與版本策略已通過測試 |
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
 | 3. GH 批次管線 | 手動 OIDC 韌性實接完成 | ingest／publish replay、invalid publish 保留 last-good、checkpoint catch-up、D1 原子 admission、action failure webhook、watchdog 與去重已實作；正式排程等有人訂閱的告警目的地後才開啟 |
-| 4. 議題雷達與研究 | P1 市場／計畫遠端完成；第二意見待預算 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；Actions run `32333213987` 寫入 9 筆本輪 raw items、3 topics、3 market instruments、1 alignment 與 1 eligible plan，D1/R2 hash 已讀回一致；本輪 `research_reports=0` 是因模型 budget gate 保持 deferred，不代表模型已執行 |
+| 4. 議題雷達與研究 | 遠端完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；Actions run `32333213987` 寫入 9 筆本輪 raw items、3 topics、3 market instruments、1 alignment 與 1 eligible plan，D1/R2 hash 已讀回一致；Actions run `32336183763` 真實執行 Workers AI 並保存 3 份 bull／bear／risk 第二意見，`32336289077` 完成 replay 驗證 |
 | 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
 | 6. 穩定性驗收 | 部分完成 | 故障注入、外部 transport 與去重、額度拒絕的廉價路徑已遠端實測；有人訂閱的告警與連續 soak 尚未完成 |
 
