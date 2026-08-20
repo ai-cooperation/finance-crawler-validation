@@ -40,5 +40,8 @@
       "binding": "RAW_OBJECTS",
       "bucket_name": "finance-crawler-validation-raw"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

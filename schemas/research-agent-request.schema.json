@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-agent-request.schema.json",
+  "title": "Cloudflare Workers AI research-report generation request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "run_id",
+    "workflow_run_id",
+    "commit_sha",
+    "plan_id",
+    "alignment_id"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "operation": { "const": "generate_research_reports" },
+    "run_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "workflow_run_id": { "type": "string", "pattern": "^[0-9]{1,32}$" },
+    "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "plan_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "alignment_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "model": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "max_reports": { "type": "integer", "minimum": 1, "maximum": 3 }
+  }
+}

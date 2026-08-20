@@ -33,6 +33,7 @@ import {
   runFreshnessWatchdog,
 } from "./watchdog";
 import { observeScheduledSoak } from "./soak";
+import { generateResearchReports, type AiRunner } from "./research-agent";
 
 
 const MAX_JSON_BYTES = 2_000_000;
@@ -43,12 +44,14 @@ export interface HandlerDependencies {
   authenticate: Authenticator;
   now: () => Date;
   alertFetch: typeof fetch;
+  runAi: AiRunner;
 }
 
 const defaultDependencies: HandlerDependencies = {
   authenticate: authenticateGithubOidc,
   now: () => new Date(),
   alertFetch: fetch,
+  runAi: async (env, model, input) => env.AI.run(model, input),
 };
 
 export function createHandler(
@@ -111,6 +114,7 @@ export function createHandler(
         "/v1/ingest/market-alignment",
         "/v1/ingest/tradingagents-plan",
         "/v1/ingest/research-report",
+        "/v1/agent/research-reports",
         "/v1/run/plan",
         "/v1/alerts/action-failure",
         "/v1/alerts/action-recovery",
@@ -238,6 +242,17 @@ export function createHandler(
             { ...result, request_id: requestId },
             result.replayed ? 200 : 201,
           );
+        }
+
+        if (url.pathname === "/v1/agent/research-reports") {
+          const result = await generateResearchReports(
+            env,
+            payload,
+            auth,
+            dependencies.now(),
+            dependencies.runAi,
+          );
+          return jsonResponse({ ...result, request_id: requestId }, 200);
         }
 
         const runId = stringField(payload, "run_id");

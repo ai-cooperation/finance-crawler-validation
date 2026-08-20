@@ -9,6 +9,7 @@ import {
   ingestTradingAgentsPlan,
   publishSnapshot,
 } from "../src/storage";
+import { parseModelClaims } from "../src/research-agent";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -233,6 +234,147 @@ beforeEach(async () => {
 });
 
 describe("research report ingest", () => {
+  it("fails closed on malformed or ungrounded model output", () => {
+    const allowed = new Set([ITEM_ID]);
+    expect(() => parseModelClaims("not json", allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims("{bad}", allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims({ response: "{}" }, allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims({ response: JSON.stringify({ bull_case: [] }) }, allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims({
+      response: JSON.stringify({
+        bull_case: [{ text: "x", confidence: 0.5, evidence_ids: ["e".repeat(64)] }],
+        bear_case: [{ text: "x", confidence: 0.5, evidence_ids: [ITEM_ID] }],
+        risk_view: [{ text: "x", confidence: 0.5, evidence_ids: [ITEM_ID] }],
+      }),
+    }, allowed)).toThrow(/model_output_invalid/);
+  });
+
+  it("accepts grounded JSON from the supported Workers AI response shapes", () => {
+    const allowed = new Set([ITEM_ID]);
+    const claims = {
+      bull_case: [{ text: "bull", confidence: 0.5, evidence_ids: [ITEM_ID] }],
+      bear_case: [{ text: "bear", confidence: 0.4, evidence_ids: [ITEM_ID] }],
+      risk_view: [{ text: "risk", confidence: 0.8, evidence_ids: [ITEM_ID] }],
+    };
+    expect(parseModelClaims(JSON.stringify(claims), allowed).bull_case).toHaveLength(1);
+    expect(parseModelClaims({ result: JSON.stringify(claims) }, allowed).bear_case).toHaveLength(1);
+    expect(parseModelClaims({ text: "```json\n" + JSON.stringify(claims) + "\n```" }, allowed).risk_view)
+      .toHaveLength(1);
+    expect(() => parseModelClaims({ response: JSON.stringify({
+      bull_case: [{ text: "x", confidence: 1.1, evidence_ids: [ITEM_ID] }],
+      bear_case: claims.bear_case,
+      risk_view: claims.risk_view,
+    }) }, allowed)).toThrow(/model_output_invalid/);
+    expect(() => parseModelClaims({ response: JSON.stringify({
+      bull_case: [{ text: "x", confidence: 0.5, evidence_ids: [] }],
+      bear_case: claims.bear_case,
+      risk_view: claims.risk_view,
+    }) }, allowed)).toThrow(/model_output_invalid/);
+  });
+
+  it("binds report generation to the current GitHub OIDC workflow identity", async () => {
+    await arrange();
+    const payload = {
+      schema_version: 1,
+      operation: "generate_research_reports",
+      run_id: RUN_ID,
+      workflow_run_id: "32330093877",
+      commit_sha: COMMIT_SHA,
+      plan_id: PLAN_ID,
+      alignment_id: ALIGNMENT_ID,
+    };
+    const wrongWorkflow = createHandler({
+      authenticate: async () => ({ workflowRunId: "other", commitSha: COMMIT_SHA }),
+    });
+    const workflowResponse = await wrongWorkflow.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) },
+    ), env);
+    expect(workflowResponse.status).toBe(403);
+    const wrongCommit = createHandler({
+      authenticate: async () => ({ workflowRunId: "32330093877", commitSha: "e".repeat(40) }),
+    });
+    const commitResponse = await wrongCommit.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) },
+    ), env);
+    expect(commitResponse.status).toBe(403);
+  });
+
+  it("fails closed when persisted plan, alignment, or evidence objects drift", async () => {
+    await arrange();
+    const requestPayload = (alignmentId = ALIGNMENT_ID) => ({
+      schema_version: 1,
+      operation: "generate_research_reports",
+      run_id: RUN_ID,
+      workflow_run_id: "32330093877",
+      commit_sha: COMMIT_SHA,
+      plan_id: PLAN_ID,
+      alignment_id: alignmentId,
+    });
+    const call = async (payload: unknown) => createHandler({
+      authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
+    }).fetch(new Request("https://ingest.example/v1/agent/research-reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }), env);
+
+    expect((await call(requestPayload("align_20260820t040001z"))).status).toBe(409);
+    await env.DB.prepare(
+      `INSERT INTO runs (
+        run_id, workflow_run_id, commit_sha, snapshot_id, source_manifest_hash,
+        status, collected_at, item_count
+      ) VALUES (?, ?, ?, ?, ?, 'published', ?, 0)`,
+    ).bind(
+      "run_other",
+      "32330093878",
+      "f".repeat(40),
+      "radar_20260820t040001z",
+      "a".repeat(64),
+      "2026-08-20T04:00:01Z",
+    ).run();
+    await env.DB.prepare(
+      "UPDATE topic_market_alignments SET run_id = ? WHERE alignment_id = ?",
+    ).bind("run_other", ALIGNMENT_ID).run();
+    expect((await call(requestPayload())).status).toBe(409);
+
+    await env.DB.prepare(
+      "UPDATE topic_market_alignments SET run_id = ? WHERE alignment_id = ?",
+    ).bind(RUN_ID, ALIGNMENT_ID).run();
+    await env.DB.prepare(
+      "UPDATE market_snapshots SET run_id = ? WHERE snapshot_id = ?",
+    ).bind("run_other", "market_20260820t035900z").run();
+    expect((await call(requestPayload())).status).toBe(409);
+    await env.DB.prepare(
+      "UPDATE market_snapshots SET run_id = ? WHERE snapshot_id = ?",
+    ).bind(RUN_ID, "market_20260820t035900z").run();
+    await env.RAW_OBJECTS.put(`alignments/${ALIGNMENT_ID}.json`, "{}", {
+      httpMetadata: { contentType: "application/json" },
+    });
+    expect((await call(requestPayload())).status).toBe(503);
+
+    await env.RAW_OBJECTS.put(
+      `alignments/${ALIGNMENT_ID}.json`,
+      JSON.stringify(alignmentEnvelope().alignment),
+      { httpMetadata: { contentType: "application/json" } },
+    );
+    await env.RAW_OBJECTS.put("market/market_20260820t035900z.json", "{}", {
+      httpMetadata: { contentType: "application/json" },
+    });
+    expect((await call(requestPayload())).status).toBe(503);
+
+    await env.RAW_OBJECTS.put(
+      "market/market_20260820t035900z.json",
+      JSON.stringify(alignmentEnvelope().market_snapshot),
+      { httpMetadata: { contentType: "application/json" } },
+    );
+    await env.RAW_OBJECTS.put(`raw/coingecko_markets_api/${ITEM_ID}.json`, "{}", {
+      httpMetadata: { contentType: "application/json" },
+    });
+    expect((await call(requestPayload())).status).toBe(503);
+  });
+
   async function arrange() {
     await ingestItems(env, envelope(), new Date("2026-08-20T03:58:50Z"));
     await publishSnapshot(env, topicSnapshot(), new Date("2026-08-20T03:58:55Z"));
@@ -353,5 +495,89 @@ describe("research report ingest", () => {
     ), env);
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ error: "plan_not_found" });
+  });
+
+  it("runs a real-agent-shaped model response and persists the generated second opinion", async () => {
+    await arrange();
+    const handler = createHandler({
+      authenticate: async () => ({ workflowRunId: "32330093877", commitSha: COMMIT_SHA }),
+      now: () => new Date("2026-08-20T04:10:00Z"),
+      runAi: async (_env, model, input) => {
+        expect(model).toBe("@cf/meta/llama-3.2-3b-instruct");
+        expect(input).toMatchObject({ temperature: 0 });
+        return {
+          response: JSON.stringify({
+            bull_case: [{
+              text: "The observed market data supports a constructive near-term case.",
+              confidence: 0.6,
+              evidence_ids: [ITEM_ID],
+            }],
+            bear_case: [{
+              text: "A single market-data point is insufficient to rule out a reversal.",
+              confidence: 0.55,
+              evidence_ids: [ITEM_ID],
+            }],
+            risk_view: [{
+              text: "The evidence set is narrow and should not be treated as a forecast.",
+              confidence: 0.9,
+              evidence_ids: [ITEM_ID],
+            }],
+          }),
+        };
+      },
+    });
+    const response = await handler.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          operation: "generate_research_reports",
+          run_id: RUN_ID,
+          workflow_run_id: "32330093877",
+          commit_sha: COMMIT_SHA,
+          plan_id: PLAN_ID,
+          alignment_id: ALIGNMENT_ID,
+          max_reports: 1,
+        }),
+      },
+    ), env);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      report_count: 1,
+      reports: [{ report_id: `report_${RUN_ID}_digital_assets`, replayed: false }],
+    });
+    const row = await env.DB.prepare(
+      "SELECT report_id, model, agent_version FROM research_reports",
+    ).first();
+    expect(row).toEqual({
+      report_id: `report_${RUN_ID}_digital_assets`,
+      model: "@cf/meta/llama-3.2-3b-instruct",
+      agent_version: "tradingagents-cloudflare-ai-v1",
+    });
+
+    const replay = await handler.fetch(new Request(
+      "https://ingest.example/v1/agent/research-reports",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: 1,
+          operation: "generate_research_reports",
+          run_id: RUN_ID,
+          workflow_run_id: "32330093877",
+          commit_sha: COMMIT_SHA,
+          plan_id: PLAN_ID,
+          alignment_id: ALIGNMENT_ID,
+          max_reports: 1,
+        }),
+      },
+    ), env);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({
+      report_count: 1,
+      reports: [{ replayed: true }],
+    });
   });
 });
