@@ -1,7 +1,9 @@
 # CF＋GitHub＋MCP 財經資料平台實作計畫
 
-更新日期：2026-08-20
-狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、116 成功（96.67%）驗收。P0 的 catch-up、D1 原子 admission、replay 去重與 failure-path 已完成遠端驗證；低頻 soak 仍只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。P1 的 OpenBB market snapshot、topic alignment、TradingAgents run-plan 與真實 Workers AI 第二意見已完成遠端 D1/R2 persistence；下一關是 MCP／Agent 使用者介面裁示。
+更新日期：2026-08-21
+狀態：資料契約、Ingest Worker、D1／R2、15 來源議題雷達、遠端冪等重放、invalid publish 保留 last-good 與只讀 status 已在隔離驗證帳號實測；P2 已完成 120 個不重複品牌、116 成功（96.67%）驗收。P0 的 catch-up、D1 原子 admission、replay 去重與 failure-path 已完成遠端驗證；低頻 soak 仍只差配置並驗證有人訂閱的外部通知目的地，正式 schedule／Cron 在此之前保持關閉。P1 的 OpenBB market snapshot、topic alignment、TradingAgents run-plan 與真實 Workers AI 第二意見已完成遠端 D1/R2 persistence；遠端目前仍是舊版 App A MCP／job／Research Pack bounded slice，新的 Planner、retry、target-specific Actions callback 與 source-bundle binding 已在本機完成，尚待驗證帳號部署與 OpenCode／Big Pickle 真實 client Gate A；App B 尚未開始。
+
+完整投資研究助手的上位 SDD／TDD、階段交接契約、稽核欄位與 test matrix 見 [`complete-investment-research-assistant-plan.md`](./complete-investment-research-assistant-plan.md)。本文件保留 CF＋GitHub 資料平台的既有實作與驗證紀錄；若兩份文件有施工順序衝突，以完整計畫的 stage gate 與 handoff manifest 為準。App A 的 report profile／requested outputs 已在本機完成，遠端還需套用 0009／0010 migration 與重新部署。
 
 本計畫延續 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md)，並採用 SB 筆記中已確認的 GitHub Actions 失效策略：[GitHub Actions 爬蟲與 CF MCP 架構](https://github.com/AlanChen75/knowledge-base/blob/main/tech/devops/2026-08-06-GitHub-Actions-%E7%88%AC%E8%9F%B2%E8%88%87-CF-MCP-%E6%9E%B6%E6%A7%8B.md)。
 
@@ -10,11 +12,11 @@
 - GitHub Actions 是可失敗、可重跑、可被替換的批次算力，不是資料真實來源。
 - Cloudflare D1＋R2 是 system of record；Actions 中斷只能影響新鮮度，不得讓既有 MCP 查詢失效。
 - Worker 依權限拆成公開 Relay、只寫 Ingest 與授權讀取 MCP；GitHub Actions 不持有廣泛的 D1／R2 管理權限。
-- Crawl4AI、OpenBB 與 TradingAgents 均以背景批次執行，不要求即時 Python 後端。
+- Crawl4AI、OpenBB 與 TradingAgents 均以背景批次執行，不要求即時 Python 後端；OpenBB 只有在 Research Requirement 明確要求市場資料時才啟動。
 - chat.ai 透過 MCP 讀取已整理的資料，負責後續追問與即時推理。
 - 免費額度優先；Workers Paid、Container、商業 proxy／web unlocker 與雙雲高可用都不是第一階段必要條件。OpenBB provider 與 TradingAgents 模型費用另設獨立 budget gate，不併入 GitHub／Cloudflare 免費額度宣稱。
 - 爬取維持 Browser＋API＋RSS 分層，並按來源、資源與失敗類型選擇執行平台。
-- 交付順序以資料供應能力為先：P0 完成後先驗收 120 個不重複新聞品牌，再串接 OpenBB 與 TradingAgents；MCP 與 Agent 對外介面留到最後由使用者裁示。
+- 交付順序以資料供應能力為先：P0 完成後先驗收 120 個不重複新聞品牌，再串接 OpenBB 與 TradingAgents；目前已先部署最小 MCP/job 以驗證 App A 交接，完整 OAuth 與雙應用對外介面仍依 `two-application-alignment-spec.md` 的 Gate A／B 驗收。
 - P0 只預留穩定的 ID、schema、權限邊界與版本策略，不因預留 MCP 契約而提前實作 MCP Server 或 Chat Agent UI。
 
 ### 2026-08-14 資料公開邊界確認
@@ -60,7 +62,7 @@ flowchart LR
 ## 四、背景分析管線
 
 1. Crawl4AI 依來源策略執行 RSS、API、HTTP 或 Browser 擷取。
-2. OpenBB 整理市場資料、標的與時間軸，產生可比對的市場快照。
+2. 若需求包含市場資料，OpenBB 整理市場資料、標的與時間軸，產生可比對的市場快照；若 `include_market_data=false`，workflow 產生 `provider=not_requested` 的合法空快照，不以不相干 provider 補資料。
 3. 議題雷達計算熱度、成長率、來源廣度、新聞／社群背離與資料可信度。
 4. 只有以下工作會啟動 TradingAgents：
    - 當期熱門議題前三名；
@@ -118,9 +120,9 @@ Cloudflare 端以目前時間減去 `last_successful_crawl` 判斷 freshness。�
 - `robots_denied`、`auth_required`、paywall 是終止狀態，不切換 IP、browser 或 unlocker 規避。
 - 商業 executor、residential proxy 或 web unlocker 只有在明確授權與成本預算開啟後才能使用。
 
-## 七、MCP 介面候選契約（待最終裁示）
+## 七、MCP 介面候選契約（最小 App A 已部署；產品化仍待驗收）
 
-本節只作為 P0 資料邊界與權限設計的候選契約，不代表已批准實作的使用者介面。必須先完成 120 來源驗收與 OpenBB／TradingAgents 應用層，再由使用者裁示 MCP tools、Chat Agent 形態、對外權限與是否開放寫入型 tool。
+本節保留資料邊界與權限設計；驗證帳號曾以舊版 `latest_published` 完成 `POST /mcp` 的 App A 最小 tool catalog、非同步 job、Research Pack／report read-back bounded smoke，但目前遠端仍是舊版（GET `/mcp` 未帶 token 為 405，0009 migration 與新版 deploy 尚未完成）。這不代表新版 target-specific Actions callback 或完整使用者介面已完成。雙應用的正式工具、Chat Agent 形態、對外權限與寫入型 tool，依 [`two-application-alignment-spec.md`](./two-application-alignment-spec.md) 的 Gate A／B 驗收。
 
 OAuth scope 預計分為：
 
@@ -154,7 +156,7 @@ P0、P2、P1 是既有 backlog 標籤，不直接代表施工先後。本專案�
 | Gate 1 | P0 | 補齊 SDD／TDD、遠端重放與故障注入、checkpoint／catch-up、D1 status／freshness、外部告警、額度保護與低頻 soak | 契約可追溯，失敗不破壞 last-good，重放不產生重複資料，過期與 workflow 失敗會產生外部告警，並有實際用量記錄 |
 | Gate 2 | P2 提前執行 | 120 個不重複新聞品牌的 Browser＋API＋RSS 路由、fallback、來源健康、跨時間 observation state 與同 URL executor A／B | 120／120 都有品牌級實測記錄；成功分子只計不重複品牌；每個失敗都有可追溯原因與合規終止／fallback 判定；使用按需、分批、優先重驗失敗或證據過期來源，不固定全量重跑三輪 |
 | Gate 3 | P1 應用整合 | 先以 OpenBB 建立市場快照與時間軸對齊，再以 TradingAgents 產生 bull／bear／risk 可溯源「第二意見」 | 實際來源資料可完成 topic↔market↔evidence 關聯；報告可重跑、可中斷續跑、有預算關卡，且不將模型輸出宣稱為交易事實 |
-| Gate 4 | 使用者裁示 | 決定 MCP／Chat Agent 的用戶任務、tools、OAuth scopes、讀寫邊界、回應形態與客戶端 | 使用者批准介面 SDD 與驗收用例後，才開始 MCP Server 與 Agent 實作 |
+| Gate 4 | 雙應用產品化 | 凍結 App A／App B 的 user flow、tools、OAuth scopes、讀寫邊界、回應形態與客戶端 | Gate A／B 的 client evidence、OAuth onboarding 與 deny matrix；不以 curl smoke 代替客戶端驗收 |
 
 Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源架構](./resource-aware-news-architecture.md) 計算為 108／120 與 114／120。2026-08-14 隔離帳號先以新版 163 endpoint 完整 baseline 實測 120 個唯一品牌，再以一個只含四個修正品牌的 bounded batch 合併，得到 116／120 成功（96.67%），達成 P2 gate。現行 catalog 為 166 endpoint paths；run ID、artifact SHA-256、合併 hash 與剩餘四個合規邊界保存於 [`p2-acceptance-20260814.json`](../experiments/news-120/p2-acceptance-20260814.json)。2026-08-13 的 162 endpoint／114 成功證據保留為歷史紀錄，不被新版回填。
 
@@ -167,7 +169,7 @@ Gate 2 的 90% 與 95% 品牌成功門檻依 [120 家新聞品牌的按需資源
 | 2. CF system of record | 遠端垂直切片完成 | APAC D1 migration、private R2 binding、staging／current、last-good、稽核 hash chain、ingest receipt、只讀 status 與 Ingest Worker 已部署；runs `31369726174`、`31676925023` 均完成 D1／R2 直讀驗證 |
 | 3. GH 批次管線 | 手動 OIDC 韌性實接完成 | ingest／publish replay、invalid publish 保留 last-good、checkpoint catch-up、D1 原子 admission、action failure webhook、watchdog 與去重已實作；正式排程等有人訂閱的告警目的地後才開啟 |
 | 4. 議題雷達與研究 | 遠端完成 | 15 個唯一來源、熱門前三名、新聞／社群背離與 partial 揭露已由 GitHub-hosted runner 實測；Actions run `32333213987` 寫入 9 筆本輪 raw items、3 topics、3 market instruments、1 alignment 與 1 eligible plan，D1/R2 hash 已讀回一致；Actions run `32336183763` 真實執行 Workers AI 並保存 3 份 bull／bear／risk 第二意見，`32336289077` 完成 replay 驗證 |
-| 5. OAuth MCP | 待最終裁示 | 本階段只保留 scope 與 tool 候選契約；須在 120 來源與 OpenBB／TradingAgents 完成後由使用者批准介面 SDD |
+| 5. MCP／OAuth productization | 舊版 App A 垂直切片已部署；新版 Gate A 未完成 | 舊版 token scope、job／pack read-back 已遠端驗證；新版 planner／Actions callback／source binding、OAuth onboarding、App B tools、scope deny matrix 與客戶端仍待驗收 |
 | 6. 穩定性驗收 | 部分完成 | 故障注入、外部 transport 與去重、額度拒絕的廉價路徑已遠端實測；有人訂閱的告警與連續 soak 尚未完成 |
 
 不以「已送出 workflow」視為完成。每一階段必須有可重現測試、實際輸出或 health response 才能改成已完成。

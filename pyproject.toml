@@ -31,6 +31,8 @@ finance-openbb-align = "finance_crawler_poc.openbb_alignment_cli:main"
 finance-tradingagents-plan = "finance_crawler_poc.tradingagents_plan_cli:main"
 finance-soak-verify = "finance_crawler_poc.soak_verify:main"
 finance-soak-usage-collect = "finance_crawler_poc.soak_usage_collect:main"
+finance-app-a-gate = "finance_crawler_poc.app_a_gate:main"
+finance-app-a-remote = "finance_crawler_poc.app_a_remote:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/finance_crawler_poc"]

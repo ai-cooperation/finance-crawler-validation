@@ -15,6 +15,11 @@ export interface AuthContext {
   eventName?: string;
 }
 
+export interface McpAuthContext {
+  subject: string;
+  scopes: string[];
+}
+
 export interface ExpectedGithubClaims {
   repositoryId: string;
   ownerId: string;
@@ -33,6 +38,30 @@ export class AuthenticationError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+/**
+ * MCP is a separate client boundary from GitHub OIDC.  The shared token is
+ * deliberately fail-closed: a deployment without MCP_API_TOKEN cannot expose
+ * private R2/D1 artifacts.  OAuth/Access can replace this verifier later
+ * without changing the tool contract.
+ */
+export async function authenticateMcp(
+  request: Request,
+  env: Env,
+): Promise<McpAuthContext> {
+  const configured = secretValue(env, "MCP_API_TOKEN");
+  if (!configured) throw new AuthenticationError(503, "mcp_auth_not_configured");
+  const authorization = request.headers.get("Authorization") ?? "";
+  const match = /^Bearer ([^\s]+)$/.exec(authorization);
+  if (!match || !(await constantTimeEqual(match[1], configured))) {
+    throw new AuthenticationError(401, "invalid_mcp_token");
+  }
+  const scopes = (secretValue(env, "MCP_SCOPES") ?? "research:submit research:read")
+    .split(/[ ,]+/)
+    .map((scope) => scope.trim())
+    .filter((scope) => scope.length > 0);
+  return { subject: "mcp-token", scopes };
 }
 
 export async function authenticateGithubOidc(
@@ -74,6 +103,25 @@ export async function authenticateGithubOidc(
 
 function isPlaceholder(value: string): boolean {
   return value === "TBD";
+}
+
+function secretValue(env: Env, name: string): string | null {
+  const value = Reflect.get(env, name);
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+async function constantTimeEqual(left: string, right: string): Promise<boolean> {
+  const [leftDigest, rightDigest] = await Promise.all([
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(left)),
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(right)),
+  ]);
+  const leftBytes = new Uint8Array(leftDigest);
+  const rightBytes = new Uint8Array(rightDigest);
+  let mismatch = leftBytes.length ^ rightBytes.length;
+  for (let index = 0; index < Math.max(leftBytes.length, rightBytes.length); index += 1) {
+    mismatch |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0);
+  }
+  return mismatch === 0;
 }
 
 export function assertGithubClaims(

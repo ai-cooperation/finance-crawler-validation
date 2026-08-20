@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Any, Sequence
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from finance_crawler_poc.radar_manifest import RadarManifest, RadarSource, load_radar_manifest
+from finance_crawler_poc.radar_manifest import (
+    RadarManifest,
+    RadarSource,
+    load_radar_manifest,
+    select_radar_sources,
+)
 
 
 MAX_LOOKBACK = timedelta(days=7)
@@ -222,12 +227,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--workflow-run-id", default=os.environ.get("GITHUB_RUN_ID", "0"))
     parser.add_argument("--commit-sha", default=os.environ.get("GITHUB_SHA", "0" * 40))
+    parser.add_argument(
+        "--source-ids",
+        help="Comma-separated target-scoped source IDs; must contain 12–20 manifest sources",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     manifest = load_radar_manifest(args.manifest)
+    if args.source_ids:
+        manifest = select_radar_sources(
+            manifest,
+            [source_id.strip() for source_id in args.source_ids.split(",") if source_id.strip()],
+        )
     payload = build_run_plan_request(
         manifest,
         workflow_run_id=args.workflow_run_id,

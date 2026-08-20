@@ -4,12 +4,19 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   assertGithubClaims,
+  authenticateMcp,
   authenticateGithubOidc,
   AuthenticationError,
 } from "../src/auth";
 import { canonicalJson } from "../src/canonical-json";
 import { createHandler } from "../src/handler";
-import { HttpError, ingestItems, publishSnapshot } from "../src/storage";
+import {
+  buildAuditStatement,
+  HttpError,
+  ingestItems,
+  publishSnapshot,
+  readPrivateJson,
+} from "../src/storage";
 import {
   parseFreshnessPolicy,
   readStatus,
@@ -471,6 +478,48 @@ describe("ingest items", () => {
       status: 422,
     });
   });
+
+  it("fails closed when the raw object store cannot accept the payload", async () => {
+    const failingBucket = {
+      put: async () => { throw new Error("synthetic raw write failure"); },
+    } as unknown as R2Bucket;
+    const failingEnv = new Proxy(env, {
+      get(target, property, receiver) {
+        return property === "RAW_OBJECTS" ? failingBucket : Reflect.get(target, property, receiver);
+      },
+    });
+    await expect(ingestItems(failingEnv, envelope(), new Date("2026-08-10T02:05:30Z")))
+      .rejects.toMatchObject({ status: 503, code: "storage_write_failed" });
+  });
+});
+
+describe("private artifact and audit storage boundaries", () => {
+  it("distinguishes missing, unreadable, and invalid private objects", async () => {
+    const missing = { get: async () => null } as unknown as R2Bucket;
+    await expect(readPrivateJson(missing, "missing.json", "test"))
+      .rejects.toMatchObject({ code: "storage_object_missing" });
+
+    const failed = { get: async () => { throw new Error("synthetic read failure"); } } as unknown as R2Bucket;
+    await expect(readPrivateJson(failed, "failed.json", "test"))
+      .rejects.toMatchObject({ code: "storage_read_failed" });
+
+    const invalid = {
+      get: async () => ({ json: async () => { throw new Error("synthetic parse failure"); } }),
+    } as unknown as R2Bucket;
+    await expect(readPrivateJson(invalid, "invalid.json", "test"))
+      .rejects.toMatchObject({ code: "storage_object_invalid" });
+  });
+
+  it("chains audit hashes from the most recent event", async () => {
+    const first = await buildAuditStatement(env.DB, "run_audit_1", "first", CONTENT_HASH, "2026-08-10T02:05:30Z");
+    await first.run();
+    const second = await buildAuditStatement(env.DB, "run_audit_2", "second", MANIFEST_HASH, "2026-08-10T02:06:30Z");
+    await second.run();
+    const rows = await env.DB.prepare(
+      "SELECT previous_event_hash FROM audit_events WHERE run_id = ?",
+    ).bind("run_audit_2").first<{ previous_event_hash: string | null }>();
+    expect(rows?.previous_event_hash).toMatch(/^[a-f0-9]{64}$/);
+  });
 });
 
 describe("snapshot publication", () => {
@@ -551,6 +600,20 @@ describe("snapshot publication", () => {
       "SELECT snapshot_id FROM current_snapshot WHERE singleton_id = 1",
     ).first<{ snapshot_id: string }>();
     expect(current?.snapshot_id).toBe("radar_20260810t020500z");
+  });
+
+  it("fails closed when the topic object write is unavailable", async () => {
+    await ingestItems(env, envelope(), new Date("2026-08-10T02:05:30Z"));
+    const failingBucket = {
+      put: async () => { throw new Error("synthetic topic write failure"); },
+    } as unknown as R2Bucket;
+    const failingEnv = new Proxy(env, {
+      get(target, property, receiver) {
+        return property === "RAW_OBJECTS" ? failingBucket : Reflect.get(target, property, receiver);
+      },
+    });
+    await expect(publishSnapshot(failingEnv, topicSnapshot(), new Date("2026-08-10T02:07:00Z")))
+      .rejects.toMatchObject({ status: 503, code: "storage_write_failed" });
   });
 });
 
@@ -1694,6 +1757,69 @@ describe("canonical payload hashing", () => {
 });
 
 describe("authentication boundary", () => {
+  it("keeps MCP private artifacts closed until a token is configured", async () => {
+    await expect(authenticateMcp(
+      new Request("https://ingest.example/mcp"),
+      {} as Env,
+    )).rejects.toMatchObject({ status: 503, code: "mcp_auth_not_configured" });
+
+    const configured = { MCP_API_TOKEN: "mcp-secret" } as Env;
+    await expect(authenticateMcp(
+      new Request("https://ingest.example/mcp", { headers: { Authorization: "Basic mcp-secret" } }),
+      configured,
+    )).rejects.toMatchObject({ status: 401, code: "invalid_mcp_token" });
+    await expect(authenticateMcp(
+      new Request("https://ingest.example/mcp", { headers: { Authorization: "Bearer wrong" } }),
+      configured,
+    )).rejects.toMatchObject({ status: 401, code: "invalid_mcp_token" });
+  });
+
+  it("returns default and explicitly configured MCP scopes", async () => {
+    const configured = { MCP_API_TOKEN: "mcp-secret" } as Env;
+    await expect(authenticateMcp(
+      new Request("https://ingest.example/mcp", { headers: { Authorization: "Bearer mcp-secret" } }),
+      configured,
+    )).resolves.toMatchObject({ subject: "mcp-token", scopes: ["research:submit", "research:read"] });
+    await expect(authenticateMcp(
+      new Request("https://ingest.example/mcp", { headers: { Authorization: "Bearer mcp-secret" } }),
+      { ...configured, MCP_SCOPES: "research:submit, research:admin  " } as Env,
+    )).resolves.toMatchObject({ scopes: ["research:submit", "research:admin"] });
+  });
+
+  it("normalizes malformed GitHub bearer tokens and missing immutable claims", async () => {
+    const configured = {
+      GITHUB_REPOSITORY_ID: "99",
+      GITHUB_OWNER_ID: "42",
+      GITHUB_OIDC_AUDIENCE: "audience",
+      GITHUB_WORKFLOW_REF: "owner/repo/.github/workflows/crawl.yml@refs/heads/main",
+      GITHUB_REF: "refs/heads/main",
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+    } as Env;
+    await expect(authenticateGithubOidc(
+      new Request("https://ingest.example/v1/ingest/items", { headers: { Authorization: "Bearer not-a-jwt" } }),
+      configured,
+    )).rejects.toMatchObject({ status: 401, code: "invalid_oidc_token" });
+
+    const expected = {
+      repositoryId: "99",
+      ownerId: "42",
+      workflowRef: "owner/repo/.github/workflows/crawl.yml@refs/heads/main",
+      ref: "refs/heads/main",
+      eventName: "workflow_dispatch",
+    };
+    for (const claim of ["repository_id", "repository_owner_id", "workflow_ref", "ref", "event_name"]) {
+      const claims = {
+        repository_id: "99",
+        repository_owner_id: "42",
+        workflow_ref: expected.workflowRef,
+        ref: expected.ref,
+        event_name: "workflow_dispatch",
+      };
+      delete (claims as Record<string, unknown>)[claim];
+      expect(() => assertGithubClaims(claims, expected)).toThrow(new RegExp(`oidc_claim_missing:${claim}`));
+    }
+  });
+
   it("accepts the complete immutable GitHub claim set", () => {
     expect(() => assertGithubClaims(
       {

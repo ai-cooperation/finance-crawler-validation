@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 
 import pytest
@@ -149,6 +150,33 @@ def test_run_plan_request_and_cli_are_identity_bound(tmp_path: Path) -> None:
         build_run_plan_request(manifest, workflow_run_id="bad", commit_sha="d" * 40)
     with pytest.raises(RadarRunPlanError, match="Git SHA"):
         build_run_plan_request(manifest, workflow_run_id="1", commit_sha="D" * 40)
+
+
+def test_target_scoped_run_plan_accepts_only_manifest_sources(tmp_path: Path) -> None:
+    output = tmp_path / "target-run-plan.json"
+    source_ids = [
+        "coingecko_markets_api",
+        "bbc_business_rss",
+        "cnbc_top_news_rss",
+        "marketwatch_topstories_rss",
+        "federal_reserve_press_rss",
+        "ecb_press_rss",
+        "hacker_news_finance_api",
+        "money_stackexchange_api",
+        "quant_stackexchange_api",
+        "openbb_github_issues_api",
+        "tradingagents_github_issues_api",
+        "tradingview_ideas_browser",
+    ]
+    assert main([
+        "--manifest", str(ROOT / "radar-sources.yaml"),
+        "--output", str(output),
+        "--workflow-run-id", "31309377786",
+        "--commit-sha", "d" * 40,
+        "--source-ids", ",".join(source_ids),
+    ]) == 0
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["source_ids"] == source_ids
 
 
 @pytest.mark.parametrize(

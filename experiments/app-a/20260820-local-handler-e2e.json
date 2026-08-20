@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-handler-waituntil-e2e",
+  "observed_at": "2026-08-20T16:27:39Z",
+  "client": "MCP JSON-RPC handler fixture",
+  "strategy": "latest_published",
+  "test_command": "npm test -- --run test/research-job.test.ts",
+  "test_result": {
+    "test_files": 1,
+    "tests": 16,
+    "passed": 16
+  },
+  "checks": {
+    "mcp_submit_returns_bounded_job": "passed",
+    "handler_schedules_waitUntil": "passed",
+    "background_job_reaches_published_stage": "passed",
+    "get_job_status_read_back": "passed",
+    "get_job_status_request_id_recovery": "passed",
+    "get_research_pack_read_back": "passed",
+    "get_research_report_read_back": "passed",
+    "get_evidence_appendix_read_back": "passed",
+    "no_personalized_recommendation": "passed"
+  },
+  "limitations": [
+    "This proves the local latest-published asynchronous path, not a remote GitHub Actions refresh.",
+    "A real Gate A still requires deployed planner migration, Actions dispatch, OIDC callback, and remote D1/R2 read-back."
+  ]
+}

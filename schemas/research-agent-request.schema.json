@@ -22,6 +22,26 @@
     "commit_sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "plan_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
     "alignment_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "report_profile": { "enum": ["detailed_traceable", "compact_traceable"] },
+    "requested_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["quick_card", "detailed_report", "evidence_appendix"] }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["equity", "etf", "crypto", "company", "industry", "topic", "url"] },
+        "symbol": { "type": "string", "maxLength": 32 },
+        "name": { "type": "string", "maxLength": 200 },
+        "market": { "type": "string", "maxLength": 32 },
+        "url": { "type": "string", "format": "uri", "maxLength": 2000 }
+      }
+    },
+    "research_question": { "type": "string", "minLength": 10, "maxLength": 2000 },
     "authorize_model_execution": { "const": true },
     "model": { "type": "string", "minLength": 1, "maxLength": 200 },
     "max_reports": { "type": "integer", "minimum": 1, "maximum": 3 }

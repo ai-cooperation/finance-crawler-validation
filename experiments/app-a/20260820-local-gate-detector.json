@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-local-gate-detector",
+  "observed_at": "2026-08-20T15:51:45Z",
+  "command": "uv run finance-app-a-gate --evidence-dir experiments/app-a",
+  "result": {
+    "local_status": "passed",
+    "remote_status": "not_checked",
+    "gate_a_status": "blocked",
+    "blocking_reasons": ["remote_gate_not_checked"],
+    "checks": {
+      "evidence_files": "passed",
+      "planner_source_bundle": "passed",
+      "client_submit_status": "passed",
+      "callback_retry_contract": "passed",
+      "target_scope": "passed"
+    },
+    "required_remote_evidence": [
+      "deployed_worker_version",
+      "mcp_tools_list_with_valid_token",
+      "actions_dispatch_run",
+      "oidc_callback_read_back",
+      "private_r2_d1_research_pack_read_back"
+    ]
+  },
+  "limitations": [
+    "Local contract evidence is green but this artifact intentionally does not claim remote Gate A.",
+    "Remote verification requires the deployed Worker, valid MCP token, GITHUB_DISPATCH_TOKEN, OIDC callback, and D1/R2 read-back."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "test": "opencode-big-pickle-mcp-submit-status-smoke",
+  "client": {
+    "opencode_version": "1.15.12",
+    "model": "opencode/big-pickle",
+    "transport": "StreamableHTTP",
+    "server": "finance-research",
+    "environment": "local-wrangler"
+  },
+  "successful_chain": {
+    "observed_at": "2026-08-20T15:25:50.646Z",
+    "resolve_target": { "kind": "crypto", "symbol": "BTC", "resolved": true },
+    "submit_research_job": {
+      "request_id": "7cbe7f03-c098-44f4-8aa3-3a12bea721b2",
+      "job_id": "research_20260820152550_09dccce1",
+      "status": "blocked",
+      "stage": "blocked",
+      "progress": null,
+      "retryable": true,
+      "next_action": "configure_actions_dispatch_and_retry",
+      "error_code": "actions_dispatch_not_configured"
+    },
+    "get_job_status": {
+      "job_id": "research_20260820152550_09dccce1",
+      "status": "blocked",
+      "stage": "blocked",
+      "progress": null,
+      "retryable": true,
+      "next_action": "configure_actions_dispatch_and_retry",
+      "error_code": "actions_dispatch_not_configured"
+    }
+  },
+  "recommendation_generated": false,
+  "report_generated": false,
+  "limitations": [
+    "This is a bounded local client smoke, not a remote Actions run.",
+    "The dispatch secret was intentionally absent, so no crawler, OpenBB, or report generation was started.",
+    "The job remains retryable without resubmitting the research request."
+  ]
+}

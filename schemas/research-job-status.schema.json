@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-job-status.schema.json",
+  "title": "Research report generator job status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "job_id",
+    "status",
+    "target",
+    "requirements",
+    "run_id",
+    "pack_id",
+    "report_count",
+    "error_code",
+    "created_at",
+    "updated_at",
+    "completed_at",
+    "stage",
+    "progress",
+    "retryable",
+    "next_action",
+    "planner"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "job_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "status": { "enum": ["queued", "running", "blocked", "completed", "partial", "failed", "stale"] },
+    "target": { "type": "object", "additionalProperties": true },
+    "requirements": { "type": "object", "additionalProperties": true },
+    "run_id": { "type": ["string", "null"] },
+    "pack_id": { "type": ["string", "null"] },
+    "report_count": { "type": "integer", "minimum": 0 },
+    "error_code": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "stage": { "enum": ["queued", "dispatching", "processing", "published", "blocked", "failed", "stale"] },
+    "progress": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "retryable": { "type": "boolean" },
+    "next_action": {
+      "type": ["string", "null"],
+      "enum": [
+        "poll_job_status",
+        "wait_for_actions",
+        "configure_actions_dispatch_and_retry",
+        "provide_document_engine",
+        "increase_source_budget",
+        "retry_research_job",
+        "request_refresh",
+        "review_error",
+        null
+      ]
+    },
+    "planner": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    }
+  }
+}

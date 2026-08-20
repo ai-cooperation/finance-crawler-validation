@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "test": "opencode-big-pickle-mcp-planner-smoke",
+  "client": {
+    "opencode_version": "1.15.12",
+    "model": "opencode/big-pickle",
+    "transport": "StreamableHTTP",
+    "server": "finance-research",
+    "environment": "local-wrangler"
+  },
+  "request": {
+    "target": { "kind": "crypto", "symbol": "BTC" },
+    "requirements": {
+      "question": "What are the current drivers and risks for BTC?",
+      "source_strategy": "latest_published",
+      "include_market_data": true,
+      "include_topic_radar": true,
+      "report_profile": "detailed_traceable",
+      "max_sources": 12
+    }
+  },
+  "observed_at": "2026-08-20T15:14:52.185Z",
+  "tool_call_count": 1,
+  "recommendation_generated": false,
+  "result": {
+    "strategy": "refresh",
+    "sufficiency_status": "refresh_required",
+    "coverage_ratio": 0,
+    "source_count": 12,
+    "layers": ["market", "news", "social"],
+    "reason": "sufficiency_refresh_required",
+    "sufficiency_reasons": ["no_published_snapshot", "source_missing:coingecko_markets_api", "source_missing:bbc_business_rss", "source_missing:hacker_news_finance_api", "source_missing:cnbc_top_news_rss", "source_missing:marketwatch_topstories_rss", "source_missing:money_stackexchange_api", "source_missing:quant_stackexchange_api", "source_missing:openbb_github_issues_api", "source_missing:tradingagents_github_issues_api", "source_missing:openbb_github_discussions_browser", "source_missing:tradingview_ideas_browser", "source_missing:bogleheads_investing_browser"]
+  },
+  "limitations": [
+    "This is a bounded read-only planner smoke, not a remote Actions refresh.",
+    "The local database had no published snapshot, so no collection or report generation was started."
+  ]
+}

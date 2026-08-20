@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-pack.schema.json",
+  "title": "Traceable research pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pack_id",
+    "job_id",
+    "target",
+    "question",
+    "as_of",
+    "source_bundle",
+    "topics",
+    "market",
+    "reports",
+    "evidence",
+    "quality",
+    "producer"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "pack_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "job_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+    "target": { "type": "object", "additionalProperties": true },
+    "question": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "source_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "snapshot_id", "source_count", "item_ids", "source_manifest_hash"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "snapshot_id": { "type": "string" },
+        "source_count": { "type": "integer", "minimum": 0 },
+        "item_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } },
+        "source_manifest_hash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "requirement": { "type": "object", "additionalProperties": true },
+    "source_bundle_plan": { "type": "object", "additionalProperties": true },
+    "topics": { "type": "array", "maxItems": 3, "items": { "type": "object", "additionalProperties": true } },
+    "market": { "type": ["object", "null"], "additionalProperties": true },
+    "reports": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "evidence_graph": { "$ref": "#/$defs/evidence_graph" },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_id", "source_id", "canonical_url", "content_sha256", "title", "summary", "published_at"],
+        "properties": {
+          "evidence_id": { "$ref": "#/$defs/sha256" },
+          "source_id": { "type": "string" },
+          "canonical_url": { "type": "string", "format": "uri" },
+          "content_sha256": { "$ref": "#/$defs/sha256" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "published_at": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["partial", "stale", "failed_sources", "coverage_ratio"],
+      "properties": {
+        "partial": { "type": "boolean" },
+        "stale": { "type": "boolean" },
+        "failed_sources": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline_version", "model", "audit_event_ids"],
+      "properties": {
+        "pipeline_version": { "type": "string" },
+        "model": { "type": "string" },
+        "audit_event_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "evidence_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "claims"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["claim_id", "report_id", "topic_id", "category", "text", "evidence_ids"],
+            "properties": {
+              "claim_id": { "type": "string", "pattern": "^[a-z][a-z0-9_:.-]{7,255}$" },
+              "report_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
+              "topic_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+              "category": { "enum": ["bull_case", "bear_case", "risk_view", "catalyst", "failure_condition", "data_gap"] },
+              "text": { "type": "string", "minLength": 1, "maxLength": 5000 },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "evidence_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
