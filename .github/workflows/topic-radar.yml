@@ -189,11 +189,17 @@ jobs:
               alignment_id: $alignment_id,
               max_reports: 3
             }' >"$RUNNER_TEMP/research-agent-request.json"
-          response="$(curl --fail-with-body --silent --show-error \
+          response_status="$(curl --silent --show-error \
+            --output "$RUNNER_TEMP/research-agent-response.json" \
+            --write-out '%{http_code}' \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
             --data-binary @"$RUNNER_TEMP/research-agent-request.json" \
             "$INGEST_WORKER_URL/v1/agent/research-reports")"
+          cat "$RUNNER_TEMP/research-agent-response.json"
+          echo
+          test "$response_status" = "200"
+          response="$(<"$RUNNER_TEMP/research-agent-response.json")"
           jq -e '
             (.report_count | type == "number") and
             (.report_count >= 1) and
