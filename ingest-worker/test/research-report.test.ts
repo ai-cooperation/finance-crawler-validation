@@ -257,6 +257,7 @@ describe("research report ingest", () => {
       risk_view: [{ text: "risk", confidence: 0.8, evidence_ids: [ITEM_ID] }],
     };
     expect(parseModelClaims(JSON.stringify(claims), allowed).bull_case).toHaveLength(1);
+    expect(parseModelClaims({ response: claims }, allowed).bull_case).toHaveLength(1);
     expect(parseModelClaims({ result: JSON.stringify(claims) }, allowed).bear_case).toHaveLength(1);
     expect(parseModelClaims({ text: "```json\n" + JSON.stringify(claims) + "\n```" }, allowed).risk_view)
       .toHaveLength(1);
