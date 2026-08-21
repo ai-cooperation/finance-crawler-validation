@@ -523,6 +523,7 @@ GitHub Actions 只能取得 OIDC／窄權限 ingest 能力；不能持有廣泛 
 - **INV-08 稽核鏈**：audit event 使用 previous hash 與 event hash，不能刪除或覆寫既有事件。
 - **INV-09 安全邊界**：MCP scope 最小化，refresh 不得繞過 admission／budget／rights。
 - **INV-10 決策邊界**：沒有明確使用者限制、過期資料或未解釋矛盾時，不產生個人化買賣結論。
+- **INV-11 正式 H3 全量邊界**：production H3 必須使用 frozen full-catalog manifest；`max_sources`、15-source radar 與 12-source remote smoke 不得成為 collection、quality denominator 或 Research Pack 的資料上限。
 
 ## 8. SDD → TDD test matrix
 

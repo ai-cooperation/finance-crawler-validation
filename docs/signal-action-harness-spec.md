@@ -189,6 +189,16 @@ H3 不再使用 12–20 個 source IDs 作為研究資料上限。第一個投�
 
 因此「target-scoped」代表在全量收集後做 item-level relevance，不代表先把來源砍成 12–20 個。若 120／166 中有來源失敗，H3 仍可產出 `partial|research_only` 候選版，但失敗集合、缺口與影響必須進 Research Pack；不能以縮小來源集合掩蓋失敗。
 
+### 4.3 Production H3 不得使用 smoke 條件（Invariant）
+
+正式 H3 job 的 admission 必須符合以下條件；任一條不符合就回 `blocked/production_scope_incomplete`，不能降級成 smoke 後繼續：
+
+1. `collection_scope=full_catalog`，且 frozen manifest 同時包含 120 news brands／166 endpoints、radar manifest 與 target market provider。
+2. 不接受以 `max_sources` 限制 collection；來源數量只能由 frozen manifest 決定。`max_context_items` 與 `max_evidence_items` 是 normalization 後的 context／輸出資源控制，不是來源收集上限。
+3. full-catalog 每個 endpoint 都要有終態觀察；未嘗試、未保存 response metadata 或未保存 failure reason 的 run 不得發布。
+4. smoke verifier、15-source radar workflow 與歷史 12-source remote evidence 只能標記為 `regression|transport_smoke`，不得被 H3 Gate、Research Pack quality 或 production dashboard 當作資料覆蓋率。
+5. H3 的 quality denominator 必須由 full manifest 計算；不能只用成功來源作分母，也不能以 target relevance 篩選後的數量回填 collection coverage。
+
 ## 5. Fail-closed 與副作用規則
 
 1. Signal 無 evidence、entity 未解析、source diversity 不足、freshness 過期或 counter-evidence 未處理時，狀態只能是 `insufficient_data`／`needs_review`，不得產生可執行 action。
@@ -219,6 +229,7 @@ H3 不再使用 12–20 個 source IDs 作為研究資料上限。第一個投�
 | HAR-02 | Application Pack 只能讀宣告的 domain／private scope | security | cross-domain allow／deny matrix；CI＋遠端 MCP |
 | HAR-03 | Handoff 沒有 manifest 或 quality gate 不 pass 時被拒絕 | invariant | missing manifest、partial below gate、unknown schema；CI |
 | HAR-04 | 新 domain Pack 不會改變共用 signal／action schema 語義 | contract | registry compatibility／schema conformance；CI |
+| HAR-05 | Production H3 拒絕 smoke source scope 與 `max_sources` collection cap | release guard＋invariant | full-catalog manifest／120 brands／166 endpoints denominator；CI＋遠端 bounded full run |
 | APP-01 | 投資 Pack 的 signal 只產生研究／刷新／review action | policy | broker／order／personalized-advice forbidden matrix；CI |
 | APP-02 | 保險 Pack 不產生核保／定價／bind action | policy | forbidden action enum／scope test；CI |
 | APP-03 | 產業 Pack 的 entity／industry mapping 可反查來源 | invariant | taxonomy fixture、unresolved queue；CI＋detector |
