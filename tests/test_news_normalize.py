@@ -132,3 +132,18 @@ def test_normalize_strips_markdown_link_suffix_from_html_url(tmp_path: Path) -> 
         collected_at="2026-08-21T01:00:00Z",
     )
     assert result["items"][0]["canonical_url"] == "https://www.morningstar.com/assets/img/morningstar.svg"
+
+
+def test_normalize_strips_bracket_suffix_from_extracted_url(tmp_path: Path) -> None:
+    manifest = _write_capture(
+        tmp_path,
+        transport="static_html",
+        content='<html><body>https://www.thinkadvisor.com/tax-facts/)[</body></html>',
+    )
+    result = normalize_news_capture(
+        manifest,
+        workflow_run_id="123",
+        commit_sha="a" * 40,
+        collected_at="2026-08-21T01:00:00Z",
+    )
+    assert result["items"][0]["canonical_url"] == "https://www.thinkadvisor.com/tax-facts/"

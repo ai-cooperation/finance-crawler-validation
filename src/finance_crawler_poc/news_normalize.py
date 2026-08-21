@@ -301,7 +301,7 @@ def _safe_url(value: str, *, fallback: str) -> str:
     # ``https://first.example/a)](https://second.example/b``.  Preserve the
     # first URL rather than allowing the second URL's scheme into its path.
     candidate = re.split(r"\]\s*\(", candidate, maxsplit=1)[0]
-    candidate = candidate.rstrip(")]}>.,;:'\"`")
+    candidate = candidate.rstrip("[]()]>}.,;:'\"`")
     if not candidate.startswith(("http://", "https://")):
         candidate = fallback
     return candidate
