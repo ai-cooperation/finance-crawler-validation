@@ -84,6 +84,12 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 
 這個 verifier 不是部署替代品：若 Worker 仍是舊版、token 無效、`GITHUB_DISPATCH_TOKEN` 缺少或 callback 沒有完成，結果必須是 `gate_a_status=blocked`／`failed`，並保留明確原因。
 
+## 4.1 本次遠端真實結果（2026-08-21）
+
+已以部署版本 `95321b92-eb39-4f87-8cd7-2a40908dd79e`、crypto target `BTC` 完成一次 `source_strategy=actions` 真實鏈。`plan` 回傳 12 個來源與 `refresh_required`；Actions run `32432108862` 完成 OIDC admission／publish 與 success callback；job `research_20260821001750_5ad37adc` 讀回 `partial`，Research Pack 有 15 筆 evidence、3 份 report，evidence appendix 有 15 筆，且沒有個人化買賣建議。Redacted evidence 保存於 [`experiments/app-a/20260821-remote-gate-a.json`](../experiments/app-a/20260821-remote-gate-a.json)。
+
+這次 workflow 的研究資料路徑已通，但整體 run 後續因驗證帳號尚未配置 `ALERT_WEBHOOK_URL`，告警／告警恢復步驟回 503；GitHub fallback issue #52 已建立。另有一個 Browser source (`bogleheads_investing_browser`) 失敗，所以 Research Pack 正確標記 `partial`。兩項都必須保留在 release evidence，不得把 `remote_gate=passed` 解讀成所有營運條件已完成。
+
 必須保存以下證據：
 
 1. `plan_research_sources` 回傳 `research_requirement`、12–20 個 source IDs 與 sufficiency decision。
