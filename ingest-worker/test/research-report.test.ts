@@ -9,7 +9,12 @@ import {
   ingestTradingAgentsPlan,
   publishSnapshot,
 } from "../src/storage";
-import { buildDeterministicResearchOutput, parseModelClaims, runAiWithFallback } from "../src/research-agent";
+import {
+  buildDeterministicResearchOutput,
+  parseModelClaims,
+  runAiWithFallback,
+  selectResearchEvidenceIds,
+} from "../src/research-agent";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -21,6 +26,23 @@ const ALIGNMENT_ID = "align_20260820t035900z";
 const PLAN_ID = "plan_20260820t040000z";
 
 describe("research model resilience", () => {
+  it("bounds evidence loading to six traceable items per selected topic", () => {
+    const ids = selectResearchEvidenceIds(
+      [
+        { topic_id: "topic_a", evidence_ids: ["a1", "a2", "a3", "a4", "a5", "a6", "a7"] },
+        { topic_id: "topic_b", evidence_ids: ["b1", "b2", "b3", "b4", "b5", "b6", "b7"] },
+        { topic_id: "topic_c", evidence_ids: ["c1", "c2", "c3", "c4", "c5", "c6", "c7"] },
+      ],
+      [],
+      [],
+    );
+    expect(ids).toEqual([
+      "a1", "a2", "a3", "a4", "a5", "a6",
+      "b1", "b2", "b3", "b4", "b5", "b6",
+      "c1", "c2", "c3", "c4", "c5", "c6",
+    ]);
+  });
+
   it("builds a traceable non-transactional report without a model call", () => {
     const output = buildDeterministicResearchOutput(
       {

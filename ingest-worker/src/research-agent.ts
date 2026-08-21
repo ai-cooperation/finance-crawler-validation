@@ -168,6 +168,11 @@ export interface ParsedResearchOutput {
   data_gaps: ResearchEvidenceNote[];
 }
 
+interface EvidenceIdTopic {
+  topic_id: string;
+  evidence_ids: string[];
+}
+
 interface StoredRow {
   object_key: string;
 }
@@ -235,6 +240,38 @@ interface EvidenceView {
   source_id: string;
   canonical_url: string;
   published_at: string | null;
+}
+
+/**
+ * Keep model input bounded to the same six traceable items that each report
+ * can cite. Full-catalog packs can contain hundreds of raw objects; loading
+ * every R2 object for a three-topic report can exceed the Worker budget and
+ * lets a model cite material it never received.
+ */
+export function selectResearchEvidenceIds(
+  selectedTopics: ReadonlyArray<EvidenceIdTopic>,
+  topicSnapshotTopics: ReadonlyArray<EvidenceIdTopic>,
+  alignmentTopics: ReadonlyArray<EvidenceIdTopic>,
+): string[] {
+  const topicsById = new Map(topicSnapshotTopics.map((topic) => [topic.topic_id, topic]));
+  const alignmentsById = new Map(alignmentTopics.map((topic) => [topic.topic_id, topic]));
+  return uniqueStrings(selectedTopics.flatMap((plannedTopic) => topicEvidenceIds(
+    plannedTopic,
+    topicsById.get(plannedTopic.topic_id),
+    alignmentsById.get(plannedTopic.topic_id),
+  )));
+}
+
+function topicEvidenceIds(
+  plannedTopic: EvidenceIdTopic,
+  topic: EvidenceIdTopic | undefined,
+  alignmentTopic: EvidenceIdTopic | undefined,
+): string[] {
+  return uniqueStrings([
+    ...(topic?.evidence_ids ?? []),
+    ...plannedTopic.evidence_ids,
+    ...(alignmentTopic?.evidence_ids ?? []),
+  ]).slice(0, MAX_EVIDENCE_ITEMS);
 }
 
 export async function generateResearchReports(
@@ -330,19 +367,13 @@ export async function generateResearchReports(
     .slice(0, request.max_reports ?? plan.budget.max_topics);
   if (selectedTopics.length === 0) throw new HttpError(409, "no_topics_to_research");
 
-  const deterministicEvidenceIds = modelForScope(request) === DETERMINISTIC_RESEARCH_MODEL
-    ? uniqueStrings(selectedTopics.flatMap((plannedTopic) => {
-      const topic = topicSnapshot.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
-      const alignmentTopic = alignment.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
-      return [
-        ...(topic?.evidence_ids ?? []),
-        ...plannedTopic.evidence_ids,
-        ...(alignmentTopic?.evidence_ids ?? []),
-      ];
-    })).slice(0, MAX_EVIDENCE_ITEMS * selectedTopics.length)
-    : undefined;
+  const evidenceIdsToLoad = selectResearchEvidenceIds(
+    selectedTopics,
+    topicSnapshot.topics,
+    alignment.topics,
+  );
   const rawItems = await withTimeout(
-    loadEvidence(env, request.run_id, deterministicEvidenceIds),
+    loadEvidence(env, request.run_id, evidenceIdsToLoad),
     EVIDENCE_LOAD_TIMEOUT_MS,
     new HttpError(504, "evidence_load_timeout"),
   );
@@ -352,11 +383,7 @@ export async function generateResearchReports(
     const topic = topicSnapshot.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
     if (!topic) throw new HttpError(409, "topic_not_found", [plannedTopic.topic_id]);
     const alignmentTopic = alignment.topics.find((candidate) => candidate.topic_id === topic.topic_id);
-    const evidenceIds = uniqueStrings([
-      ...topic.evidence_ids,
-      ...plannedTopic.evidence_ids,
-      ...(alignmentTopic?.evidence_ids ?? []),
-    ]);
+    const evidenceIds = topicEvidenceIds(topic, topic, alignmentTopic);
     const evidence = evidenceIds
       .map((itemId) => rawItems.get(itemId))
       .filter((item): item is EvidenceView => item !== undefined)
@@ -622,6 +649,7 @@ async function loadEvidence(
   runId: string,
   itemIds?: string[],
 ): Promise<Map<string, EvidenceView>> {
+  if (itemIds !== undefined && itemIds.length === 0) return new Map();
   const filter = itemIds && itemIds.length > 0
     ? ` AND raw_items.item_id IN (${itemIds.map(() => "?").join(", ")})`
     : "";
