@@ -56,7 +56,7 @@
 - D1：來源狀態、run、topic snapshot、market snapshot、alignment、research report 索引與 append-only audit。
 - R2：依權利保存 raw object、私有 evidence、研究報告與 hash。
 - App A job／Research Pack：`research_jobs`、`research_packs` D1 index，private R2 `research-packs/*`，MCP `/mcp` tool catalog 與 token scope。
-- P2 品牌 baseline：120 個唯一品牌，116／120 成功（96.67%）的歷史驗收證據。
+- P2 全量來源驗證：120 個唯一品牌、166 個 endpoint 已以 `exhaustive_endpoints=true` 實際執行；品牌 fallback 成功 116／120（96.67%），endpoint 成功 123／166（74.10%），證據為 GitHub Actions run [`32469254983`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32469254983)。這只證明來源能力與 fallback 邊界，不代表文章級去重、標的相關性或投資研究品質已通過。
 - P1 垂直切片：一次 15 來源 run，14／15 成功，產生 3 topics、market alignment 與 3 份 Workers AI 第二意見。
 
 ### 2.2 必須補上的產品能力
@@ -438,6 +438,18 @@ GitHub Actions 只能取得 OIDC／窄權限 ingest 能力；不能持有廣泛 
 
 「一次到位」指一次凍結目標架構與契約，不代表跳過驗收。實作按以下順序；每一階段完成後才把其 output 設為下一階段的 frozen input。
 
+### 6.0 積極執行模式（本輪採用）
+
+本專案不再以 12–20 條來源的 smoke test 作為主要進度單位。那類測試只保留給程式回歸；正式施工直接以全量 catalog 與最終應用輸出為驗收對象：
+
+1. **全量來源基線**：120 個唯一品牌、166 個 endpoint 全部納入；成功、封鎖、robots、格式錯誤與空內容都要寫入同一份 source matrix，不得用 first-success fallback 掩蓋未測路徑。
+2. **全量資料後處理**：所有可取得 payload 都必須進入 item-level normalization、canonical URL／content fingerprint 去重、entity／topic extraction、relevance／noise gate；只做 endpoint capability report 不算完成。
+3. **目標研究交付**：以一個 frozen target（首輪使用 BTC/crypto，之後補 equity／ETF）跑完整 `requirement → refresh → Research Pack → report v2 → evidence appendix`，每個 claim 都有 evidence refs、freshness、counterclaim 與 unknown。
+4. **雙應用交付**：同一份 frozen Research Pack 直接驗收 App A（OpenCode／Big Pickle）與 App B（Grill Me First／decision memo），不把兩個應用拆成無限期的串接小任務。
+5. **正式營運交付**：最後一次完成告警、schedule、quota ceiling、last-good restore、failure recovery 與七日 soak；未達成前只能標示 `candidate`，不稱正式上線。
+
+除非發現會污染資料或破壞安全 invariant 的重大問題，中間不以單一來源、單一工具或單一小樣本停工回報；每次回報以以上四個 gate 的完成證據為準。
+
 1. **Contract freeze**：Stage 0 的 contract／policy／quality manifest；完成後才改 schema。
 2. **Entity foundation**：Stage 2 schema、D1 ontology tables、resolver fixture 與 unresolved queue。
 3. **Topic history**：Stage 3＋4 的 links、timeseries、watchlist、alert state machine。
@@ -534,6 +546,8 @@ App A 的交付重點是「詳細研究報告＋證據附錄」；App B 的交�
 ### 11.1 使用者輸入契約
 
 使用者可以提交單一標的、議題、文件或一組 watchlist。系統不會盲目重跑全部 120 個來源，而是先解析 target，再依 target type、資源成本、來源權利與新鮮度選擇最小必要來源集合；需要全域背景時才引用最近的 topic snapshot／industry snapshot。
+
+這個「最小必要來源集合」是產品正式運行時的成本策略，不適用於目前的全量驗證階段；全量驗證必須先完成 120 品牌／166 endpoint 的 normalization、去重與品質基線，否則無法知道按需選源是否漏掉關鍵證據。
 
 ```json
 {

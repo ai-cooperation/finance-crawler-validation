@@ -210,6 +210,7 @@ Research Pack 不得含沒有來源的模型敘事；報告可以有 inference�
 - MCP tool timeout、429、Actions failure、model failure、invalid JSON 的 last-good 與 retry policy。
 - market data 是按需求選配；no-market request 必須完成 `planner → dispatch → --skip-market-data → not_requested alignment`，market-aware request 則必須 fail closed 或使用 target 對應 provider。
 - Big Pickle tool-call smoke test；先使用唯讀 health／小型公開資料，不直接測完整 120 品牌。
+- 這條 smoke test 只驗 MCP tool contract，不得替代全量資料驗證；正式 Gate A 必須使用已完成 120 品牌／166 endpoint normalization、去重與品質標記的 frozen source artifact。
 - `retry_research_job` 必須只重派 Actions 或重新排入 `waitUntil`，不得在 MCP request 內同步等待爬蟲／模型。所有 Actions job 都必須有 success callback 或 failure callback；沒有 callback 的 workflow 不得通過 Gate A。
 
 ### B1：App B Grill Me First 與決策 session
@@ -250,7 +251,7 @@ Gate A 的遠端執行步驟與停止條件見 [`app-a-remote-gate-runbook.md`](
 
 ### Gate A：研究報告產生器 MVP
 
-以一個明確 target、12–20 個異質來源、真實 remote MCP、真實後台 job 執行一次；若既有資料不足，必須真的觸發一次 target-specific refresh，不能只重用 `latest_published`；通過條件：
+先完成全量 source baseline，再以一個明確 target、該 target 的 frozen source artifact、真實 remote MCP、真實後台 job 執行一次；驗證階段不得退回 12–20 條垂直切片。正式產品運行時才可依 target 與 quota 採最小必要來源集合。若既有資料不足，必須真的觸發一次 target-specific refresh，不能只重用 `latest_published`；通過條件：
 
 - OpenCode Desktop 能連 MCP 並完成 tool catalog／權限檢查。
 - Big Pickle 能完成至少一個唯讀工具呼叫與一個 `submit → status → result` 鏈路。
@@ -271,7 +272,7 @@ Gate A 的遠端執行步驟與停止條件見 [`app-a-remote-gate-runbook.md`](
 
 ### Production gate
 
-Gate A、Gate B 都通過後，才接 120 品牌擴張、多 target、連續追蹤、外部告警與七日 soak。兩個 MVP 通過不等於完成長期穩定性驗收。
+120 品牌／166 endpoint 的全量驗證是 Gate A 品質判定的前置條件，不是 Gate A／B 之後才開始的擴張項目。Gate A、Gate B 都通過後，進入多 target、連續追蹤、外部告警與七日 soak；兩個 MVP 通過不等於完成長期穩定性驗收。
 
 ## 8. SDD → TDD test matrix
 
