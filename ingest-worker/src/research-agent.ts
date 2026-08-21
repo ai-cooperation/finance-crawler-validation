@@ -16,10 +16,15 @@ import { HttpError, ingestResearchReport, type ResearchReportResult } from "./st
 
 
 export const DEFAULT_RESEARCH_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+export const FALLBACK_RESEARCH_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
+export const DETERMINISTIC_RESEARCH_MODEL = "deterministic-evidence-v1";
 export const RESEARCH_AGENT_VERSION = "tradingagents-cloudflare-ai-v1";
 const MAX_EVIDENCE_ITEMS = 6;
 const MAX_EVIDENCE_CHARS = 1800;
 const REPORT_TTL_MS = 24 * 60 * 60 * 1000;
+const PRIMARY_MODEL_TIMEOUT_MS = 120_000;
+const FALLBACK_MODEL_TIMEOUT_MS = 60_000;
+const EVIDENCE_LOAD_TIMEOUT_MS = 90_000;
 const RESEARCH_RESPONSE_SCHEMA = {
   type: "json_schema",
   json_schema: {
@@ -65,6 +70,85 @@ export type AiRunner = (
   input: Record<string, unknown>,
 ) => Promise<unknown>;
 
+export interface AiGenerationResult {
+  output: unknown;
+  model: string;
+}
+
+function modelForScope(request: ResearchAgentRequest): string {
+  return request.model ?? DEFAULT_RESEARCH_MODEL;
+}
+
+/**
+ * Workers AI can transiently stall on a large full-catalog prompt.  Keep the
+ * research job bounded and retry once with the smaller model so a background
+ * MCP job cannot remain `running` forever.  The report records the model that
+ * actually produced it; this is part of the audit trail, not an implementation
+ * detail.
+ */
+export async function runAiWithFallback(
+  env: Env,
+  runAi: AiRunner,
+  model: string,
+  input: Record<string, unknown>,
+): Promise<AiGenerationResult> {
+  const primaryInput = model === FALLBACK_RESEARCH_MODEL
+    ? withoutResponseSchema(input)
+    : input;
+  try {
+    return {
+      output: await runWithTimeout(runAi(env, model, primaryInput), PRIMARY_MODEL_TIMEOUT_MS, model),
+      model,
+    };
+  } catch (primaryError) {
+    if (model === FALLBACK_RESEARCH_MODEL) throw primaryError;
+    const fallbackInput = {
+      ...withoutResponseSchema(input),
+      max_tokens: Math.min(
+        typeof input.max_tokens === "number" ? input.max_tokens : 800,
+        800,
+      ),
+    };
+    return {
+      output: await runWithTimeout(
+        runAi(env, FALLBACK_RESEARCH_MODEL, fallbackInput),
+        FALLBACK_MODEL_TIMEOUT_MS,
+        FALLBACK_RESEARCH_MODEL,
+      ),
+      model: FALLBACK_RESEARCH_MODEL,
+    };
+  }
+}
+
+function withoutResponseSchema(input: Record<string, unknown>): Record<string, unknown> {
+  const { response_format: _responseFormat, ...inputWithoutSchema } = input;
+  return inputWithoutSchema;
+}
+
+async function runWithTimeout(
+  promise: Promise<unknown>,
+  timeoutMs: number,
+  model: string,
+): Promise<unknown> {
+  return await withTimeout(promise, timeoutMs, new HttpError(504, "model_timeout", [model]));
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutError: Error,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(timeoutError), timeoutMs);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export interface ResearchGenerationResult {
   run_id: string;
   plan_id: string;
@@ -74,7 +158,7 @@ export interface ResearchGenerationResult {
   reports: ResearchReportResult[];
 }
 
-interface ParsedResearchOutput {
+export interface ParsedResearchOutput {
   bull_case: ResearchClaim[];
   bear_case: ResearchClaim[];
   risk_view: ResearchClaim[];
@@ -246,9 +330,24 @@ export async function generateResearchReports(
     .slice(0, request.max_reports ?? plan.budget.max_topics);
   if (selectedTopics.length === 0) throw new HttpError(409, "no_topics_to_research");
 
-  const rawItems = await loadEvidence(env, request.run_id);
+  const deterministicEvidenceIds = modelForScope(request) === DETERMINISTIC_RESEARCH_MODEL
+    ? uniqueStrings(selectedTopics.flatMap((plannedTopic) => {
+      const topic = topicSnapshot.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
+      const alignmentTopic = alignment.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
+      return [
+        ...(topic?.evidence_ids ?? []),
+        ...plannedTopic.evidence_ids,
+        ...(alignmentTopic?.evidence_ids ?? []),
+      ];
+    })).slice(0, MAX_EVIDENCE_ITEMS * selectedTopics.length)
+    : undefined;
+  const rawItems = await withTimeout(
+    loadEvidence(env, request.run_id, deterministicEvidenceIds),
+    EVIDENCE_LOAD_TIMEOUT_MS,
+    new HttpError(504, "evidence_load_timeout"),
+  );
   const reports: ResearchReportResult[] = [];
-  const model = request.model ?? DEFAULT_RESEARCH_MODEL;
+  const model = modelForScope(request);
   for (const plannedTopic of selectedTopics) {
     const topic = topicSnapshot.topics.find((candidate) => candidate.topic_id === plannedTopic.topic_id);
     if (!topic) throw new HttpError(409, "topic_not_found", [plannedTopic.topic_id]);
@@ -289,32 +388,39 @@ export async function generateResearchReports(
       continue;
     }
 
-    const output = await runAi(env, model, {
-      messages: [
-        {
-          role: "system",
-          content: `You are a cautious financial research second-opinion assistant. The requested report profile is ${reportProfile}. Do not give a buy or sell instruction. Return only valid JSON with bull_case, bear_case, risk_view, and optional summary, catalysts, failure_conditions, data_gaps. Each claim array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each claim text under ${reportProfile === "compact_traceable" ? 240 : 400} characters.`,
-        },
-        {
-          role: "user",
-          content: buildPrompt(
-            topic,
-            plannedTopic.market_direction,
-            alignmentTopic,
-            market,
-            evidence,
-            request.target,
-            request.research_question,
-            reportProfile,
-          ),
-        },
-      ],
-      max_tokens: Math.min(plan.budget.max_tokens, reportProfile === "compact_traceable" ? 800 : 1200),
-      temperature: 0,
-      seed: 42,
-      response_format: RESEARCH_RESPONSE_SCHEMA,
-    });
-    const parsedOutput = parseResearchOutput(output, new Set(evidenceIds));
+    let parsedOutput: ParsedResearchOutput;
+    let reportModel = model;
+    if (model === DETERMINISTIC_RESEARCH_MODEL) {
+      parsedOutput = buildDeterministicResearchOutput(topic, evidenceIds, plannedTopic.market_direction);
+    } else {
+      const generation = await runAiWithFallback(env, runAi, model, {
+        messages: [
+          {
+            role: "system",
+            content: `You are a cautious financial research second-opinion assistant. The requested report profile is ${reportProfile}. Do not give a buy or sell instruction. Return only valid JSON with bull_case, bear_case, risk_view, and optional summary, catalysts, failure_conditions, data_gaps. Each claim array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each claim text under ${reportProfile === "compact_traceable" ? 240 : 400} characters.`,
+          },
+          {
+            role: "user",
+            content: buildPrompt(
+              topic,
+              plannedTopic.market_direction,
+              alignmentTopic,
+              market,
+              evidence,
+              request.target,
+              request.research_question,
+              reportProfile,
+            ),
+          },
+        ],
+        max_tokens: Math.min(plan.budget.max_tokens, reportProfile === "compact_traceable" ? 800 : 1200),
+        temperature: 0,
+        seed: 42,
+        response_format: RESEARCH_RESPONSE_SCHEMA,
+      });
+      parsedOutput = parseResearchOutput(generation.output, new Set(evidenceIds));
+      reportModel = generation.model;
+    }
     const generatedAt = now.toISOString();
     const report: ResearchReport = {
       schema_version: 1,
@@ -326,7 +432,7 @@ export async function generateResearchReports(
       topic_id: topic.topic_id,
       generated_at: generatedAt,
       expires_at: new Date(now.getTime() + REPORT_TTL_MS).toISOString(),
-      model,
+      model: reportModel,
       agent_version: RESEARCH_AGENT_VERSION,
       report_profile: reportProfile,
       ...(request.research_question === undefined ? {} : { research_question: request.research_question }),
@@ -434,6 +540,45 @@ function buildFallbackSummary(topicLabel: string): string {
   return `Evidence-linked second opinion for ${topicLabel}; this is research-only and not a buy or sell instruction.`;
 }
 
+export function buildDeterministicResearchOutput(
+  topic: RadarTopic,
+  evidenceIds: string[],
+  plannedDirection: string,
+): ParsedResearchOutput {
+  const refs = evidenceIds.slice(0, 3);
+  const confidence = Math.min(0.8, 0.35 + refs.length * 0.1);
+  const divergence = topic.divergence.direction;
+  return {
+    bull_case: [{
+      text: `${topic.label} has observable activity across ${topic.source_count} source(s); the constructive case is limited to the collected evidence.`,
+      confidence,
+      evidence_ids: refs,
+    }],
+    bear_case: [{
+      text: `${topic.label} remains exposed to contradictory or incomplete information; the planned market direction is ${plannedDirection}.`,
+      confidence,
+      evidence_ids: refs,
+    }],
+    risk_view: [{
+      text: `Evidence divergence is ${divergence}; this signal is a research lead, not a forecast or transaction instruction.`,
+      confidence: Math.max(0.5, confidence),
+      evidence_ids: refs,
+    }],
+    summary: buildFallbackSummary(topic.label),
+    catalysts: [{
+      text: `Monitor new evidence linked to ${topic.label} and whether source breadth increases.`,
+      confidence: 0.5,
+      evidence_ids: refs,
+    }],
+    failure_conditions: [{
+      text: "Treat the signal as unresolved if cited sources become stale, unavailable, or mutually contradictory.",
+      confidence: 0.75,
+      evidence_ids: refs,
+    }],
+    data_gaps: [],
+  };
+}
+
 function parseClaims(
   value: unknown,
   field: string,
@@ -472,14 +617,20 @@ function validateRequest(payload: unknown): ResearchAgentRequest {
   }
 }
 
-async function loadEvidence(env: Env, runId: string): Promise<Map<string, EvidenceView>> {
+async function loadEvidence(
+  env: Env,
+  runId: string,
+  itemIds?: string[],
+): Promise<Map<string, EvidenceView>> {
+  const filter = itemIds && itemIds.length > 0
+    ? ` AND raw_items.item_id IN (${itemIds.map(() => "?").join(", ")})`
+    : "";
   const rows = await env.DB.prepare(
     `SELECT raw_items.item_id, raw_items.source_id, raw_items.object_key
      FROM raw_items JOIN run_items ON run_items.item_id = raw_items.item_id
-     WHERE run_items.run_id = ?`,
-  ).bind(runId).all<RawItemRow>();
-  const evidence = new Map<string, EvidenceView>();
-  for (const row of rows.results) {
+     WHERE run_items.run_id = ?${filter}`,
+  ).bind(runId, ...(itemIds ?? [])).all<RawItemRow>();
+  const loaded = await mapWithConcurrency(rows.results, 16, async (row) => {
     const raw = await readJson(env.RAW_OBJECTS, row.object_key, "raw_item");
     if (!isRecord(raw)) throw new HttpError(503, "raw_item_invalid", [row.item_id]);
     const item = raw as Record<string, unknown>;
@@ -491,7 +642,7 @@ async function loadEvidence(env: Env, runId: string): Promise<Map<string, Eviden
     ) {
       throw new HttpError(503, "raw_item_invalid", [row.item_id]);
     }
-    evidence.set(row.item_id, {
+    return [row.item_id, {
       item_id: item.item_id,
       title: item.title,
       summary: item.summary,
@@ -499,9 +650,28 @@ async function loadEvidence(env: Env, runId: string): Promise<Map<string, Eviden
       source_id: row.source_id,
       canonical_url: item.canonical_url,
       published_at: item.published_at,
-    });
-  }
-  return evidence;
+    }] as const;
+  });
+  return new Map(loaded);
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  concurrency: number,
+  mapper: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= values.length) return;
+      results[index] = await mapper(values[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker));
+  return results;
 }
 
 function buildPrompt(

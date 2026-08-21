@@ -23,7 +23,7 @@ import {
   sha256Hex,
 } from "./storage";
 import { canonicalJson } from "./canonical-json";
-import { generateResearchReports, type AiRunner } from "./research-agent";
+import { DETERMINISTIC_RESEARCH_MODEL, generateResearchReports, type AiRunner } from "./research-agent";
 import {
   buildPersistedResearchPlan,
   type ResearchRequirement,
@@ -35,6 +35,11 @@ import { buildInvestmentHarnessArtifacts } from "./investment-harness";
 
 const PIPELINE_VERSION = "research-report-generator-v1";
 const MAX_JOB_IDEMPOTENCY_KEY = 128;
+// A status read is also a recovery boundary.  If a Worker invocation dies
+// after claiming a job, MCP clients must not poll `running` forever; they can
+// safely retry the failed job and the stale executor is prevented from
+// publishing its artifacts by the running-state guard below.
+const RUNNING_JOB_TIMEOUT_MS = 10 * 60 * 1000;
 
 export interface ResearchJobStatus {
   schema_version: 1;
@@ -282,8 +287,8 @@ export async function submitResearchJob(
   };
 }
 
-export async function readResearchJob(env: Env, jobId: string): Promise<ResearchJobStatus> {
-  const row = await findJob(env.DB, jobId);
+export async function readResearchJob(env: Env, jobId: string, now?: Date): Promise<ResearchJobStatus> {
+  const row = await recoverStuckJob(env.DB, await findJob(env.DB, jobId), now);
   if (row === null) throw new HttpError(404, "research_job_not_found");
   return statusFromRow(row);
 }
@@ -291,8 +296,9 @@ export async function readResearchJob(env: Env, jobId: string): Promise<Research
 export async function readResearchJobByRequestId(
   env: Env,
   requestId: string,
+  now?: Date,
 ): Promise<ResearchJobStatus> {
-  const row = await findJobByRequestId(env.DB, requestId);
+  const row = await recoverStuckJob(env.DB, await findJobByRequestId(env.DB, requestId), now);
   if (row === null) throw new HttpError(404, "research_job_not_found");
   return statusFromRow(row);
 }
@@ -381,16 +387,27 @@ export async function executeResearchJob(
   }
 
   await setRunning(env.DB, row.job_id, now);
+  console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "running" }));
   try {
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "load_run" }));
     const run = options.runId
       ? await runById(env.DB, options.runId)
       : await latestPublishedRun(env.DB);
     if (run === null) throw new HttpError(409, "research_inputs_unavailable");
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "load_plan" }));
     const plan = await planForRun(env.DB, run, options.planId);
     if (plan === null) throw new HttpError(409, "research_plan_unavailable");
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "load_alignment" }));
     const alignment = await alignmentForRun(env.DB, run, plan, options.alignmentId);
     if (alignment === null) throw new HttpError(409, "research_alignment_unavailable");
 
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "generate_reports" }));
+    const persistedPlanner = parseOptionalPlanner(row.requirement_json, row.source_bundle_json);
+    // Only an explicit production request opts into the bounded deterministic
+    // first opinion.  Legacy callers that omit collection_scope retain the
+    // model-backed contract used by the report-generation regression suite.
+    const fullCatalog = request.requirements.collection_scope === "full_catalog"
+      && persistedPlanner?.source_bundle.collection_scope === "full_catalog";
     const generation = await generateResearchReports(
       env,
       {
@@ -407,11 +424,18 @@ export async function executeResearchJob(
         report_profile: request.requirements.report_profile,
         requested_outputs: request.requirements.requested_outputs,
         max_reports: 3,
+        // Cloudflare's synchronous request window is bounded. Full-catalog
+        // MCP jobs therefore publish a deterministic, evidence-linked first
+        // opinion; the AI report path remains available for explicit Actions
+        // report runs and later user-triggered enrichment.
+        ...(fullCatalog ? { model: DETERMINISTIC_RESEARCH_MODEL } : {}),
       },
       { workflowRunId: run.workflow_run_id, commitSha: run.commit_sha },
       now,
       dependencies.runAi,
     );
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "build_pack", report_count: generation.reports.length }));
+    await assertJobRunning(env.DB, row.job_id);
     const pack = await buildResearchPack(
       env,
       row,
@@ -433,6 +457,7 @@ export async function executeResearchJob(
       customMetadata: { content_sha256: contentHash, job_id: jobId, run_id: run.run_id },
     });
     const happenedAt = now.toISOString();
+    await assertJobRunning(env.DB, row.job_id);
     const audit = await buildAuditStatement(env.DB, jobId, "research_pack_completed", contentHash, happenedAt);
     await env.DB.batch([
       env.DB.prepare(
@@ -467,12 +492,20 @@ export async function executeResearchJob(
       ),
       audit,
     ]);
+    console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "published", report_count: validated.reports.length }));
     return await readResearchJob(env, jobId);
   } catch (error) {
     const status = error instanceof HttpError && error.code === "research_inputs_unavailable"
       ? "blocked"
       : "failed";
     const code = error instanceof HttpError ? error.code : "research_job_failed";
+    console.error(JSON.stringify({
+      event: "research_job_failed",
+      job_id: row.job_id,
+      error_code: code,
+      error_message: error instanceof Error ? error.message : String(error),
+      error_stack: error instanceof Error ? error.stack : undefined,
+    }));
     await updateJob(env, row, status, now, code);
     return await readResearchJob(env, jobId);
   }
@@ -896,6 +929,25 @@ async function findJobByRequestId(db: D1Database, requestId: string): Promise<Jo
             requirement_json, source_bundle_json, planner_version, dispatch_id
      FROM research_jobs WHERE request_id = ?`,
   ).bind(requestId).first<JobRow>();
+}
+
+async function recoverStuckJob(db: D1Database, row: JobRow | null, now?: Date): Promise<JobRow | null> {
+  if (row === null || row.status !== "running") return row;
+  const updatedAt = Date.parse(row.updated_at);
+  if (!now || !Number.isFinite(updatedAt) || now.getTime() - updatedAt <= RUNNING_JOB_TIMEOUT_MS) return row;
+  const recoveredAt = now.toISOString();
+  await db.prepare(
+    `UPDATE research_jobs
+     SET status = 'failed', error_code = 'research_execution_timeout', updated_at = ?, completed_at = NULL
+     WHERE job_id = ? AND status = 'running' AND updated_at = ?`,
+  ).bind(recoveredAt, row.job_id, row.updated_at).run();
+  return await findJob(db, row.job_id);
+}
+
+async function assertJobRunning(db: D1Database, jobId: string): Promise<void> {
+  const row = await findJob(db, jobId);
+  if (row === null) throw new HttpError(404, "research_job_not_found");
+  if (row.status !== "running") throw new HttpError(409, "research_job_not_running");
 }
 
 async function setRunning(db: D1Database, jobId: string, now: Date): Promise<void> {

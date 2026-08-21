@@ -9,7 +9,7 @@ import {
   ingestTradingAgentsPlan,
   publishSnapshot,
 } from "../src/storage";
-import { parseModelClaims } from "../src/research-agent";
+import { buildDeterministicResearchOutput, parseModelClaims, runAiWithFallback } from "../src/research-agent";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -19,6 +19,48 @@ const RUN_ID = "run_20260820t035848z";
 const SNAPSHOT_ID = "radar_20260820t035848z";
 const ALIGNMENT_ID = "align_20260820t035900z";
 const PLAN_ID = "plan_20260820t040000z";
+
+describe("research model resilience", () => {
+  it("builds a traceable non-transactional report without a model call", () => {
+    const output = buildDeterministicResearchOutput(
+      {
+        topic_id: "digital_assets",
+        label: "Digital assets",
+        score: 4,
+        item_count: 2,
+        source_count: 2,
+        news_count: 1,
+        social_count: 1,
+        evidence_ids: [ITEM_ID],
+        divergence: { direction: "social_leads", magnitude: 0.4 },
+      },
+      [ITEM_ID],
+      "mixed",
+    );
+    expect(output.bull_case[0].evidence_ids).toEqual([ITEM_ID]);
+    expect(output.bear_case[0].text).toContain("mixed");
+  });
+
+  it("falls back to the bounded model when the primary model fails", async () => {
+    const models: string[] = [];
+    const result = await runAiWithFallback(
+      undefined as unknown as Parameters<typeof runAiWithFallback>[1],
+      async (_env, model, input) => {
+        models.push(model);
+        if (models.length === 1) throw new Error("primary unavailable");
+        expect(input).not.toHaveProperty("response_format");
+        return { response: "{}" };
+      },
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      { messages: [] },
+    );
+    expect(models).toEqual([
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "@cf/meta/llama-3.1-8b-instruct-fp8",
+    ]);
+    expect(result.model).toBe("@cf/meta/llama-3.1-8b-instruct-fp8");
+  });
+});
 
 function envelope() {
   return {

@@ -235,7 +235,7 @@ export async function handleMcpRequest(
       }
       case "get_job_status":
         requireScope(auth, "research:read");
-        return toolSuccess(request.id, await readJobStatus(env, args));
+        return toolSuccess(request.id, await readJobStatus(env, args, now));
       case "retry_research_job": {
         requireScope(auth, "research:submit");
         const retried = await retryResearchJob(
@@ -345,13 +345,13 @@ function requiredJobId(value: unknown): string {
   return jobId;
 }
 
-async function readJobStatus(env: Env, value: unknown): Promise<unknown> {
+async function readJobStatus(env: Env, value: unknown, now: Date): Promise<unknown> {
   const input = asRecord(value);
   const jobId = stringField(input, "job_id");
   const requestId = stringField(input, "request_id");
   if (jobId && requestId) throw new HttpError(422, "job_id_or_request_id_exclusive");
-  if (jobId) return await readResearchJob(env, jobId);
-  if (requestId) return await readResearchJobByRequestId(env, requestId);
+  if (jobId) return await readResearchJob(env, jobId, now);
+  if (requestId) return await readResearchJobByRequestId(env, requestId, now);
   throw new HttpError(422, "job_id_required");
 }
 

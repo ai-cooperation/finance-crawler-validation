@@ -898,7 +898,9 @@ describe("research report generator job contract", () => {
         research_requirement_id: expect.stringMatching(/^req_/),
       },
     });
-    expect(JSON.stringify(dispatchBody)).not.toContain("private");
+    const serializedDispatch = JSON.stringify(dispatchBody);
+    expect(serializedDispatch).not.toContain("MCP_API_TOKEN");
+    expect(serializedDispatch).not.toContain("raw_items");
     const replayedDispatch = await dispatchActionsResearchJob(
       dispatchEnv,
       submitted.job_id,
