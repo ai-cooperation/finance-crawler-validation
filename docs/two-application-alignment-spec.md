@@ -37,6 +37,33 @@ Agent 不直接猜 URL、繞過權限或同步等待爬蟲完成；它只提交�
 - `false`：需求不包含市場資料；Planner 不得加入 market source，Actions 以 `research_include_market_data=false` 傳遞到 workflow，OpenBB alignment 產生 `provider=not_requested`、空的 instruments 與 coverage `0` 的合法快照。下游只能標示「未要求市場資料」，不得把空快照解讀成價格／估值為零，也不得偷偷改抓 CoinGecko。
 - 任何非 `true|false` 的 workflow input 在 admission 前拒絕；這個選擇必須保留在 frozen requirement、dispatch input、Research Pack 與 audit 中。
 
+### 0.1.1 任務型 Harness（Normative）
+
+兩個應用共用一個 agent runtime，不建立多個互相轉交上下文的常駐 Agent。每個非同步 job 在 admission 時綁定一個版本化 `harness_pack_id`，由 Harness Pack 決定：允許的 tools／sources、skill／rule、input／output schema、成功標準、fail-closed 條件、retry／callback policy 與 verifier。
+
+本專案固定以下任務類型：
+
+| `task_type` | Harness Pack | 交接 output |
+|---|---|---|
+| `source_validation` | 120 品牌／166 endpoint 全量能力與 raw capture | `source_matrix.v1` |
+| `evidence_normalization` | item extraction、canonical URL／content fingerprint 去重、noise／relevance gate | `normalized_evidence.v1` |
+| `target_research` | target resolver、topic／OpenBB／evidence graph、report generator | `research_pack.v1`＋`research_report.v2` |
+| `decision_discussion` | Grill Me First、唯讀 evidence tools、policy guard | `decision_memo.v1`＋`decision_trace.v1` |
+| `operations_recovery` | callback、retry、alert、last-good、quota、soak | `run_record.v1`＋`recovery_evidence.v1` |
+
+因此流程改為：
+
+```text
+MCP submit task
+  → Worker 凍結 task_type + harness_pack@version + input hash
+  → GitHub Actions／OpenBB／文件引擎執行
+  → Harness verifier 判定 pass／partial／blocked
+  → D1/R2 寫入 artifact + audit
+  → 只有符合 handoff contract 才能交下一個 Harness
+```
+
+Big Pickle 只做任務編排與已授權 tool calls；資料收集、正規化、去重與基礎統計不經模型。高階 AI 只在 `decision_discussion` 讀取 frozen Research Pack，不得自行回來源抓取。
+
 ### 0.1 目前實作狀態（2026-08-21）
 
 App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，Worker 以 `waitUntil` 執行目前已發布的資料快照，產出私有 R2 Research Pack、詳細第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署；遠端真實 run 已產出 15 筆 evidence、3 份 report 並完成私有讀回。

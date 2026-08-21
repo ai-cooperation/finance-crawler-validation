@@ -47,6 +47,29 @@
 - 不把 Big Pickle 的免費執行結果當作私有研究或最終投資建議；免費模型的資料使用政策與可用性必須由 provider policy gate 控制。
 - 不把 OpenCode Desktop 關閉後仍可輪詢，誤當成可靠的背景喚醒；背景 job 必須由 Cloudflare／GitHub job controller 持續保存與恢復。
 
+### 1.3 任務型 Harness 架構（本專案採用）
+
+本專案採用「一個 runtime＋多個 Harness Pack」，不為來源收集、研究報告與決策討論各自建立一個常駐 Agent。MCP 是連接層；Harness Pack 是任務控制層；Cloudflare Worker／GitHub Actions 是非同步執行與狀態層。
+
+每個 `research_job` 必須在建立時凍結：
+
+- `task_type` 與 `harness_pack_id@version`。
+- 允許的 MCP tools、來源 transport、OpenBB provider、模型與資源上限。
+- input／output schema、成功標準、fail-closed 條件、retry／callback policy。
+- verifier、audit event、artifact hash 與下一個可接收的 task type。
+
+首版 Harness Pack 分為：
+
+| Harness Pack | 任務責任 | 主要 output | 不允許越界 |
+|---|---|---|---|
+| `source-validation` | 120 品牌／166 endpoint 全量路徑與能力矩陣 | source matrix、raw refs、route outcome | 不宣稱研究相關性 |
+| `evidence-normalization` | RSS／API／HTML／Browser payload 轉 item、去重、去噪、entity/topic extraction | normalized items、duplicate groups、quality report | 不產生投資結論 |
+| `target-research` | 以 frozen target 組合議題、OpenBB、事件與證據 | Research Pack、report v2、evidence appendix | 缺 target evidence 時 fail closed |
+| `decision-discussion` | Grill Me First 後唯讀讀取 frozen Research Pack | decision memo、decision trace | 不自行抓來源、不下單 |
+| `operations-recovery` | callback、retry、告警、last-good、quota 與 soak | run record、recovery evidence、soak verdict | 不覆寫 current 或刪除稽核紀錄 |
+
+OpenCode／Big Pickle 是通用 runtime；它只依 `task_type` 載入對應 Harness Pack。資料收集與正規化的 deterministic script 不消耗模型 token；模型只在需要分類、摘要或報告推理的 Harness Pack 中啟用。這使同一套 MCP／D1／R2／Actions 基礎設施可以換任務而不混淆權限與驗收標準。
+
 ## 2. 現有基礎與缺口
 
 ### 2.1 已有基礎（已部署／已實測）
