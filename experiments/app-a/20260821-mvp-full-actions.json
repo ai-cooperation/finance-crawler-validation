@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-08-21T16:30:01.710Z",
+  "purpose": "H3 investment-research MVP full Actions verification",
+  "repository": "ai-cooperation/finance-crawler-validation",
+  "worker": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev",
+  "workflow_run": {
+    "id": 32501782884,
+    "url": "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32501782884",
+    "commit": "de3b267cc244ab06c4fc1dd78e37d9f2bea869d0",
+    "conclusion": "success",
+    "path": "source_strategy=actions -> OIDC admission -> full catalog -> OIDC completion callback"
+  },
+  "mcp_gate": {
+    "job_id": "research_20260821161302_5aa7f526",
+    "request_id": "22a95328-31d6-4e20-b8f0-905e58b0be2a",
+    "gate_a_status": "passed",
+    "remote_status": "passed",
+    "target": { "kind": "crypto", "symbol": "BTC" },
+    "collection_scope": "full_catalog",
+    "source_group_count": 135,
+    "endpoint_attempt_count": 181,
+    "normalized_item_count": 132,
+    "evidence_count": 132,
+    "report_count": 3,
+    "coverage_ratio": 0.8740740740740741,
+    "partial": true,
+    "stale": false,
+    "failed_sources": [
+      "bbc_business_rss",
+      "ecb_press_rss",
+      "etf_stream",
+      "federal_reserve_press_rss",
+      "financial_advisor_magazine",
+      "financial_express",
+      "hacker_news_finance_api",
+      "marketwatch_topstories_rss",
+      "money_com",
+      "money_stackexchange_api",
+      "moneycontrol",
+      "openbb_github_issues_api",
+      "private_banker_international",
+      "quant_stackexchange_api",
+      "the_trade",
+      "tradingagents_github_issues_api"
+    ],
+    "pack_id": "pack_20260821161302_5aa7f526",
+    "run_id": "run_20260821t161433z"
+  },
+  "research_pack": {
+    "status": "partial",
+    "evidence_count": 132,
+    "report_count": 3,
+    "content_sha256": "55660d6ba5241f7c5f36ba9525184f977cbd6415fd04384252759b7a38ce1fe4"
+  },
+  "report_only_ai_replay": {
+    "workflow_run_id": 32502952521,
+    "url": "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32502952521",
+    "conclusion": "success",
+    "requested_model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "report_count": 3,
+    "replayed": true,
+    "interpretation": "The endpoint and OIDC model-execution path passed; reports were already persisted by the deterministic full-catalog first-opinion path, so this run is not counted as fresh 70B generation."
+  },
+  "formal_runtime": {
+    "health_http": 200,
+    "status_http": 200,
+    "run_daily_limit": 2,
+    "run_min_interval_seconds": 21600,
+    "freshness_state": "healthy",
+    "current_snapshot": "radar_20260821t161433z"
+  },
+  "tests": {
+    "worker_test_files": 8,
+    "worker_tests": 140,
+    "python_pytest": "passed",
+    "typecheck": "passed",
+    "deploy_dry_run": "passed"
+  }
+}

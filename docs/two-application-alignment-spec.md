@@ -76,11 +76,11 @@ Signal／Action 的共用契約、application Pack registry、保險／產業／
 
 App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，結果寫入私有 R2 Research Pack、第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。Cloudflare `waitUntil` 的背景執行約 30 秒邊界已由遠端 tail 驗證；因此 `collection_scope=full_catalog` 的 MCP 路徑先產出 deterministic evidence-linked report，較長模型推理改走 `source_strategy=actions` 的 GitHub Actions／OIDC callback。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署。
 
-2026-08-21 已以新設定的 OpenCode／Big Pickle 完成部署後全量鏈：`plan → submit → get_job_status 輪詢 → Research Pack → report → evidence appendix`。BTC 實際 job `research_20260821155318_bec80e96` 的 Gate A 為 `passed`：135 source groups、181 endpoint attempts、147 normalized／evidence items、3 份 reports、147 筆 appendix；H3 harness、action receipts 與無個人化建議檢查均通過。來源品質仍為 `partial`（11 個 source failures，coverage `0.9111`），所以這是可稽核的研究候選版，不是投資級決策或 100% 來源成功。正式配額已恢復為每日 2 次、最小間隔 21,600 秒；證據見 [`experiments/app-a/20260821-big-pickle-gate-a-full-catalog.json`](../experiments/app-a/20260821-big-pickle-gate-a-full-catalog.json)。
+2026-08-21 已以新設定的 OpenCode／Big Pickle 完成部署後全量鏈：`plan → submit → get_job_status 輪詢 → Research Pack → report → evidence appendix`。BTC 實際 job `research_20260821161302_5aa7f526` 的 Gate A 為 `passed`：135 source groups、181 endpoint attempts、132 normalized／evidence items、3 份 reports、132 筆 appendix；GitHub Actions run `32501782884` 的 OIDC admission、全量收集與 completion callback 均為 success。來源品質仍為 `partial`（16 個 source failures，coverage `0.8741`），所以這是可稽核的研究候選版，不是投資級決策或 100% 來源成功。Cloudflare Worker 的 evidence loading 已改為每 topic 最多 6 筆，避免 full-catalog R2 讀取超時；report-only 的 70B 路徑以 run `32502952521` 通過 HTTP 200，但因同一 Research Pack 已有 deterministic first-opinion 報告而是 `replayed=true`，不冒充新模型生成。正式配額已恢復為每日 2 次、最小間隔 21,600 秒；完整 metadata 見 [`experiments/app-a/20260821-mvp-full-actions.json`](../experiments/app-a/20260821-mvp-full-actions.json)。
 
 ### 0.2 本輪本機驗證與未完成項（Normative）
 
-本輪新增的 App A 邊界測試已通過：Worker 共 133 tests，statements 87.85%（1591／1811）、branches 80.43%（1151／1431）、functions 97.45%（268／275）、lines 90.20%（1464／1623）；Python gate 253 tests，coverage 80.66%；新增 `finance-app-a-remote` bounded verifier，並通過 `typecheck`、`types:check`、workflow YAML parse、`git diff --check` 與 `deploy:dry`。這些是 CI／發布前證據；遠端鏈證據另見 `20260821-remote-gate-a.json`。
+本輪新增的 App A 邊界測試已通過：Worker 共 140 tests；Python gate 全部通過；新增 `finance-app-a-remote` bounded verifier，並通過 `typecheck`、workflow YAML parse、`git diff --check` 與 `deploy:dry`。這些是 CI／發布前證據；遠端鏈證據見 [`experiments/app-a/20260821-mvp-full-actions.json`](../experiments/app-a/20260821-mvp-full-actions.json)。
 
 目前的開發交接固定為：
 
@@ -272,13 +272,13 @@ Research Pack 不得含沒有來源的模型敘事；報告可以有 inference�
 |---:|---|---|---|---|
 | 1 | Contract／policy／quality manifest | 現有 schemas、D1、rights policy | `contract_manifest.v2`、policy／quality rules | 部分完成；decision schemas 尚缺 |
 | 2 | Research Requirement Planner | target resolver、source catalog、freshness | `research_requirement.v1`、`source_bundle_manifest.v1` | 本機 schema／D1 migration／MCP preview 已完成；遠端尚未部署 |
-| 3 | Data Broker target refresh | planner、Actions admission、OIDC callback | target-specific `research_job` → ingest／OpenBB outputs | dispatch client／workflow input 已完成；secret、部署與真實回呼尚缺 |
-| 4 | App A client integration | remote MCP、OpenCode config、Big Pickle policy | `submit → status → pack → report` client evidence | 部署後 authenticated 唯讀 planner tool-call 已通；`submit → status → result` 與完整鏈路尚缺 |
+| 3 | Data Broker target refresh | planner、Actions admission、OIDC callback | target-specific `research_job` → ingest／OpenBB outputs | dispatch client、部署與真實 OIDC completion callback 已通；品質仍可能為 `partial` |
+| 4 | App A client integration | remote MCP、OpenCode config、Big Pickle policy | `submit → status → pack → report` client evidence | full-catalog BTC 的 `submit → status → Research Pack → report／appendix` 已通；70B report-only replay 已標記，不冒充 fresh generation |
 | 5 | Research Pack／report quality | evidence graph、report v2、profile | full／quick／appendix、citation graph | v1-compatible evidence graph、profile／requested_outputs 本機完成；正式 report v2、quality／citation graph 擴充仍缺 |
 | 6 | App B decision session | frozen report、Grill Me First | `decision_session`、`decision_memo`、trace | 尚未開發 |
 | 7 | Auth／MCP productization | 兩應用 scope、OAuth onboarding | client onboarding、read／write deny matrix | token smoke 有；OAuth 尚缺 |
 | 8 | Production operations | alerts、schedule、last-good | soak verdict、recovery evidence | Telegram 真人告警已通；七日 soak、schedule 與 recovery evidence 尚缺 |
-| 9 | Gate A／B release decision | detector、兩個 MVP evidence bundle | release decision、未解問題清單 | Gate A detector 已有；遠端 Gate A 與 App B 尚未通過 |
+| 9 | Gate A／B release decision | detector、兩個 MVP evidence bundle | release decision、未解問題清單 | full Actions Gate A 已通過但品質為 `partial`；App B 尚未通過 |
 
 ## 7. 兩個應用的 MVP gate
 
