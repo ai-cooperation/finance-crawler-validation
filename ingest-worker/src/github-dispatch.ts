@@ -21,6 +21,7 @@ export interface WorkflowDispatchRequest {
     research_source_ids: string;
     research_requirement_id: string;
     research_target: string;
+    research_question: string;
     research_include_market_data: string;
   };
 }
@@ -29,6 +30,7 @@ export function buildWorkflowDispatchRequest(job: {
   job_id: string;
   source_ids: string[];
   target: Record<string, unknown>;
+  question?: string;
   requirement_id: string;
   include_market_data?: boolean;
 }): WorkflowDispatchRequest {
@@ -49,6 +51,7 @@ export function buildWorkflowDispatchRequest(job: {
       research_source_ids: JSON.stringify(uniqueSourceIds),
       research_requirement_id: job.requirement_id,
       research_target: JSON.stringify(job.target),
+      research_question: job.question ?? "",
       research_include_market_data: String(job.include_market_data ?? true),
     },
   };
@@ -65,6 +68,7 @@ export async function dispatchResearchWorkflow(
     job_id: job.job_id,
     source_ids: job.source_ids,
     target: job.target,
+    question: job.requirement.question,
     requirement_id: job.requirement.requirement_id,
     include_market_data: job.requirement.include_market_data,
   });

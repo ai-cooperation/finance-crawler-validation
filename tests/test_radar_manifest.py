@@ -24,11 +24,17 @@ def test_vertical_slice_manifest_has_balanced_unique_sources() -> None:
     assert {
         transport: sum(source.transport == transport for source in manifest.sources)
         for transport in ("rss", "json_api", "browser")
-    } == {"rss": 5, "json_api": 7, "browser": 3}
+    } == {"rss": 6, "json_api": 7, "browser": 2}
     assert {
         strategy: sum(source.catchup_strategy == strategy for source in manifest.sources)
         for strategy in ("rss_window", "api_since", "latest_only")
-    } == {"rss_window": 5, "api_since": 5, "latest_only": 5}
+    } == {"rss_window": 6, "api_since": 5, "latest_only": 4}
+
+    bogleheads = next(source for source in manifest.sources if "bogleheads" in source.source_id)
+    assert bogleheads.source_id == "bogleheads_investing_rss"
+    assert bogleheads.transport == "rss"
+    assert bogleheads.extractor == "rss"
+    assert bogleheads.canonical_url == "https://www.bogleheads.org/forum/feed.php?f=1"
 
 
 def test_manifest_rejects_private_network_targets(tmp_path: Path) -> None:

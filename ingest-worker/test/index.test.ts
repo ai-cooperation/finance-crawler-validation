@@ -1357,11 +1357,15 @@ describe("external operational alerts", () => {
     const body = JSON.parse(String(delivery?.init.body));
     expect(body).toMatchObject({
       topic: "finance-radar-synthetic-topic",
-      title: "Finance crawler alert",
+      title: "財經議題雷達告警",
       priority: 5,
       click: "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
     });
-    expect(body.message).toContain("31309377786");
+    expect(body.message).toBe(
+      "🚨 財經議題雷達 GitHub Actions 執行失敗（run 31309377786）\n"
+      + "告警識別碼：github_action_failure:31309377786\n"
+      + "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+    );
     expect(body).not.toHaveProperty("details");
   });
 

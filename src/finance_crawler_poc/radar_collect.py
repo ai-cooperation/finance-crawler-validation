@@ -33,6 +33,30 @@ class RadarCollection:
         return sum(result["status"] == "success" for result in self.source_results)
 
     @property
+    def content_source_count(self) -> int:
+        """Count sources that returned evidence, not merely HTTP success."""
+        return sum(
+            result["status"] == "success"
+            and (
+                result.get("content_status") == "items"
+                or ("content_status" not in result and int(result.get("item_count", 0)) > 0)
+            )
+            for result in self.source_results
+        )
+
+    @property
+    def empty_source_ids(self) -> tuple[str, ...]:
+        return tuple(
+            str(result["source_id"])
+            for result in self.source_results
+            if result["status"] == "success"
+            and (
+                result.get("content_status") == "empty_window"
+                or ("content_status" not in result and int(result.get("item_count", 0)) == 0)
+            )
+        )
+
+    @property
     def failed_source_ids(self) -> tuple[str, ...]:
         return tuple(
             str(result["source_id"])
@@ -127,7 +151,11 @@ async def collect_radar_sources(
                 checkpoints.append(
                     {
                         "source_id": source.source_id,
-                        "status": "success",
+                        # `partial` means the transport was healthy but the
+                        # incremental window contained no new evidence.  It
+                        # must trigger planner refresh without pretending the
+                        # endpoint itself failed.
+                        "status": "success" if source_items else "partial",
                         "last_successful_crawl": collected_at,
                         "last_article_date": max(published) if published else None,
                         "cursor": None,
@@ -141,6 +169,7 @@ async def collect_radar_sources(
                         "status_code": response.status_code,
                         "route": response.route,
                         "item_count": len(source_items),
+                        "content_status": "items" if source_items else "empty_window",
                         "request_url": window.request_url,
                         "catchup_strategy": window.strategy,
                         "published_since": window.published_since,
@@ -184,6 +213,7 @@ def _source_failure_result(
         "status_code": response.status_code if response is not None else None,
         "route": response.route if response is not None else "unknown",
         "item_count": 0,
+        "content_status": "failed",
         "request_url": source.canonical_url,
         "error": f"{type(error).__name__}: {error}"[:1000],
     }

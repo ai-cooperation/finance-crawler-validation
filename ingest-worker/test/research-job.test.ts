@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createHandler } from "../src/handler";
 import {
   buildEvidenceGraph,
+  mergeResearchEvidenceRows,
   executeResearchJob,
   dispatchActionsResearchJob,
   completeResearchJob,
@@ -225,6 +226,32 @@ beforeEach(async () => {
 });
 
 describe("research report generator job contract", () => {
+  it("merges last-good evidence without duplicating current-run items", () => {
+    const current = [{
+      item_id: "a".repeat(64),
+      source_id: "cnbc_top_news_rss",
+      canonical_url: "https://example.com/current",
+      title: "Current",
+      summary: "Current",
+      published_at: "2026-08-20T04:00:00Z",
+      created_at: "2026-08-20T04:00:00Z",
+      content_sha256: "b".repeat(64),
+    }];
+    const lastGood = [{
+      ...current[0],
+      item_id: "c".repeat(64),
+      canonical_url: "https://example.com/last-good",
+      title: "Last good",
+      content_sha256: "d".repeat(64),
+      created_at: "2026-08-19T04:00:00Z",
+    }, current[0]];
+
+    expect(mergeResearchEvidenceRows(current, lastGood, 12).map((row) => row.item_id)).toEqual([
+      "a".repeat(64),
+      "c".repeat(64),
+    ]);
+  });
+
   it("keeps evidence graph generation compatible with legacy reports and packs", () => {
     const legacyReport = {
       schema_version: 1,

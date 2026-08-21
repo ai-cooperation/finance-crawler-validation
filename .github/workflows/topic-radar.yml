@@ -63,6 +63,11 @@ on:
         required: false
         type: string
         default: ""
+      research_question:
+        description: Frozen question used to prioritize target-relevant radar evidence
+        required: false
+        type: string
+        default: ""
       research_include_market_data:
         description: Whether this research run requires a market-data snapshot
         required: false
@@ -276,6 +281,7 @@ jobs:
           OIDC_AUDIENCE: finance-crawler-validation-ingest
           RESEARCH_SOURCE_IDS: ${{ inputs.research_source_ids }}
           RESEARCH_TARGET: ${{ inputs.research_target }}
+          RESEARCH_QUESTION: ${{ inputs.research_question }}
           RESEARCH_INCLUDE_MARKET_DATA: ${{ inputs.research_include_market_data }}
         run: |
           set -euo pipefail
@@ -407,6 +413,8 @@ jobs:
           !inputs.verify_research_reports
         env:
           SOURCE_IDS: ${{ steps.admission.outputs.source_ids }}
+          TARGET_JSON: ${{ inputs.research_target }}
+          RESEARCH_QUESTION: ${{ inputs.research_question }}
         run: |
           set -euo pipefail
           collect_args=(
@@ -415,6 +423,12 @@ jobs:
           )
           if [[ -n "$SOURCE_IDS" ]]; then
             collect_args+=(--source-ids "$SOURCE_IDS")
+          fi
+          if [[ -n "$TARGET_JSON" ]]; then
+            collect_args+=(--target-json "$TARGET_JSON")
+          fi
+          if [[ -n "$RESEARCH_QUESTION" ]]; then
+            collect_args+=(--question "$RESEARCH_QUESTION")
           fi
           finance-topic-radar "${collect_args[@]}" --output artifacts/topic-radar
 

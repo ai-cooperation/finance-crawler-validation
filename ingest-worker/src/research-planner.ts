@@ -34,7 +34,7 @@ const SOURCE_LAYERS: Record<string, "market" | "news" | "official" | "social"> =
   tradingagents_github_issues_api: "social",
   openbb_github_discussions_browser: "social",
   tradingview_ideas_browser: "social",
-  bogleheads_investing_browser: "social",
+  bogleheads_investing_rss: "social",
 };
 
 const SOURCE_GROUPS: Record<string, readonly string[]> = {
@@ -49,8 +49,26 @@ const SOURCE_GROUPS: Record<string, readonly string[]> = {
     "tradingagents_github_issues_api",
     "openbb_github_discussions_browser",
     "tradingview_ideas_browser",
-    "bogleheads_investing_browser",
+    "bogleheads_investing_rss",
   ],
+};
+
+const TARGET_SOURCE_PRIORITIES: Partial<Record<ResearchTarget["kind"], readonly string[]>> = {
+  crypto: [
+    "coingecko_markets_api",
+    "cnbc_top_news_rss",
+    "bbc_business_rss",
+    "federal_reserve_press_rss",
+    "ecb_press_rss",
+    "openbb_github_discussions_browser",
+    "tradingview_ideas_browser",
+    "bogleheads_investing_rss",
+    "hacker_news_finance_api",
+    "money_stackexchange_api",
+    "quant_stackexchange_api",
+  ],
+  equity: ["cnbc_top_news_rss", "marketwatch_topstories_rss", "federal_reserve_press_rss"],
+  etf: ["cnbc_top_news_rss", "marketwatch_topstories_rss", "federal_reserve_press_rss"],
 };
 
 export interface ResearchRequirement {
@@ -368,13 +386,17 @@ export function evaluateSnapshotSufficiency(
 
 function selectSourceIds(requirement: ResearchRequirement): string[] {
   const requiredLayers = requirement.target.kind === "crypto"
-    ? (requirement.include_market_data ? ["market", "news", "social"] : ["news", "social"])
+    ? (requirement.include_market_data ? ["market", "news", "official", "social"] : ["news", "official", "social"])
     : requirement.target.kind === "industry" || requirement.target.kind === "topic"
       ? ["news", "official", "social"]
       : requirement.include_market_data
         ? ["market", "news", "official", "social"]
         : ["news", "official", "social"];
   const ordered: string[] = [];
+  for (const sourceId of TARGET_SOURCE_PRIORITIES[requirement.target.kind] ?? []) {
+    const layer = SOURCE_LAYERS[sourceId];
+    if (layer && requiredLayers.includes(layer) && !ordered.includes(sourceId)) ordered.push(sourceId);
+  }
   for (const layer of requiredLayers) {
     const candidate = SOURCE_GROUPS[layer]?.[0];
     if (candidate && !ordered.includes(candidate)) ordered.push(candidate);

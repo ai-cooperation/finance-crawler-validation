@@ -202,15 +202,15 @@ sources:
     timeout_seconds: 40
 
   - schema_version: 1
-    source_id: bogleheads_investing_browser
+    source_id: bogleheads_investing_rss
     name: Bogleheads Personal Investments
     kind: community
     layer: social
-    transport: browser
-    canonical_url: https://www.bogleheads.org/forum/viewforum.php?f=1
+    transport: rss
+    canonical_url: https://www.bogleheads.org/forum/feed.php?f=1
     freshness_sla_minutes: 360
     rights: {redistribution: metadata_only, retention_days: 7, public_excerpt_chars: 0}
-    extractor: browser_document
-    catchup_strategy: latest_only
-    max_items: 1
+    extractor: rss
+    catchup_strategy: rss_window
+    max_items: 5
     timeout_seconds: 40

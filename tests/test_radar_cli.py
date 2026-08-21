@@ -88,3 +88,49 @@ def test_artifact_builder_outputs_ingest_ready_contracts() -> None:
     assert report["checkpoints"][0]["source_id"] == manifest.sources[0].source_id
     assert envelope["snapshot_id"] == snapshot["snapshot_id"]
     assert envelope["commit_sha"] == "d" * 40
+
+
+def test_artifact_report_separates_transport_success_from_empty_windows() -> None:
+    manifest = load_radar_manifest(ROOT / "radar-sources.yaml")
+    items = (
+        item("news_a", "Fed inflation interest rate", "news"),
+        item("social_a", "Bitcoin crypto rally", "social"),
+        item("news_b", "Nvidia AI semiconductor", "news"),
+    )
+    checkpoints = tuple(
+        {
+            "source_id": source.source_id,
+            "status": "success",
+            "last_successful_crawl": "2026-08-10T02:05:00Z",
+            "last_article_date": None,
+            "cursor": None,
+        }
+        for source in manifest.sources
+    )
+    results = tuple(
+        {
+            "source_id": source.source_id,
+            "transport": source.transport,
+            "status": "success",
+            "status_code": 200,
+            "route": "synthetic_test",
+            "item_count": 0 if source is manifest.sources[0] else 1,
+            "request_url": source.canonical_url,
+            "catchup_strategy": source.catchup_strategy,
+            "published_since": "2026-08-10T02:00:00Z",
+            "error": "",
+        }
+        for source in manifest.sources
+    )
+    _, _, report = build_radar_artifacts(
+        manifest,
+        RadarCollection(items=items, checkpoints=checkpoints, source_results=results),
+        workflow_run_id="31309377786",
+        commit_sha="d" * 40,
+        now=datetime(2026, 8, 10, 2, 5, tzinfo=timezone.utc),
+        manifest_sha256="a" * 64,
+    )
+
+    assert report["successful_sources"] == 15
+    assert report["content_sources"] == 14
+    assert report["empty_sources"] == [manifest.sources[0].source_id]

@@ -196,6 +196,46 @@ describe("market alignment ingest", () => {
     expect(await env.RAW_OBJECTS.get("alignments/align_20260820t035900z.json")).not.toBeNull();
   });
 
+  it("persists an explicit not_requested empty market snapshot", async () => {
+    await arrangePublishedRun();
+    const payload = ingestPayload();
+    payload.market_snapshot = {
+      ...payload.market_snapshot,
+      snapshot_id: "market_20260820t040100z",
+      provider: "not_requested",
+      instruments: [],
+    };
+    payload.alignment = {
+      ...payload.alignment,
+      alignment_id: "align_20260820t040100z",
+      market_snapshot_id: "market_20260820t040100z",
+      coverage_ratio: 0,
+      partial: true,
+      topics: [{
+        ...payload.alignment.topics[0],
+        market_direction: "not_covered",
+        instrument_count: 0,
+        symbols: [],
+        mean_change_24h_pct: null,
+      }],
+    };
+
+    const response = await handler().fetch(new Request(
+      "https://ingest.example/v1/ingest/market-alignment",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    ), env);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      replayed: false,
+      instrument_count: 0,
+      alignment_id: "align_20260820t040100z",
+    });
+  });
+
   it("rejects alignment evidence that is not in the published run", async () => {
     await arrangePublishedRun();
     const invalid = ingestPayload();

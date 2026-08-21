@@ -164,6 +164,28 @@ interface RawItemRow {
   summary: string;
   published_at: string | null;
   content_sha256: string;
+  created_at: string;
+}
+
+/**
+ * Keep the current run first, then fill empty incremental windows from the
+ * recent last-good corpus.  The item_id de-duplication makes replayed runs
+ * auditable without inflating source coverage.
+ */
+export function mergeResearchEvidenceRows(
+  currentRows: RawItemRow[],
+  lastGoodRows: RawItemRow[],
+  limit: number,
+): RawItemRow[] {
+  const merged: RawItemRow[] = [];
+  const seen = new Set<string>();
+  for (const row of [...currentRows, ...lastGoodRows]) {
+    if (seen.has(row.item_id)) continue;
+    seen.add(row.item_id);
+    merged.push(row);
+    if (merged.length >= limit) break;
+  }
+  return merged;
 }
 
 export async function submitResearchJob(
@@ -636,14 +658,32 @@ async function buildResearchPack(
     market_snapshot: marketPayload,
     alignment: alignmentPayload,
   });
-  const rawItems = await env.DB.prepare(
+  const currentRawItems = await env.DB.prepare(
     `SELECT raw_items.item_id, raw_items.source_id, raw_items.canonical_url,
             raw_items.title, raw_items.summary, raw_items.published_at,
-            raw_items.content_sha256
+            raw_items.content_sha256, raw_items.created_at
      FROM raw_items JOIN run_items ON run_items.item_id = raw_items.item_id
      WHERE run_items.run_id = ? ORDER BY raw_items.published_at DESC`,
   ).bind(run.run_id).all<RawItemRow>();
-  const initialItems = rawItems.results.slice(0, request.requirements.max_sources);
+  const planner = parseOptionalPlanner(row.requirement_json, row.source_bundle_json);
+  const approvedSourceIds = planner === null ? null : new Set(planner.source_bundle.source_ids);
+  const lookback = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const recentRawItems = await env.DB.prepare(
+    `SELECT item_id, source_id, canonical_url, title, summary, published_at,
+            content_sha256, created_at
+     FROM raw_items WHERE created_at >= ? ORDER BY published_at DESC LIMIT 120`,
+  ).bind(lookback).all<RawItemRow>();
+  const filteredRecent = recentRawItems.results.filter((item) =>
+    approvedSourceIds === null || approvedSourceIds.has(item.source_id),
+  );
+  const rawItems = mergeResearchEvidenceRows(
+    currentRawItems.results,
+    filteredRecent,
+    // Never drop current-run rows: a generated report may cite an item that
+    // sorts below the initial display window and must remain auditable.
+    Math.max(request.requirements.max_sources, currentRawItems.results.length, 1),
+  );
+  const initialItems = rawItems.slice(0, request.requirements.max_sources);
   const reports: ResearchReport[] = [];
   for (const reportId of reportIds) {
     const reportRow = await env.DB.prepare(
@@ -675,7 +715,7 @@ async function buildResearchPack(
       note.evidence_ids.forEach((itemId) => includedItemIds.add(itemId));
     }
   }
-  const limitedItems = rawItems.results.filter((item) => includedItemIds.has(item.item_id));
+  const limitedItems = rawItems.filter((item) => includedItemIds.has(item.item_id));
   const sourceIds = new Set(limitedItems.map((item) => item.source_id));
   const failedSources = Array.isArray(topicSnapshot.failed_sources)
     ? topicSnapshot.failed_sources.filter((source): source is string => typeof source === "string")
@@ -685,7 +725,6 @@ async function buildResearchPack(
   const coverageRatio = request.requirements.max_sources === 0
     ? 0
     : Math.min(1, sourceIds.size / request.requirements.max_sources);
-  const planner = parseOptionalPlanner(row.requirement_json, row.source_bundle_json);
   const evidenceGraph = buildEvidenceGraph(reports);
   return {
     schema_version: 1,

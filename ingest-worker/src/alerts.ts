@@ -393,8 +393,8 @@ function ntfyDelivery(webhookUrl: string, payload: object): AlertDelivery {
   const click = typeof details.run_url === "string" ? details.run_url : undefined;
   const body: Record<string, unknown> = {
     topic: topic[0],
-    title: "Finance crawler alert",
-    message: `${String(record.summary ?? "Finance crawler state changed")}\n${String(record.alert_key ?? "unknown")}`,
+    title: "財經議題雷達告警",
+    message: publicAlertText(payload),
     priority: record.severity === "critical" ? 5 : 2,
     tags: record.state === "resolved" ? ["white_check_mark"] : ["warning"],
   };
@@ -443,12 +443,36 @@ function publicAlertText(payload: object): string {
     ? record.details as Record<string, unknown>
     : {};
   const icon = record.state === "resolved" ? "✅" : "🚨";
+  const alertKey = String(record.alert_key ?? "unknown");
   const lines = [
-    `${icon} ${String(record.summary ?? "Finance crawler state changed")}`,
-    String(record.alert_key ?? "unknown"),
+    `${icon} ${localizeAlertSummary(record.summary)}`,
+    `告警識別碼：${alertKey}`,
   ];
   if (typeof details.run_url === "string") lines.push(details.run_url);
   return lines.join("\n");
+}
+
+function localizeAlertSummary(summary: unknown): string {
+  if (typeof summary !== "string") return "財經議題雷達狀態發生變更";
+  const actionFailure = /^Finance topic radar GitHub Actions run (\d+) failed$/.exec(summary);
+  if (actionFailure) return `財經議題雷達 GitHub Actions 執行失敗（run ${actionFailure[1]}）`;
+  const actionRecovery = /^Finance topic radar recovered in GitHub Actions run (\d+)$/.exec(summary);
+  if (actionRecovery) return `財經議題雷達已在 GitHub Actions run ${actionRecovery[1]} 恢復`;
+  if (summary === "Finance topic radar Cloudflare freshness watchdog failed") {
+    return "財經議題雷達 Cloudflare 新鮮度監控執行失敗";
+  }
+  if (summary === "Finance topic radar freshness recovered") {
+    return "財經議題雷達資料新鮮度已恢復";
+  }
+  if (summary === "Finance topic radar has no published snapshot") {
+    return "財經議題雷達目前沒有已發布的資料快照";
+  }
+  if (summary === "Finance topic radar snapshot is stale") {
+    return "財經議題雷達資料快照已過期";
+  }
+  const stale = /^Finance topic radar snapshot is stale \((\d+)s\)$/.exec(summary);
+  if (stale) return `財經議題雷達資料快照已過期（${stale[1]} 秒）`;
+  return "財經議題雷達狀態發生變更";
 }
 
 async function providerAccepted(

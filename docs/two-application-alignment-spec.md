@@ -41,15 +41,15 @@ Agent 不直接猜 URL、繞過權限或同步等待爬蟲完成；它只提交�
 
 App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，Worker 以 `waitUntil` 執行目前已發布的資料快照，產出私有 R2 Research Pack、詳細第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署；遠端真實 run 已產出 15 筆 evidence、3 份 report 並完成私有讀回。
 
-這不等於嚴格 Gate A 已完成：2026-08-21 已完成一次新版 `refresh_required` 的 Actions → OIDC admission／publish → success callback → Research Pack／report／appendix 真實重跑；job 狀態為 `partial`，證據見 [`experiments/app-a/20260821-remote-gate-a.json`](../experiments/app-a/20260821-remote-gate-a.json)。該 workflow 的研究 callback 成功，但後續因驗證帳號未配置 `ALERT_WEBHOOK_URL`，外部告警／告警恢復步驟回 503，整體 run 被標為 failure 並建立 issue #52。這個告警配置缺口不可被忽略或用舊 snapshot 掩蓋。OpenCode Desktop 真實連線與 Big Pickle 對部署 Worker 的實際 tool-call 仍需另外驗收。`finance-app-a-gate` 只會檢查本機證據，並在沒有完整遠端證據時明確回報 `gate_a_status=blocked`；本機綠燈不等於線上通過。
+2026-08-21 已以新設定的 OpenCode／Big Pickle 完成部署後完整鏈：`plan → submit → Actions → OIDC admission／publish → success callback → get_job_status → Research Pack／report／appendix read-back`，證據見 [`experiments/app-a/20260821-big-pickle-gate-a-final.json`](../experiments/app-a/20260821-big-pickle-gate-a-final.json)，GitHub Actions run [`32462029861`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32462029861)。job 狀態為 `partial/published`，3 份 report、4 筆 evidence，四個 Big Pickle readback tools 全部成功；但 12 個計畫來源中 1 個 Browser source 失敗，且本次明確未要求市場資料，因此品質仍須標示 `partial`／`research_only`。前次因驗證帳號未配置 `ALERT_WEBHOOK_URL`，外部告警／告警恢復步驟回 503，整體 run 被標為 failure 並建立 issue #52；後續已配置 Telegram 中文告警，並以控制平面 run [`32448634111`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32448634111) 驗證外部告警步驟成功。這證明 App A 的部署後工具鏈已通，不代表完整品質 Gate、report v2、App B 或連續營運已完成。`finance-app-a-gate` 仍對品質不足或證據缺口採 fail-closed；本機綠燈不等於線上通過。
 
 ### 0.2 本輪本機驗證與未完成項（Normative）
 
-本輪新增的 App A 邊界測試已通過：Worker 共 125 tests，statements 87.76%（1571／1790）、branches 80.01%（1137／1421）、functions 97.44%（267／274）、lines 90.09%（1447／1606）；Python gate 253 tests，coverage 80.66%；新增 `finance-app-a-remote` bounded verifier，並通過 `typecheck`、`types:check`、workflow YAML parse、`git diff --check` 與 `deploy:dry`。這些是 CI／發布前證據；遠端鏈證據另見 `20260821-remote-gate-a.json`。
+本輪新增的 App A 邊界測試已通過：Worker 共 133 tests，statements 87.85%（1591／1811）、branches 80.43%（1151／1431）、functions 97.45%（268／275）、lines 90.20%（1464／1623）；Python gate 253 tests，coverage 80.66%；新增 `finance-app-a-remote` bounded verifier，並通過 `typecheck`、`types:check`、workflow YAML parse、`git diff --check` 與 `deploy:dry`。這些是 CI／發布前證據；遠端鏈證據另見 `20260821-remote-gate-a.json`。
 
 目前的開發交接固定為：
 
-1. **完成嚴格 Gate A 收尾**：遠端核心 `plan → actions dispatch → OIDC callback → Research Pack → report／appendix read-back` 已有真實證據；仍需在部署後以 OpenCode Desktop／Big Pickle 完成實際 tool-call，並配置／驗證真人告警通道，才能稱 App A MVP 完整通過。
+1. **完成嚴格品質 Gate A 收尾**：部署後 Big Pickle 的 `submit → status → Research Pack → report／appendix` bounded run 已通；下一個 gate 是修復／替換失敗 Browser source、補足與 target 對應的市場資料 provider，並讓品質不再是 `partial`，才能稱 App A 研究品質完整通過。
 2. **再完成 report v2／Evidence Graph**：目前 Research Pack 已先加入 v1-compatible `evidence_graph`（穩定 claim ID、report／topic 關聯與 evidence subset assertion）；仍需把報告本身升級成正式 `research_report.v2`、`quality`、`source_bundle_ref`、`evidence_appendix_ref`、claim／counterclaim／unknown graph、expiry 與 usage receipt，且現有 v1 replay 必須維持雙讀。
 3. **再開發 App B**：完成 `decision-session.schema.json`、`decision-memo.schema.json`、Grill Me First 欄位閘門、唯讀 evidence tools、constraint hash 與 `decision_trace`；App B 不得在缺資料時自行回來源抓取。
 4. **最後才做產品化與連續營運**：雙應用 scope／OAuth onboarding、request_id 恢復 UX、外部告警、低頻 schedule、七日 soak、用量 ceiling、last-good restore 與 rollback。
@@ -237,11 +237,11 @@ Research Pack 不得含沒有來源的模型敘事；報告可以有 inference�
 | 1 | Contract／policy／quality manifest | 現有 schemas、D1、rights policy | `contract_manifest.v2`、policy／quality rules | 部分完成；decision schemas 尚缺 |
 | 2 | Research Requirement Planner | target resolver、source catalog、freshness | `research_requirement.v1`、`source_bundle_manifest.v1` | 本機 schema／D1 migration／MCP preview 已完成；遠端尚未部署 |
 | 3 | Data Broker target refresh | planner、Actions admission、OIDC callback | target-specific `research_job` → ingest／OpenBB outputs | dispatch client／workflow input 已完成；secret、部署與真實回呼尚缺 |
-| 4 | App A client integration | remote MCP、OpenCode config、Big Pickle policy | `submit → status → pack → report` client evidence | 本機 OpenCode＋Big Pickle 唯讀 planner smoke 已完成；部署後 token client、`submit → status → result` 與完整鏈路尚缺 |
+| 4 | App A client integration | remote MCP、OpenCode config、Big Pickle policy | `submit → status → pack → report` client evidence | 部署後 authenticated 唯讀 planner tool-call 已通；`submit → status → result` 與完整鏈路尚缺 |
 | 5 | Research Pack／report quality | evidence graph、report v2、profile | full／quick／appendix、citation graph | v1-compatible evidence graph、profile／requested_outputs 本機完成；正式 report v2、quality／citation graph 擴充仍缺 |
 | 6 | App B decision session | frozen report、Grill Me First | `decision_session`、`decision_memo`、trace | 尚未開發 |
 | 7 | Auth／MCP productization | 兩應用 scope、OAuth onboarding | client onboarding、read／write deny matrix | token smoke 有；OAuth 尚缺 |
-| 8 | Production operations | alerts、schedule、last-good | soak verdict、recovery evidence | 外部真人告警／七日 soak 尚缺 |
+| 8 | Production operations | alerts、schedule、last-good | soak verdict、recovery evidence | Telegram 真人告警已通；七日 soak、schedule 與 recovery evidence 尚缺 |
 | 9 | Gate A／B release decision | detector、兩個 MVP evidence bundle | release decision、未解問題清單 | Gate A detector 已有；遠端 Gate A 與 App B 尚未通過 |
 
 ## 7. 兩個應用的 MVP gate

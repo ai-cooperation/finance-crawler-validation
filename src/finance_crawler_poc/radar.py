@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 
 @dataclass(frozen=True)
@@ -32,8 +32,11 @@ def build_topic_snapshot(
     snapshot_id: str,
     as_of: str,
     failed_sources: Iterable[str],
+    target: Mapping[str, Any] | None = None,
+    question: str | None = None,
 ) -> dict[str, Any]:
     item_list = list(items)
+    target_terms = _target_terms(target, question)
     ranked: list[dict[str, Any]] = []
     for definition in TOPICS:
         matches = [item for item in item_list if _matches(definition, item)]
@@ -45,6 +48,8 @@ def build_topic_snapshot(
         engagement = sum(_engagement_weight(item.get("engagement")) for item in matches)
         news_count = sum(item.get("layer") == "news" for item in matches)
         social_count = sum(item.get("layer") == "social" for item in matches)
+        target_hits = sum(_target_hit_count(item, target_terms) for item in matches)
+        target_topic_bonus = _target_topic_bonus(definition.topic_id, target)
         ranked.append(
             {
                 "topic_id": definition.topic_id,
@@ -53,7 +58,9 @@ def build_topic_snapshot(
                     len(matches)
                     + 0.25 * max(0, source_count - 1)
                     + 0.25 * max(0, len(layers) - 1)
-                    + engagement,
+                    + engagement
+                    + min(3.0, target_hits * 1.0)
+                    + target_topic_bonus,
                     4,
                 ),
                 "item_count": len(matches),
@@ -82,6 +89,42 @@ def build_topic_snapshot(
 def _matches(definition: TopicDefinition, item: dict[str, Any]) -> bool:
     text = f" {item.get('title', '')} {item.get('summary', '')} {item.get('content', '')} ".casefold()
     return any(_contains_keyword(text, keyword) for keyword in definition.keywords)
+
+
+def _target_terms(target: Mapping[str, Any] | None, question: str | None) -> tuple[str, ...]:
+    values: list[str] = []
+    if target is not None:
+        for key in ("symbol", "name", "market", "sector", "industry"):
+            value = target.get(key)
+            if isinstance(value, str):
+                values.append(value)
+    if question:
+        values.extend(re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", question))
+    stopwords = {"what", "are", "the", "and", "for", "with", "from", "this", "that", "current"}
+    terms: list[str] = []
+    for value in values:
+        normalized = value.casefold().strip()
+        if normalized and normalized not in stopwords and normalized not in terms:
+            terms.append(normalized)
+    return tuple(terms)
+
+
+def _target_hit_count(item: Mapping[str, Any], terms: tuple[str, ...]) -> int:
+    if not terms:
+        return 0
+    text = f" {item.get('title', '')} {item.get('summary', '')} ".casefold()
+    return sum(_contains_keyword(text, term) for term in terms)
+
+
+def _target_topic_bonus(topic_id: str, target: Mapping[str, Any] | None) -> float:
+    if target is None:
+        return 0.0
+    expected = {
+        "crypto": "digital_assets",
+        "equity": "equities_earnings",
+        "etf": "personal_finance",
+    }.get(str(target.get("kind")))
+    return 2.0 if expected == topic_id else 0.0
 
 
 def _contains_keyword(text: str, keyword: str) -> bool:

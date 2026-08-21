@@ -16,6 +16,9 @@ from finance_crawler_poc.radar_manifest import RadarManifest, load_radar_manifes
 from finance_crawler_poc.radar_run_plan import build_catchup_windows, parse_worker_run_plan
 
 
+MIN_CONTENT_SOURCES = 3
+
+
 def build_radar_artifacts(
     manifest: RadarManifest,
     collection: RadarCollection,
@@ -24,6 +27,8 @@ def build_radar_artifacts(
     commit_sha: str,
     now: datetime,
     manifest_sha256: str,
+    target: dict[str, Any] | None = None,
+    question: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     if not collection.items:
         raise ValueError("cannot build ingest artifacts without normalized items")
@@ -43,6 +48,8 @@ def build_radar_artifacts(
         snapshot_id=snapshot_id,
         as_of=as_of,
         failed_sources=failed_sources,
+        target=target,
+        question=question,
     )
     envelope = {
         "schema_version": 1,
@@ -60,6 +67,7 @@ def build_radar_artifacts(
     validate_contract("topic-snapshot", snapshot)
     accepted = (
         collection.successful_source_count >= manifest.minimum_successful_sources
+        and collection.content_source_count >= MIN_CONTENT_SOURCES
         and len(snapshot["topics"]) == 3
     )
     report = {
@@ -69,8 +77,11 @@ def build_radar_artifacts(
         "as_of": as_of,
         "accepted": accepted,
         "minimum_successful_sources": manifest.minimum_successful_sources,
+        "minimum_content_sources": MIN_CONTENT_SOURCES,
         "total_sources": len(manifest.sources),
         "successful_sources": collection.successful_source_count,
+        "content_sources": collection.content_source_count,
+        "empty_sources": list(collection.empty_source_ids),
         "failed_sources": list(failed_sources),
         "items": len(collection.items),
         "topics": len(snapshot["topics"]),
@@ -99,6 +110,8 @@ async def run_radar(
     now: datetime | None = None,
     run_plan_path: Path | None = None,
     source_ids: Sequence[str] | None = None,
+    target: dict[str, Any] | None = None,
+    question: str | None = None,
 ) -> dict[str, Any]:
     manifest_bytes = manifest_path.read_bytes()
     manifest = load_radar_manifest(manifest_path)
@@ -126,8 +139,11 @@ async def run_radar(
             "accepted": False,
             "as_of": collected_at,
             "minimum_successful_sources": manifest.minimum_successful_sources,
+            "minimum_content_sources": MIN_CONTENT_SOURCES,
             "total_sources": len(manifest.sources),
-            "successful_sources": 0,
+            "successful_sources": collection.successful_source_count,
+            "content_sources": collection.content_source_count,
+            "empty_sources": list(collection.empty_source_ids),
             "failed_sources": list(collection.failed_source_ids),
             "items": 0,
             "topics": 0,
@@ -144,6 +160,8 @@ async def run_radar(
         commit_sha=commit_sha,
         now=run_time,
         manifest_sha256=hashlib.sha256(manifest_bytes).hexdigest(),
+        target=target,
+        question=question,
     )
     _write_json(output_directory / "raw-items.json", list(collection.items))
     _write_json(output_directory / "ingest-envelope.json", envelope)
@@ -185,6 +203,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--source-ids",
         help="Comma-separated target-scoped source IDs; must contain 12–20 manifest sources",
     )
+    parser.add_argument(
+        "--target-json",
+        help="JSON target object used to prioritize topic evidence",
+    )
+    parser.add_argument(
+        "--question",
+        help="Frozen research question used to prioritize topic evidence",
+    )
     return parser
 
 
@@ -202,6 +228,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if args.source_ids
                 else None
             ),
+            target=(json.loads(args.target_json) if args.target_json else None),
+            question=args.question,
         )
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))

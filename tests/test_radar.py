@@ -114,3 +114,22 @@ def test_central_bank_name_alone_does_not_create_a_policy_topic() -> None:
     )
 
     assert snapshot["topics"] == []
+
+
+def test_target_terms_break_ties_toward_the_requested_asset() -> None:
+    items = [
+        raw_item(source_id="generic_news", layer="news", title="Stock portfolio allocation outlook"),
+        raw_item(source_id="asset_news", layer="news", title="Bitcoin ETF flows and crypto market risk"),
+    ]
+
+    snapshot = build_topic_snapshot(
+        items,
+        run_id="run_20260810t020500z",
+        snapshot_id="radar_20260810t020500z",
+        as_of="2026-08-10T02:05:00Z",
+        failed_sources=[],
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        question="What are the current drivers and risks for BTC?",
+    )
+
+    assert snapshot["topics"][0]["topic_id"] == "digital_assets"

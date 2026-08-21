@@ -90,6 +90,20 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 
 這次 workflow 的研究資料路徑已通，但整體 run 後續因驗證帳號尚未配置 `ALERT_WEBHOOK_URL`，告警／告警恢復步驟回 503；GitHub fallback issue #52 已建立。另有一個 Browser source (`bogleheads_investing_browser`) 失敗，所以 Research Pack 正確標記 `partial`。兩項都必須保留在 release evidence，不得把 `remote_gate=passed` 解讀成所有營運條件已完成。
 
+## 4.2 告警通道收尾驗證（2026-08-21）
+
+已在 Cloudflare 驗證帳號配置 Telegram `ALERT_WEBHOOK_URL`；Worker 只保存 secret 名稱，不在 repo、D1 或 log 暴露 bot token。Slack／Telegram／ntfy 對外的人類告警文字已統一為繁體中文，機器摘要仍保留穩定英文供 D1／稽核查詢，例如：`🚨 財經議題雷達資料快照已過期`、`告警識別碼：topic_radar_freshness`。
+
+以限 repo、僅 `Actions: Read and write`、`Metadata: Read-only` 的 fine-grained token 取代原先 dispatch secret 後，GitHub Actions run [`32448634111`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32448634111) 的 `verify_alert_delivery=true` 控制平面驗證完成：外部告警步驟成功、fallback issue 步驟成功，D1 已寫入 `github_action_failure:32448634111`。該 run 刻意在 checkout 前失敗，未啟動爬蟲，避免消耗資料收集額度。
+
+這證明「新 token 可觸發 workflow」及「部署 Worker 可送達 Telegram」；仍不等於完整 App A Gate A，因為 OpenCode Desktop／Big Pickle 的部署後實際 tool-call 與七日連續 soak 仍是獨立驗收項目。
+
+## 4.3 OpenCode／Big Pickle MCP smoke（2026-08-21）
+
+根目錄 [`opencode.json`](../opencode.json) 已固定 `opencode/big-pickle` 與部署 Worker 的 remote MCP；Authorization 改以 `{file:~/.config/opencode/finance-research-mcp.token}` 讀取本機 `0600` 檔案，token 不進 repo。`opencode mcp list` 實測為 `finance-research connected`。
+
+再以 `opencode run --model opencode/big-pickle` 實際呼叫部署 Worker 的唯讀工具 `finance-research_plan_research_sources`。Big Pickle 成功完成 tool call，回傳 3 個來源與 `blocked/source_budget_too_low`（因刻意使用 `max_sources=3` 的小型 smoke），未建立 job、未讀取 private raw content，模型成本回報為 0。這證明 Desktop／CLI 共用設定可完成 MCP 認證與工具呼叫；完整鏈的 bounded run 結果見下一節。
+
 必須保存以下證據：
 
 1. `plan_research_sources` 回傳 `research_requirement`、12–20 個 source IDs 與 sufficiency decision。
@@ -99,6 +113,27 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 5. callback 後 D1 `research_jobs` 有 `run_id`／`pack_id`，R2 有 `research-packs/<pack_id>.json`。
 6. `get_research_pack`、`get_research_report`、`get_evidence_appendix` 都能讀回；facts／claims 可由 evidence ID、URL、hash、as-of 反查。
 7. `detailed_traceable` 至少產生 detailed report＋evidence appendix；`compact_traceable` 產生 quick card＋evidence appendix；只要求 `evidence_appendix` 時不得啟動模型，Research Pack 的 reports 應為空陣列。
+
+## 4.4 Big Pickle 完整鏈驗收（2026-08-21）
+
+已用新設定的 OpenCode／Big Pickle 實際完成唯一一個 bounded job，證據保存於 [`experiments/app-a/20260821-big-pickle-gate-a-final.json`](../experiments/app-a/20260821-big-pickle-gate-a-final.json)。鏈路為：
+
+`plan_research_sources → submit_research_job → GitHub Actions 32462029861 → OIDC admission → ingest／publish → success callback → get_job_status → get_research_pack → get_research_report → get_evidence_appendix`
+
+讀回結果：`job_id=research_20260821080829_3c4c2121`、`run_id=run_20260821t081239z`、`pack_id=pack_20260821080829_3c4c2121`，終態 `partial/published`，3 份 reports、4 筆 evidence，四個 Big Pickle readback tool calls 全部成功；R2／D1 索引可交叉驗證。這證明部署後的 MCP client／Big Pickle 實際鏈已通，不再只是本機或舊設定 smoke。
+
+品質仍是 `partial`：12 個計畫來源中 `bogleheads_investing_browser` 失敗，`coverage_ratio=0.25`；本次 `include_market_data=false` 是明確需求，因此報告只能標示 `research_only`，不能解讀為 BTC 投資決策。驗證完成後已把 Worker admission 恢復為 `RUN_DAILY_LIMIT=2`、`RUN_MIN_INTERVAL_SECONDS=21600`。
+
+## 4.5 品質缺口修正（2026-08-21）
+
+上一輪的缺口不是「12 個來源都沒有連線」，而是三件事混在一起：Browser 的 Bogleheads forum 頁被 Cloudflare JS challenge 擋下、8 個來源在增量視窗內沒有新文章、topic seed 只用全域關鍵字且沒有讀取 target。已修正：
+
+- `bogleheads_investing_browser` 改為官方 Atom feed `bogleheads_investing_rss`（`https://www.bogleheads.org/forum/feed.php?f=1`），以 RSS extractor 收 5 筆，避開 forum HTML challenge。
+- source result 新增 `content_status=items|empty_window|failed`；`successful_sources` 只代表 transport 健康，另有 `content_sources` 與 `empty_sources`，並以至少 3 個有內容來源作為 radar evidence gate。
+- crypto target 的 source planner 優先納入市場、新聞、Fed／ECB 官方資料與社群來源；workflow 將 frozen target／question 傳入 collector，topic ranking 對目標議題加權，避免 generic ETF／portfolio 文字蓋過標的議題。
+- Research Pack 會保留本輪全部可引用 item，再從核准來源的近 7 日 last-good corpus 補足增量視窗空洞；item_id 去重，source／hash／as-of 仍可追溯。
+
+Worker 已部署版本 `7755df00-df70-40c6-9b18-5a8bc1366497`，`GET /health` 實測 HTTP 200。GitHub workflow 的 Python／manifest 修改需隨 repository 變更發布後，才會在下一次 Actions refresh 生效；未為此修正額外觸發 Actions。
 
 ## 5. 失敗即停止條件
 

@@ -43,6 +43,9 @@ function snapshot(overrides: Partial<SnapshotSufficiencyInput> = {}): SnapshotSu
       bbc_business_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       cnbc_top_news_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       marketwatch_topstories_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
+      federal_reserve_press_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
+      ecb_press_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
+      world_bank_growth_api: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       hacker_news_finance_api: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       money_stackexchange_api: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       quant_stackexchange_api: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
@@ -50,7 +53,7 @@ function snapshot(overrides: Partial<SnapshotSufficiencyInput> = {}): SnapshotSu
       tradingagents_github_issues_api: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       openbb_github_discussions_browser: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       tradingview_ideas_browser: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
-      bogleheads_investing_browser: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
+      bogleheads_investing_rss: { status: "success", last_successful_crawl: "2026-08-20T04:20:00Z" },
       ...overrides.source_states,
     },
     ...overrides,
@@ -90,6 +93,8 @@ describe("research requirement planner", () => {
     expect(planned.layers).toEqual(expect.arrayContaining(["market", "news", "social"]));
     expect(planned.source_ids).toContain("coingecko_markets_api");
     expect(planned.source_ids).toContain("bbc_business_rss");
+    expect(planned.source_ids).toContain("federal_reserve_press_rss");
+    expect(planned.source_ids).toContain("bogleheads_investing_rss");
   });
 
   it("does not claim a snapshot is sufficient when it is partial or stale", () => {
@@ -204,6 +209,7 @@ describe("research requirement planner", () => {
       job_id: "research_20260820_abc12345",
       source_ids: ["coingecko_markets_api", "bbc_business_rss"],
       target: { kind: "crypto", symbol: "BTC" },
+      question: "What are the drivers for BTC?",
       requirement_id: "req_request-1",
     });
     expect(request).toMatchObject({
@@ -213,6 +219,7 @@ describe("research requirement planner", () => {
         research_source_ids: "[\"coingecko_markets_api\",\"bbc_business_rss\"]",
         research_requirement_id: "req_request-1",
         research_target: "{\"kind\":\"crypto\",\"symbol\":\"BTC\"}",
+        research_question: "What are the drivers for BTC?",
         research_include_market_data: "true",
       },
     });

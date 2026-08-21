@@ -7,7 +7,7 @@
       "url": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
       "oauth": false,
       "headers": {
-        "Authorization": "Bearer {env:FINANCE_RESEARCH_MCP_TOKEN}"
+        "Authorization": "Bearer {file:~/.config/opencode/finance-research-mcp.token}"
       },
       "enabled": true,
       "timeout": 30000

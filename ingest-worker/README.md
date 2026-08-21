@@ -46,7 +46,7 @@ npx wrangler secret put MCP_API_TOKEN
 
 驗證環境曾以舊版 `latest_published` 垂直切片測過 `initialize → tools/list → submit → status → Research Pack／report／appendix read-back`；這不代表新版 Planner／Actions callback 已通過 Gate A。token smoke 後已輪替，不能從 repository 或 log 還原。
 
-Repository 根目錄的 `opencode.json` 是不含 secret 的 OpenCode Desktop 設定範例，並固定 `model: opencode/big-pickle` 作為 App A 編排模型；啟動前在本機安全環境提供 `FINANCE_RESEARCH_MCP_TOKEN`，OpenCode 會以 `Authorization: Bearer {env:FINANCE_RESEARCH_MCP_TOKEN}` 呼叫 remote MCP。MCP endpoint 同時保留 Streamable HTTP POST 與 GET endpoint-event 相容層，讓 OpenCode 的 remote connector 能完成連線探測。
+Repository 根目錄的 `opencode.json` 是不含 secret 的 OpenCode Desktop 設定，並固定 `model: opencode/big-pickle` 作為 App A 編排模型；Authorization 透過 `{file:~/.config/opencode/finance-research-mcp.token}` 讀取本機 `0600` token 檔案，檔案不得放進 repository 或 log。若改用 CLI／CI，可改以 `FINANCE_RESEARCH_MCP_TOKEN` 環境變數注入。MCP endpoint 同時保留 Streamable HTTP POST 與 GET endpoint-event 相容層，讓 OpenCode 的 remote connector 能完成連線探測。
 
 發布前可在 repository 根目錄執行 `uv run finance-app-a-gate --evidence-dir experiments/app-a`。這個 detector 只檢查本機 App A evidence；即使本機檢查通過，沒有部署版本、有效 MCP token、Actions run、OIDC callback 與 D1/R2 read-back 時仍會回報 `gate_a_status=blocked`，不可把它當成遠端 Gate A 通過。
 

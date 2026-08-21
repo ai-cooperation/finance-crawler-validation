@@ -42,7 +42,7 @@ describe("alert provider adapters", () => {
     expect(delivery?.input).toBe(webhookUrl);
     const body = JSON.parse(String(delivery?.init.body));
     expect(body).toEqual({
-      text: "🚨 Finance topic radar failed\ngithub_action_failure:31309377786\nhttps://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
+      text: "🚨 財經議題雷達狀態發生變更\n告警識別碼：github_action_failure:31309377786\nhttps://github.com/ai-cooperation/finance-crawler-validation/actions/runs/31309377786",
     });
     expect(String(delivery?.init.body)).not.toContain("private_evidence");
     expect(String(delivery?.init.body)).not.toContain("must-not-leak");
@@ -68,10 +68,86 @@ describe("alert provider adapters", () => {
     const body = JSON.parse(String(delivery?.init.body));
     expect(body).toEqual({
       chat_id: "-100123456",
-      text: "🚨 Finance topic radar snapshot is stale\ntopic_radar_freshness",
+      text: "🚨 財經議題雷達資料快照已過期\n告警識別碼：topic_radar_freshness",
       link_preview_options: { is_disabled: true },
     });
     expect(String(delivery?.init.body)).not.toContain("private_evidence");
+  });
+
+  it("localizes unknown summaries instead of sending English text", async () => {
+    let delivery: { input: string; init: RequestInit } | null = null;
+    await deliverAlertWebhook(
+      "https://api.telegram.org/bot123456:synthetic-token/sendMessage?chat_id=1",
+      "custom_alert",
+      {
+        alert_key: "custom_alert",
+        state: "open",
+        severity: "critical",
+        summary: "An upstream provider failed",
+        details: {},
+      },
+      async (input, init) => {
+        delivery = { input: String(input), init: init ?? {} };
+        return Response.json({ ok: true });
+      },
+      "auto",
+    );
+
+    const body = JSON.parse(String(delivery?.init.body));
+    expect(body.text).toBe("🚨 財經議題雷達狀態發生變更\n告警識別碼：custom_alert");
+    expect(body.text).not.toContain("An upstream provider failed");
+  });
+
+  it.each([
+    [
+      "Finance topic radar GitHub Actions run 123 failed",
+      "🚨 財經議題雷達 GitHub Actions 執行失敗（run 123）",
+    ],
+    [
+      "Finance topic radar recovered in GitHub Actions run 456",
+      "✅ 財經議題雷達已在 GitHub Actions run 456 恢復",
+    ],
+    [
+      "Finance topic radar Cloudflare freshness watchdog failed",
+      "🚨 財經議題雷達 Cloudflare 新鮮度監控執行失敗",
+    ],
+    [
+      "Finance topic radar freshness recovered",
+      "✅ 財經議題雷達資料新鮮度已恢復",
+    ],
+    [
+      "Finance topic radar has no published snapshot",
+      "🚨 財經議題雷達目前沒有已發布的資料快照",
+    ],
+    [
+      "Finance topic radar snapshot is stale",
+      "🚨 財經議題雷達資料快照已過期",
+    ],
+    [
+      "Finance topic radar snapshot is stale (42s)",
+      "🚨 財經議題雷達資料快照已過期（42 秒）",
+    ],
+  ])("localizes known summary: %s", async (summary, expected) => {
+    let delivery: { init: RequestInit } | null = null;
+    await deliverAlertWebhook(
+      "https://api.telegram.org/bot123456:synthetic-token/sendMessage?chat_id=1",
+      "known_alert",
+      {
+        alert_key: "known_alert",
+        state: expected.startsWith("✅") ? "resolved" : "open",
+        severity: "critical",
+        summary,
+        details: {},
+      },
+      async (_input, init) => {
+        delivery = { init: init ?? {} };
+        return Response.json({ ok: true });
+      },
+      "auto",
+    );
+
+    const body = JSON.parse(String(delivery?.init.body));
+    expect(body.text).toBe(`${expected}\n告警識別碼：known_alert`);
   });
 
   it("auto-detects ntfy and preserves generic JSON for other HTTPS sinks", async () => {
@@ -103,7 +179,8 @@ describe("alert provider adapters", () => {
       input: "https://ntfy.sh/",
       body: {
         topic: "finance-radar-synthetic-topic",
-        title: "Finance crawler alert",
+        title: "財經議題雷達告警",
+        message: "🚨 財經議題雷達資料快照已過期\n告警識別碼：topic_radar_freshness",
       },
     });
     expect(deliveries[1]).toEqual({
