@@ -89,10 +89,8 @@ jobs:
         # GitHub injects GITHUB_RUN_ID into every step.  The CLI fixture tests
         # intentionally exercise the local default (workflow_run_id=0), so
         # isolate the contract-test environment from the live workflow ID.
-        env:
-          GITHUB_RUN_ID: "0"
         run: |
-          python -m pytest --cov=finance_crawler_poc --cov-report=term-missing --cov-fail-under=80
+          env -u GITHUB_RUN_ID python -m pytest --cov=finance_crawler_poc --cov-report=term-missing --cov-fail-under=80
           node --test worker/test/index.test.mjs
           node --test experiments/crawlee-browser/test/*.test.mjs
           node --test experiments/cloudflare-browser-run/test/*.test.mjs
