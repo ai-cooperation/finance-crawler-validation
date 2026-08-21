@@ -64,6 +64,15 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "research_requirement_id: $research_requirement_id" in workflow
     assert "--source-ids" in workflow
     assert "Complete actions-backed research job" in workflow
+    assert (
+        'plan_id="$(jq -er \'.plan.plan_id\' "$artifact_root/tradingagents/'
+        'tradingagents-plan-envelope.json")"' in workflow
+    )
+    assert (
+        'alignment_id="$(jq -er \'.plan.alignment_id\' "$artifact_root/tradingagents/'
+        'tradingagents-plan-envelope.json")"' in workflow
+    )
+    assert 'tradingagents-plan-envelope.json)"' not in workflow
     assert "Mark actions-backed research job blocked by admission" in workflow
     assert "Mark actions-backed research job failed" in workflow
     assert '"$INGEST_WORKER_URL/v1/research/jobs/fail"' in workflow
