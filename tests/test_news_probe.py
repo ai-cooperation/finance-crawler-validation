@@ -130,6 +130,56 @@ def test_brand_probe_falls_back_between_endpoints_but_counts_one_brand() -> None
     )
 
 
+def test_brand_probe_exhaustive_mode_records_successful_and_failed_fallbacks() -> None:
+    brand = NewsBrand(
+        id="finance_brand",
+        name="Finance Brand",
+        canonical_domain="finance.example",
+        brand_class="finance_specialist",
+        region="global",
+        languages=("en",),
+        endpoints=(
+            endpoint("finance_rss", "rss", "http", "rss"),
+            endpoint("finance_browser", "browser", "http", "javascript"),
+        ),
+    )
+    executor = Executor(
+        id="github_actions_crawl4ai",
+        platform="github_actions",
+        capabilities=frozenset(
+            {"http", "rss", "javascript", "chromium", "python", "crawl4ai"}
+        ),
+        max_duration_seconds=1200,
+        max_response_bytes=20_000_000,
+        cost_rank=3,
+    )
+    states = {
+        executor.id: ExecutorState(
+            available=True, credential_available=True, remaining_jobs=10
+        )
+    }
+    outcomes = iter((Outcome.SUCCESS, Outcome.BLOCKED))
+
+    async def fake_probe(source, adapter, *, run_index):
+        return result_for(source, next(outcomes))
+
+    result = asyncio.run(
+        probe_news_brand(
+            brand,
+            executors=(executor,),
+            states=states,
+            adapters={"rss": FakeAdapter(), "browser": FakeAdapter()},
+            probe=fake_probe,
+            stop_after_success=False,
+        )
+    )
+
+    assert result.success is True
+    assert result.successful_endpoint_id == "finance_rss"
+    assert result.final_outcome == "success"
+    assert len(result.endpoint_attempts) == 2
+
+
 def test_brand_probe_records_routing_failure_instead_of_dropping_brand() -> None:
     brand = NewsBrand(
         id="finance_brand",

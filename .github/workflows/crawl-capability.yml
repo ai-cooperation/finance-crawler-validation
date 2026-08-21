@@ -41,6 +41,11 @@ on:
         required: false
         type: boolean
         default: false
+      exhaustive_endpoints:
+        description: Probe every endpoint instead of stopping after first successful fallback
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -128,6 +133,7 @@ jobs:
               --current-executor github_actions_crawl4ai \
               --brand-ids "${{ inputs.brand_ids }}" \
               --max-brands "${{ inputs.max_brands }}" \
+              ${{ inputs.exhaustive_endpoints && '--exhaustive-endpoints' || '' }} \
               ${{ inputs.capture_raw && '--capture-raw' || '' }} \
               --output artifacts
           elif [ "${{ inputs.max_brands }}" != "120" ]; then
@@ -139,6 +145,7 @@ jobs:
               --executors resource-executors.yaml \
               --current-executor github_actions_crawl4ai \
               --max-brands "${{ inputs.max_brands }}" \
+              ${{ inputs.exhaustive_endpoints && '--exhaustive-endpoints' || '' }} \
               ${{ inputs.capture_raw && '--capture-raw' || '' }} \
               --output artifacts
           fi

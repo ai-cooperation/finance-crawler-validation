@@ -109,8 +109,10 @@ async def probe_news_brand(
     adapters: dict[str, Adapter],
     probe: ProbeCallable = probe_source,
     run_index: int = 1,
+    stop_after_success: bool = True,
 ) -> NewsBrandResult:
     attempts: list[NewsEndpointAttempt] = []
+    successful_endpoint_id = ""
     for endpoint in brand.endpoints:
         try:
             executor = select_executor(
@@ -134,10 +136,12 @@ async def probe_news_brand(
             run_index=run_index,
         )
         attempts.append(_endpoint_attempt(endpoint, executor.id, result))
-        if result.outcome is Outcome.SUCCESS:
+        if result.outcome is Outcome.SUCCESS and not successful_endpoint_id:
+            successful_endpoint_id = endpoint.id
+        if result.outcome is Outcome.SUCCESS and stop_after_success:
             return _brand_result(brand, attempts, endpoint.id)
 
-    return _brand_result(brand, attempts, "")
+    return _brand_result(brand, attempts, successful_endpoint_id)
 
 
 def resource_demand_for_endpoint(endpoint: NewsEndpoint) -> ResourceDemand:
@@ -216,7 +220,11 @@ def _brand_result(
     attempts: list[NewsEndpointAttempt],
     successful_endpoint_id: str,
 ) -> NewsBrandResult:
-    final_outcome = attempts[-1].outcome if attempts else "routing_blocked"
+    final_outcome = (
+        "success"
+        if successful_endpoint_id
+        else (attempts[-1].outcome if attempts else "routing_blocked")
+    )
     return NewsBrandResult(
         brand_id=brand.id,
         name=brand.name,

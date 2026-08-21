@@ -33,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write exact endpoint response bodies and a raw capture manifest",
     )
     parser.add_argument(
+        "--exhaustive-endpoints",
+        action="store_true",
+        help="Probe every endpoint for every selected brand; do not stop at first success",
+    )
+    parser.add_argument(
         "--brand-ids",
         help="Comma-separated unique brand IDs; omit only for an intentional full run",
     )
@@ -49,6 +54,7 @@ async def run(
     brand_ids: tuple[str, ...] | None = None,
     max_brands: int | None = None,
     capture_raw: bool = False,
+    exhaustive_endpoints: bool = False,
 ) -> list[NewsBrandResult]:
     catalog = load_news_catalog(catalog_path)
     if not catalog.is_complete:
@@ -100,12 +106,14 @@ async def run(
                 ),
                 flush=True,
             )
-            result = await probe_news_brand(
-                brand,
-                executors=executors,
-                states=states,
-                adapters=adapters,
-            )
+            probe_kwargs = {
+                "executors": executors,
+                "states": states,
+                "adapters": adapters,
+            }
+            if exhaustive_endpoints:
+                probe_kwargs["stop_after_success"] = False
+            result = await probe_news_brand(brand, **probe_kwargs)
             results.append(result)
             print(
                 json.dumps(
@@ -192,6 +200,7 @@ def main() -> None:
                 brand_ids=_parse_brand_ids(args.brand_ids),
                 max_brands=args.max_brands,
                 capture_raw=args.capture_raw,
+                exhaustive_endpoints=args.exhaustive_endpoints,
             )
         )
     except (NewsCatalogError, ExecutorConfigError, ValueError) as exc:
