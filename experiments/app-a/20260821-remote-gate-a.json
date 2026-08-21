@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-remote-gate-a",
+  "observed_at": "2026-08-21T00:19:03Z",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC"
+  },
+  "request_id": "52fac1a4-e949-477f-9fb7-59b9bd906c6c",
+  "job_id": "research_20260821001750_5ad37adc",
+  "run_id": "run_20260821t001903z",
+  "pack_id": "pack_20260821001750_5ad37adc",
+  "workflow_run_id": "32432108862",
+  "commit_sha": "981a6d2b5e19523c61fe006f101e969df214929c",
+  "checks": {
+    "mcp_initialize": "passed",
+    "mcp_tools_catalog": "passed",
+    "planner_source_bundle": "passed",
+    "submit_bounded_job": "passed",
+    "job_terminal": "passed",
+    "research_pack": "passed",
+    "research_report": "passed",
+    "evidence_appendix": "passed",
+    "no_personalized_recommendation": "passed"
+  },
+  "planner": {
+    "source_count": 12,
+    "strategy": "refresh",
+    "sufficiency_status": "refresh_required"
+  },
+  "pack": {
+    "schema_version": 1,
+    "as_of": "2026-08-21T00:19:03.033837Z",
+    "evidence_count": 15,
+    "report_count": 3,
+    "quality": {
+      "coverage_ratio": 0.5833333333333334,
+      "failed_sources": ["bogleheads_investing_browser"],
+      "partial": true,
+      "stale": false
+    }
+  },
+  "appendix": {
+    "evidence_count": 15
+  },
+  "remote_gate": "passed",
+  "workflow_run": {
+    "conclusion": "failure",
+    "research_callback": "passed",
+    "failure_reason": "alert_webhook_not_configured",
+    "failure_issue": 52
+  },
+  "limitations": [
+    "The research Actions path admitted, published, completed the callback, and produced the private Research Pack/report/appendix.",
+    "The overall workflow was marked failure because the optional external alert webhook is not configured; GitHub issue fallback opened issue 52.",
+    "The Research Pack is partial because one of twelve planned sources failed; the failed source is preserved in quality.failed_sources."
+  ]
+}
