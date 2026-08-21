@@ -102,3 +102,18 @@ def test_normalize_skips_missing_payload_but_keeps_failed_endpoint_observation(t
         "cursor": None,
     }]
     assert result["failed_endpoint_count"] == 1
+
+
+def test_normalize_strips_markup_punctuation_from_html_url(tmp_path: Path) -> None:
+    manifest = _write_capture(
+        tmp_path,
+        transport="static_html",
+        content='<html><title>Morningstar</title><body>[logo](https://www.morningstar.com/assets/img/logo.svg)]</body></html>',
+    )
+    result = normalize_news_capture(
+        manifest,
+        workflow_run_id="123",
+        commit_sha="a" * 40,
+        collected_at="2026-08-21T01:00:00Z",
+    )
+    assert result["items"][0]["canonical_url"] == "https://www.morningstar.com/assets/img/logo.svg"

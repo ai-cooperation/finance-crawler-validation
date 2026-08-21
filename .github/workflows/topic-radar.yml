@@ -843,6 +843,17 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Preserve failed full-catalog normalization evidence
+        if: always() && hashFiles('artifacts/news-catalog/news-raw-manifest.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-h3-raw-boundary-${{ github.run_id }}
+          path: |
+            artifacts/news-catalog/news-report.json
+            artifacts/news-catalog/news-raw-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Deliver external failure alert through OIDC
         if: failure() && !inputs.verify_research_reports
         env:

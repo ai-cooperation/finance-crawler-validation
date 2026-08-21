@@ -129,13 +129,13 @@ def _normalize_payload(record: dict[str, Any], body: str, *, collected_at: str) 
     source_id = _required_string(record, "brand_id")
     endpoint_id = _required_string(record, "endpoint_id")
     request_url = _required_string(record, "url")
-    final_url = str(record.get("final_url") or request_url)
+    final_url = _safe_url(str(record.get("final_url") or request_url), fallback=request_url)
     title, summary, canonical_url, published_at = _extract_payload(
         body,
         transport=str(record.get("transport") or "static_html"),
         base_url=final_url,
     )
-    canonical_url = canonical_url or final_url or request_url
+    canonical_url = _safe_url(canonical_url or final_url or request_url, fallback=final_url or request_url)
     title = title or f"{source_id} {endpoint_id} capture"
     summary = summary or _text(body)[:5000]
     content = body[:1_000_000]
@@ -183,7 +183,7 @@ def _extract_payload(body: str, *, transport: str, base_url: str) -> tuple[str, 
                 link = _element_text(entry, "link") or _element_attr(entry, "link", "href")
                 summary = _element_text(entry, "description") or _element_text(entry, "summary") or _element_text(entry, "content")
                 date = _element_text(entry, "pubDate") or _element_text(entry, "published") or _element_text(entry, "updated")
-                return title, _text(summary), urljoin(base_url, link), _parse_published(date)
+                return title, _text(summary), _safe_url(urljoin(base_url, link), fallback=base_url), _parse_published(date)
         except ET.ParseError:
             pass
     if transport == "json_api" or body.lstrip().startswith(("{", "[")):
@@ -195,14 +195,14 @@ def _extract_payload(body: str, *, transport: str, base_url: str) -> tuple[str, 
                 summary = _first_value(record, ("summary", "description", "excerpt", "content", "text"))
                 link = _first_value(record, ("url", "link", "canonical_url", "web_url"))
                 date = _first_value(record, ("published_at", "published", "date", "updated_at"))
-                return str(title or ""), _text(str(summary or "")), urljoin(base_url, str(link or "")), _parse_published(str(date or ""))
+                return str(title or ""), _text(str(summary or "")), _safe_url(urljoin(base_url, str(link or "")), fallback=base_url), _parse_published(str(date or ""))
         except (json.JSONDecodeError, TypeError, ValueError):
             pass
     plain = _text(body)
     title = _html_meta(body, "og:title") or _html_tag(body, "title")
     link = _html_meta(body, "og:url") or (_URL_RE.search(body).group(0) if _URL_RE.search(body) else base_url)
     summary = _html_meta(body, "description") or plain[:5000]
-    return title, summary, urljoin(base_url, link), None
+    return title, summary, _safe_url(urljoin(base_url, link), fallback=base_url), None
 
 
 def _checkpoint(brand_id: str, records: list[dict[str, Any]], collected_at: str) -> dict[str, Any]:
@@ -292,6 +292,14 @@ def _parse_datetime(value: str) -> datetime:
     if parsed.tzinfo is None:
         raise ValueError("collected_at must include timezone")
     return parsed.astimezone(UTC)
+
+
+def _safe_url(value: str, *, fallback: str) -> str:
+    """Strip markup punctuation accidentally captured from HTML/Markdown."""
+    candidate = html.unescape(str(value or "")).strip().rstrip(")]}>.,;:'\"`")
+    if not candidate.startswith(("http://", "https://")):
+        candidate = fallback
+    return candidate
 
 
 def _run_id(value: datetime) -> str:
