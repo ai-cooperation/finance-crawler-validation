@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-big-pickle-remote-submit",
+  "observed_at": "2026-08-21T00:30:42Z",
+  "model": "opencode/big-pickle",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC"
+  },
+  "request": {
+    "idempotency_key": "big_pickle_remote_submit_20260821_002",
+    "source_strategy": "latest_published",
+    "report_profile": "detailed_traceable",
+    "requested_outputs": ["detailed_report", "evidence_appendix"],
+    "max_sources": 12
+  },
+  "result": {
+    "request_id": "505eb4e5-2e1e-4a18-ac65-833ce9df7810",
+    "job_id": "research_20260821003041_0c32e7bc",
+    "terminal_status": "partial",
+    "evidence_count": 15,
+    "report_count": 3,
+    "appendix_count": 15,
+    "recommendation_status_values": ["research_only", "research_only", "research_only"]
+  },
+  "assertions": {
+    "real_remote_mcp_submit": "passed",
+    "request_id_status_poll": "passed",
+    "private_pack_report_appendix_readback": "passed",
+    "no_personalized_recommendation": "passed",
+    "partial_quality_preserved": "passed"
+  },
+  "profile_conflict_smoke": {
+    "requested_profile": "compact_traceable",
+    "terminal_status": "failed",
+    "error_code": "report_profile_conflict",
+    "retryable": true,
+    "assertion": "passed: existing report profile was not overwritten"
+  }
+}
