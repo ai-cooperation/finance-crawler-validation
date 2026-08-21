@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-big-pickle-remote-planner",
+  "observed_at": "2026-08-21T00:27:39Z",
+  "model": "opencode/big-pickle",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
+  "tool": "plan_research_sources",
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC"
+  },
+  "request": {
+    "source_strategy": "latest_published",
+    "include_market_data": true,
+    "include_topic_radar": true,
+    "report_profile": "detailed_traceable",
+    "max_sources": 12
+  },
+  "result": {
+    "source_count": 12,
+    "strategy": "refresh",
+    "sufficiency_status": "refresh_required",
+    "coverage_ratio": 0.9166666666666666,
+    "layers": ["market", "news", "social"],
+    "failed_source": "bogleheads_investing_browser",
+    "snapshot_partial": true
+  },
+  "assertions": {
+    "real_remote_mcp_tool_call": "passed",
+    "target_scope_preserved": "passed",
+    "no_submit_or_actions_run": "passed",
+    "no_personalized_recommendation": "passed"
+  }
+}
