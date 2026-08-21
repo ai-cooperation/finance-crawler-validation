@@ -121,6 +121,32 @@ def test_actions_gate_does_not_claim_refresh_when_planner_reuses_snapshot() -> N
     assert result["blocking_reasons"] == ["actions_refresh_not_required"]
 
 
+def test_full_catalog_gate_requires_harness_artifacts() -> None:
+    responses = _success_sequence()
+    responses[2]["result"]["structuredContent"] = {
+        "source_bundle": {
+            "source_count": 135,
+            "collection_scope": "full_catalog",
+            "strategy": "refresh",
+            "sufficiency": {"status": "refresh_required"},
+        },
+    }
+    responses[5]["result"]["structuredContent"].update({
+        "harness": {"collection_scope": "full_catalog"},
+        "source_bundle": {
+            "collection_source_group_count": 135,
+            "endpoint_attempt_count": 181,
+            "normalized_item_count": 200,
+        },
+        "signals": {"signals": []},
+        "action_tasks": [],
+        "action_receipts": [],
+    })
+    config = RemoteGateConfig(**{**_config().__dict__, "collection_scope": "full_catalog"})
+    responses_iter = iter(responses)
+    result = run_remote_gate(config, request_json=lambda _payload: next(responses_iter))
+    assert result["checks"]["h3_mvp_harness"] == "passed"
+
 def test_remote_gate_rejects_an_unauthorized_tool_from_catalog() -> None:
     responses = _success_sequence()
     responses[1]["result"]["tools"].append({"name": "execute_trade"})

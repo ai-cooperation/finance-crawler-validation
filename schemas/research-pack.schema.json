@@ -35,11 +35,32 @@
         "snapshot_id": { "type": "string" },
         "source_count": { "type": "integer", "minimum": 0 },
         "item_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } },
-        "source_manifest_hash": { "$ref": "#/$defs/sha256" }
+        "source_manifest_hash": { "$ref": "#/$defs/sha256" },
+        "collection_scope": { "enum": ["full_catalog", "legacy_smoke"] },
+        "collection_source_group_count": { "type": "integer", "minimum": 0 },
+        "endpoint_attempt_count": { "type": "integer", "minimum": 0 },
+        "normalized_item_count": { "type": "integer", "minimum": 0 },
+        "target_relevant_item_count": { "type": "integer", "minimum": 0 },
+        "model_context_item_count": { "type": "integer", "minimum": 0 },
+        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 }
       }
     },
     "requirement": { "type": "object", "additionalProperties": true },
     "source_bundle_plan": { "type": "object", "additionalProperties": true },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack_id", "signal_pack_id", "action_pack_id", "collection_scope"],
+      "properties": {
+        "pack_id": { "const": "investment-research@1" },
+        "signal_pack_id": { "const": "investment-signal@1" },
+        "action_pack_id": { "const": "investment-research-action@1" },
+        "collection_scope": { "enum": ["full_catalog", "legacy_smoke"] }
+      }
+    },
+    "signals": { "type": "object", "additionalProperties": true },
+    "action_tasks": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "action_receipts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
     "topics": { "type": "array", "maxItems": 3, "items": { "type": "object", "additionalProperties": true } },
     "market": { "type": ["object", "null"], "additionalProperties": true },
     "reports": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
@@ -69,7 +90,13 @@
         "partial": { "type": "boolean" },
         "stale": { "type": "boolean" },
         "failed_sources": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
-        "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+        "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "collection_source_group_count": { "type": "integer", "minimum": 0 },
+        "endpoint_attempt_count": { "type": "integer", "minimum": 0 },
+        "normalized_item_count": { "type": "integer", "minimum": 0 },
+        "target_relevant_item_count": { "type": "integer", "minimum": 0 },
+        "model_context_item_count": { "type": "integer", "minimum": 0 },
+        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 }
       }
     },
     "producer": {

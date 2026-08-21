@@ -14,6 +14,7 @@ import sourceBundleManifestSchema from "../../schemas/source-bundle-manifest.sch
 const PLANNER_VERSION = "research-requirement-planner-v1";
 const MIN_RADAR_SOURCES = 12;
 const MAX_RADAR_SOURCES = 20;
+const FULL_NEWS_BRAND_ENDPOINT_COUNT = 166;
 const DEFAULT_FRESHNESS_HOURS = 24;
 const MARKET_FRESHNESS_HOURS = 6;
 const requirementValidator = new Validator(researchRequirementSchema as Schema, "2020-12", false);
@@ -71,6 +72,18 @@ const TARGET_SOURCE_PRIORITIES: Partial<Record<ResearchTarget["kind"], readonly 
   etf: ["cnbc_top_news_rss", "marketwatch_topstories_rss", "federal_reserve_press_rss"],
 };
 
+// This list is the frozen source-group boundary for H3 production.  A source
+// group is a unique news brand; the catalog itself records the 166 endpoint
+// attempts (RSS/API/Browser fallbacks) separately.  Keeping the group IDs in
+// the planner prevents a request's legacy max_sources value from silently
+// shrinking the production collection scope.
+const FULL_NEWS_BRAND_IDS = [
+  "bloomberg", "reuters", "financial_times", "wall_street_journal", "cnbc", "marketwatch", "barrons", "investors_business_daily", "yahoo_finance", "investing_com", "seeking_alpha", "morningstar", "motley_fool", "benzinga", "the_street", "kiplinger", "money_com", "investopedia", "fortune", "business_insider", "forbes", "the_economist", "nikkei_asia", "quartz", "semafor_business", "institutional_investor", "pensions_investments", "american_banker", "banking_dive", "payments_dive", "risk_net", "euromoney", "global_finance", "international_banker", "the_banker", "private_banker_international", "investment_week", "investment_news", "wealth_management", "think_advisor", "advisor_hub", "financial_advisor_magazine", "riabiz", "planadviser", "chief_investment_officer", "benefits_pro", "insurance_journal", "reinsurance_news", "mortgage_professional_america", "housingwire", "fxstreet", "the_trade", "investinglive", "finance_magnates", "leaprate", "hedgeweek", "etf_com", "etf_stream", "citywire", "proactive_investors", "stockhead", "livewire_markets", "sharecafe", "market_online", "moneycontrol", "economic_times_markets", "mint", "business_standard", "financial_express", "businessline", "ndtv_profit", "markets_media", "tradingview_news", "tipranks", "kitco_news", "coindesk", "cointelegraph", "decrypt", "the_block", "bitcoin_magazine", "cryptoslate", "crypto_news", "beincrypto", "dl_news", "blockworks", "protos", "the_defiant", "bankless", "finextra", "the_paypers", "pymnts", "tearsheet", "crowdfund_insider", "fintech_futures", "altfi", "sifted", "crunchbase_news", "pitchbook_news", "pe_hub", "investments_pensions_europe", "bbc_business", "cnn_business", "nbc_business", "cbs_moneywatch", "abc_business", "ap_business", "new_york_times_business", "washington_post_business", "guardian_business", "usa_today_money", "npr_business", "al_jazeera_economy", "dw_business", "france24_business", "euronews_business", "scmp_business", "straits_times_business", "cna_business", "cbc_business", "ctv_business",
+] as const;
+
+export const FULL_CATALOG_SOURCE_GROUP_COUNT = FULL_NEWS_BRAND_IDS.length + Object.keys(SOURCE_LAYERS).length;
+export const FULL_CATALOG_ENDPOINT_COUNT = FULL_NEWS_BRAND_ENDPOINT_COUNT + Object.keys(SOURCE_LAYERS).length;
+
 export interface ResearchRequirement {
   schema_version: 1;
   requirement_id: string;
@@ -88,7 +101,11 @@ export interface ResearchRequirement {
   requested_outputs: Array<"quick_card" | "detailed_report" | "evidence_appendix">;
   include_market_data: boolean;
   include_topic_radar: boolean;
+  /** Legacy display budget. It never limits full_catalog collection. */
   max_sources: number;
+  collection_scope?: "full_catalog" | "legacy_smoke";
+  max_context_items?: number;
+  max_evidence_items?: number;
   source_strategy: "latest_published" | "actions";
 }
 
@@ -119,6 +136,10 @@ export interface SourceBundleManifest {
   strategy: "reuse" | "refresh" | "blocked";
   source_ids: string[];
   source_count: number;
+  collection_scope: "full_catalog" | "legacy_smoke";
+  source_catalogs: string[];
+  expected_endpoint_count: number;
+  expected_source_group_count: number;
   layers: Array<"market" | "news" | "official" | "social">;
   reused_snapshot_id: string | null;
   sufficiency: SnapshotSufficiency;
@@ -170,17 +191,20 @@ export async function buildPersistedResearchPlan(
     partial: number;
     published_at: string | null;
   }>();
-  const placeholders = selected.map(() => "?").join(", ");
-  const states = selected.length === 0
-    ? []
-    : (await db.prepare(
-      `SELECT source_id, status, last_successful_crawl
-       FROM source_state WHERE source_id IN (${placeholders})`,
-    ).bind(...selected).all<{
-      source_id: string;
-      status: "success" | "partial" | "failed";
-      last_successful_crawl: string | null;
-    }>()).results;
+  // D1/SQLite deployments may cap bound variables around one hundred.  The
+  // production catalog has 135 source groups, so read the checkpoint table in
+  // one bounded query and let the sufficiency pass mark absent groups as
+  // missing instead of truncating the planner selection.
+  const states = (await db.prepare(
+    requirement.collection_scope === "full_catalog"
+      ? `SELECT source_id, status, last_successful_crawl FROM source_state`
+      : `SELECT source_id, status, last_successful_crawl
+         FROM source_state WHERE source_id IN (${selected.map(() => "?").join(", ")})`,
+  ).bind(...(requirement.collection_scope === "full_catalog" ? [] : selected)).all<{
+    source_id: string;
+    status: "success" | "partial" | "failed";
+    last_successful_crawl: string | null;
+  }>()).results;
   const sourceStates = Object.fromEntries(states.map((state) => [state.source_id, {
     status: state.status,
     last_successful_crawl: state.last_successful_crawl,
@@ -228,6 +252,9 @@ export function buildResearchRequirement(
     horizon?: ResearchRequirement["horizon"];
     constraints?: ResearchRequirement["constraints"];
     requested_outputs?: ResearchRequirement["requested_outputs"];
+    collection_scope?: ResearchRequirement["collection_scope"];
+    max_context_items?: number;
+    max_evidence_items?: number;
   };
   const target = normalizeTarget(request.target);
   const requestedOutputs = requirements.requested_outputs
@@ -247,6 +274,9 @@ export function buildResearchRequirement(
     include_market_data: requirements.include_market_data,
     include_topic_radar: requirements.include_topic_radar,
     max_sources: requirements.max_sources,
+    collection_scope: requirements.collection_scope ?? "full_catalog",
+    max_context_items: requirements.max_context_items ?? 120,
+    max_evidence_items: requirements.max_evidence_items ?? 5000,
     source_strategy: requirements.source_strategy,
   };
   validatePlannerPayload(requirementValidator, "research-requirement", normalized);
@@ -271,6 +301,10 @@ export function planSourceBundle(
       strategy: "blocked",
       source_ids: [],
       source_count: 0,
+      collection_scope: requirement.collection_scope === "full_catalog" ? "full_catalog" : "legacy_smoke",
+      source_catalogs: requirement.collection_scope === "full_catalog" ? ["news_120", "radar_15"] : [],
+      expected_endpoint_count: 0,
+      expected_source_group_count: 0,
       layers: [],
       reused_snapshot_id: null,
       sufficiency: { status: "blocked", coverage_ratio: 0, reasons: ["document_engine_required"] },
@@ -288,6 +322,10 @@ export function planSourceBundle(
       strategy: "blocked",
       source_ids: [],
       source_count: 0,
+      collection_scope: requirement.collection_scope === "full_catalog" ? "full_catalog" : "legacy_smoke",
+      source_catalogs: requirement.collection_scope === "full_catalog" ? ["news_120", "radar_15"] : [],
+      expected_endpoint_count: 0,
+      expected_source_group_count: 0,
       layers: [],
       reused_snapshot_id: null,
       sufficiency: {
@@ -302,7 +340,8 @@ export function planSourceBundle(
     });
   }
   const sourceIds = selectSourceIds(requirement);
-  if (sourceIds.length < MIN_RADAR_SOURCES) {
+  const fullCatalog = requirement.collection_scope === "full_catalog";
+  if (!fullCatalog && sourceIds.length < MIN_RADAR_SOURCES) {
     return finalizeBundle({
       schema_version: 1,
       manifest_id: manifestId,
@@ -310,6 +349,10 @@ export function planSourceBundle(
       strategy: "blocked",
       source_ids: sourceIds,
       source_count: sourceIds.length,
+      collection_scope: "legacy_smoke",
+      source_catalogs: ["radar_15"],
+      expected_endpoint_count: sourceIds.length,
+      expected_source_group_count: sourceIds.length,
       layers: uniqueLayers(sourceIds),
       reused_snapshot_id: null,
       sufficiency: { status: "blocked", coverage_ratio: 0, reasons: ["source_budget_too_low"] },
@@ -328,6 +371,10 @@ export function planSourceBundle(
     strategy,
     source_ids: sourceIds,
     source_count: sourceIds.length,
+    collection_scope: fullCatalog ? "full_catalog" : "legacy_smoke",
+    source_catalogs: fullCatalog ? ["news_120", "radar_15"] : ["radar_15"],
+    expected_endpoint_count: fullCatalog ? FULL_CATALOG_ENDPOINT_COUNT : sourceIds.length,
+    expected_source_group_count: fullCatalog ? FULL_CATALOG_SOURCE_GROUP_COUNT : sourceIds.length,
     layers: uniqueLayers(sourceIds),
     reused_snapshot_id: null,
     sufficiency,
@@ -350,7 +397,7 @@ export function evaluateSnapshotSufficiency(
     return { status: "blocked", coverage_ratio: 0, reasons: ["document_engine_required"] };
   }
   const selected = selectSourceIds(requirement);
-  if (selected.length < MIN_RADAR_SOURCES) {
+  if (requirement.collection_scope !== "full_catalog" && selected.length < MIN_RADAR_SOURCES) {
     return { status: "blocked", coverage_ratio: 0, reasons: ["source_budget_too_low"] };
   }
   const reasons: string[] = [];
@@ -385,6 +432,9 @@ export function evaluateSnapshotSufficiency(
 }
 
 function selectSourceIds(requirement: ResearchRequirement): string[] {
+  if (requirement.collection_scope === "full_catalog") {
+    return [...FULL_NEWS_BRAND_IDS, ...Object.keys(SOURCE_LAYERS)];
+  }
   const requiredLayers = requirement.target.kind === "crypto"
     ? (requirement.include_market_data ? ["market", "news", "official", "social"] : ["news", "official", "social"])
     : requirement.target.kind === "industry" || requirement.target.kind === "topic"

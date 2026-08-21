@@ -76,13 +76,14 @@ uv run finance-app-a-remote \
   --kind crypto \
   --symbol BTC \
   --source-strategy actions \
-  --max-sources 12 \
+  --collection-scope full_catalog \
+  --max-sources 120 \
   --timeout-seconds 900 \
   > /tmp/app-a-remote-gate.json
 jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,appendix}' /tmp/app-a-remote-gate.json
 ```
 
-上面的 `--max-sources 12` 只保留作為舊版 MCP transport smoke；它不是 H3 投資研究資料驗證。H3 verifier 必須改為 `collection_scope=full_catalog`，核對 120 個 news brands／166 個 endpoints、15 個 radar sources、normalized items 與 target-relevant evidence。若 Worker 仍是舊版、token 無效、`GITHUB_DISPATCH_TOKEN` 缺少或 callback 沒有完成，結果必須是 `gate_a_status=blocked`／`failed`，並保留明確原因。
+`collection_scope=full_catalog` 是 H3 生產路徑；`max_sources` 僅作為模型 context 的相容欄位，不得縮小收集。verifier 必須核對 120 個 news brands／166 個 endpoints、15 個 radar sources、normalized items 與 target-relevant evidence。若 Worker 仍是舊版、token 無效、`GITHUB_DISPATCH_TOKEN` 缺少或 callback 沒有完成，結果必須是 `gate_a_status=blocked`／`failed`，並保留明確原因。舊版 `max_sources=12` 的結果只可作 transport smoke 歷史證據。
 
 ## 4.1 本次遠端真實結果（2026-08-21）
 

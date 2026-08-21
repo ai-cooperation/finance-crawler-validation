@@ -30,6 +30,7 @@ import {
   type SourceBundleManifest,
 } from "./research-planner";
 import { dispatchResearchWorkflow } from "./github-dispatch";
+import { buildInvestmentHarnessArtifacts } from "./investment-harness";
 
 
 const PIPELINE_VERSION = "research-report-generator-v1";
@@ -683,7 +684,9 @@ async function buildResearchPack(
     // sorts below the initial display window and must remain auditable.
     Math.max(request.requirements.max_sources, currentRawItems.results.length, 1),
   );
-  const initialItems = rawItems.slice(0, request.requirements.max_sources);
+  const collectionScope = planner?.source_bundle.collection_scope ?? request.requirements.collection_scope ?? "legacy_smoke";
+  const maxContextItems = request.requirements.max_context_items ?? (collectionScope === "full_catalog" ? 120 : request.requirements.max_sources);
+  const initialItems = rawItems.slice(0, maxContextItems);
   const reports: ResearchReport[] = [];
   for (const reportId of reportIds) {
     const reportRow = await env.DB.prepare(
@@ -704,7 +707,11 @@ async function buildResearchPack(
   // after sorting. Preserve every cited item in the Pack; otherwise the
   // evidence graph would contain dangling edges and downstream readers could
   // not audit a claim back to its source.
-  const includedItemIds = new Set(initialItems.map((item) => item.item_id));
+  const includedItemIds = new Set(
+    collectionScope === "full_catalog"
+      ? rawItems.map((item) => item.item_id)
+      : initialItems.map((item) => item.item_id),
+  );
   for (const report of reports) {
     report.evidence_ids.forEach((itemId) => includedItemIds.add(itemId));
     for (const claim of [...report.bull_case, ...report.bear_case, ...report.risk_view,
@@ -722,9 +729,19 @@ async function buildResearchPack(
     : [];
   const snapshotTime = Date.parse(topicSnapshot.as_of);
   const stale = Number.isFinite(snapshotTime) && now.getTime() - snapshotTime > 86_400_000;
-  const coverageRatio = request.requirements.max_sources === 0
+  const expectedSourceGroups = planner?.source_bundle.expected_source_group_count ?? request.requirements.max_sources;
+  const coverageRatio = expectedSourceGroups === 0
     ? 0
-    : Math.min(1, sourceIds.size / request.requirements.max_sources);
+    : Math.min(1, sourceIds.size / expectedSourceGroups);
+  const harness = await buildInvestmentHarnessArtifacts({
+    target: request.target as unknown as Record<string, unknown>,
+    topics: topicSnapshot.topics,
+    input_item_count: rawItems.length,
+    input_source_count: sourceIds.size,
+    snapshot_id: run.snapshot_id,
+    generated_at: topicSnapshot.as_of,
+    collection_scope: collectionScope,
+  });
   const evidenceGraph = buildEvidenceGraph(reports);
   return {
     schema_version: 1,
@@ -738,6 +755,13 @@ async function buildResearchPack(
       source_count: sourceIds.size,
       item_ids: limitedItems.map((item) => item.item_id),
       source_manifest_hash: run.source_manifest_hash,
+      collection_scope: collectionScope,
+      collection_source_group_count: expectedSourceGroups,
+      endpoint_attempt_count: planner?.source_bundle.expected_endpoint_count ?? sourceIds.size,
+      normalized_item_count: rawItems.length,
+      target_relevant_item_count: limitedItems.length,
+      model_context_item_count: initialItems.length,
+      evidence_appendix_item_count: limitedItems.length,
     },
     ...(planner === null ? {} : {
       requirement: planner.requirement,
@@ -747,6 +771,7 @@ async function buildResearchPack(
     market: request.requirements.include_market_data ? validatedAlignment.market_snapshot : null,
     reports,
     evidence_graph: evidenceGraph,
+    ...harness,
     evidence: limitedItems.map((item) => ({
       evidence_id: item.item_id,
       source_id: item.source_id,
@@ -761,6 +786,12 @@ async function buildResearchPack(
       stale,
       failed_sources: failedSources,
       coverage_ratio: coverageRatio,
+      collection_source_group_count: expectedSourceGroups,
+      endpoint_attempt_count: planner?.source_bundle.expected_endpoint_count ?? sourceIds.size,
+      normalized_item_count: rawItems.length,
+      target_relevant_item_count: limitedItems.length,
+      model_context_item_count: initialItems.length,
+      evidence_appendix_item_count: limitedItems.length,
     },
     producer: {
       pipeline_version: PIPELINE_VERSION,

@@ -172,6 +172,7 @@ def research_requirement() -> dict[str, object]:
         "include_market_data": True,
         "include_topic_radar": True,
         "max_sources": 12,
+        "collection_scope": "legacy_smoke",
         "source_strategy": "actions",
     }
 
@@ -184,6 +185,10 @@ def source_bundle_manifest() -> dict[str, object]:
         "strategy": "refresh",
         "source_ids": ["coingecko_markets_api", "bbc_business_rss"],
         "source_count": 2,
+        "collection_scope": "legacy_smoke",
+        "source_catalogs": ["radar_15"],
+        "expected_endpoint_count": 2,
+        "expected_source_group_count": 2,
         "layers": ["market", "news"],
         "reused_snapshot_id": None,
         "sufficiency": {

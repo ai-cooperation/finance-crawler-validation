@@ -29,7 +29,7 @@
     "research_source_ids": {
       "type": "array",
       "minItems": 12,
-      "maxItems": 20,
+      "maxItems": 256,
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^[a-z0-9_:-]{1,128}$" }
     },

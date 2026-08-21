@@ -50,6 +50,7 @@ class RemoteGateConfig:
     include_topic_radar: bool = True
     report_profile: str = "detailed_traceable"
     max_sources: int = 12
+    collection_scope: str = "legacy_smoke"
     poll_interval_seconds: float = 10.0
     timeout_seconds: float = 300.0
     idempotency_key: str = ""
@@ -69,8 +70,10 @@ class RemoteGateConfig:
             raise ValueError("source_strategy is invalid")
         if self.report_profile not in {"detailed_traceable", "compact_traceable"}:
             raise ValueError("report_profile is invalid")
-        if not 1 <= self.max_sources <= 20:
-            raise ValueError("max_sources must be between 1 and 20")
+        if self.collection_scope not in {"full_catalog", "legacy_smoke"}:
+            raise ValueError("collection_scope is invalid")
+        if not 1 <= self.max_sources <= 5000:
+            raise ValueError("max_sources must be between 1 and 5000")
         if self.poll_interval_seconds < 0:
             raise ValueError("poll_interval_seconds must be non-negative")
         if self.timeout_seconds <= 0 or self.timeout_seconds > 3600:
@@ -187,6 +190,7 @@ def run_remote_gate(
                 "include_topic_radar": config.include_topic_radar,
                 "report_profile": config.report_profile,
                 "max_sources": config.max_sources,
+                "collection_scope": config.collection_scope,
             },
         })
         bundle = plan.get("source_bundle") if isinstance(plan, dict) else None
@@ -195,7 +199,10 @@ def run_remote_gate(
         if (
             isinstance(bundle, dict)
             and isinstance(source_count, int)
-            and 12 <= source_count <= 20
+            and (
+                (config.collection_scope == "full_catalog" and source_count == 135 and bundle.get("collection_scope") == "full_catalog")
+                or (config.collection_scope != "full_catalog" and 12 <= source_count <= 20)
+            )
             and isinstance(sufficiency, dict)
             and sufficiency.get("status") in {"sufficient", "refresh_required"}
             and (
@@ -233,6 +240,7 @@ def run_remote_gate(
                 "include_topic_radar": config.include_topic_radar,
                 "report_profile": config.report_profile,
                 "max_sources": config.max_sources,
+                "collection_scope": config.collection_scope,
                 "requested_outputs": ["detailed_report", "evidence_appendix"]
                 if config.report_profile == "detailed_traceable"
                 else ["quick_card", "evidence_appendix"],
@@ -283,7 +291,24 @@ def run_remote_gate(
                 "report_count": len(pack.get("reports", [])) if isinstance(pack.get("reports"), list) else None,
                 "as_of": pack.get("as_of"),
                 "quality": pack.get("quality"),
+                "collection_scope": (pack.get("harness") or {}).get("collection_scope") if isinstance(pack.get("harness"), dict) else None,
+                "collection_source_group_count": (pack.get("source_bundle") or {}).get("collection_source_group_count") if isinstance(pack.get("source_bundle"), dict) else None,
+                "endpoint_attempt_count": (pack.get("source_bundle") or {}).get("endpoint_attempt_count") if isinstance(pack.get("source_bundle"), dict) else None,
+                "normalized_item_count": (pack.get("source_bundle") or {}).get("normalized_item_count") if isinstance(pack.get("source_bundle"), dict) else None,
             }
+            if config.collection_scope == "full_catalog":
+                if (
+                    result["pack"]["collection_scope"] == "full_catalog"
+                    and result["pack"]["collection_source_group_count"] == 135
+                    and result["pack"]["endpoint_attempt_count"] == 181
+                    and isinstance(pack.get("signals"), dict)
+                    and isinstance(pack.get("action_tasks"), list)
+                    and isinstance(pack.get("action_receipts"), list)
+                ):
+                    _mark(result, "h3_mvp_harness", "passed")
+                else:
+                    _mark(result, "h3_mvp_harness", "failed")
+                    _reason(result, "full_catalog_harness_artifacts_missing")
         else:
             _mark(result, "research_pack", "failed")
             _reason(result, "research_pack_readback_invalid")
@@ -355,6 +380,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--question", default="What are the current drivers and risks for this target?")
     parser.add_argument("--source-strategy", choices=["latest_published", "actions"], default="actions")
     parser.add_argument("--max-sources", type=int, default=12)
+    parser.add_argument("--collection-scope", choices=["full_catalog", "legacy_smoke"], default="full_catalog")
     parser.add_argument("--poll-interval-seconds", type=float, default=10.0)
     parser.add_argument("--timeout-seconds", type=float, default=300.0)
     parser.add_argument("--idempotency-key", default="")
@@ -370,6 +396,7 @@ def main(argv: list[str] | None = None) -> int:
         question=args.question,
         source_strategy=args.source_strategy,
         max_sources=args.max_sources,
+        collection_scope=args.collection_scope,
         poll_interval_seconds=args.poll_interval_seconds,
         timeout_seconds=args.timeout_seconds,
         idempotency_key=args.idempotency_key,

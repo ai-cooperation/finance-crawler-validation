@@ -97,6 +97,20 @@ describe("research requirement planner", () => {
     expect(planned.source_ids).toContain("bogleheads_investing_rss");
   });
 
+  it("opens the production H3 boundary to the complete news catalog", () => {
+    const planned = planSourceBundle(requirement({
+      collection_scope: "full_catalog",
+      max_sources: 1,
+    }));
+    expect(planned.collection_scope).toBe("full_catalog");
+    expect(planned.source_catalogs).toEqual(["news_120", "radar_15"]);
+    expect(planned.expected_source_group_count).toBe(135);
+    expect(planned.expected_endpoint_count).toBe(181);
+    expect(planned.source_ids.length).toBe(135);
+    expect(planned.source_ids).toContain("bloomberg");
+    expect(planned.source_ids).toContain("coingecko_markets_api");
+  });
+
   it("does not claim a snapshot is sufficient when it is partial or stale", () => {
     const complete = evaluateSnapshotSufficiency(requirement(), snapshot());
     expect(complete.status).toBe("sufficient");
@@ -244,7 +258,7 @@ describe("research requirement planner", () => {
     };
     expect(() => buildWorkflowDispatchRequest({ ...base, job_id: "bad-job" })).toThrow(/invalid_research_job_id/);
     expect(() => buildWorkflowDispatchRequest({ ...base, source_ids: [] })).toThrow(/invalid_research_source_ids/);
-    expect(() => buildWorkflowDispatchRequest({ ...base, source_ids: Array.from({ length: 21 }, (_, i) => `source_${i}`) })).toThrow(/invalid_research_source_ids/);
+    expect(() => buildWorkflowDispatchRequest({ ...base, source_ids: Array.from({ length: 257 }, (_, i) => `source_${i}`) })).toThrow(/invalid_research_source_ids/);
     expect(() => buildWorkflowDispatchRequest({ ...base, requirement_id: "bad-requirement" })).toThrow(/invalid_research_requirement_id/);
   });
 

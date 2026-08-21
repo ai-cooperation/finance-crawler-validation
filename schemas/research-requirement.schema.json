@@ -17,6 +17,7 @@
     "include_market_data",
     "include_topic_radar",
     "max_sources",
+    "collection_scope",
     "source_strategy"
   ],
   "properties": {
@@ -45,7 +46,10 @@
     },
     "include_market_data": { "type": "boolean" },
     "include_topic_radar": { "type": "boolean" },
-    "max_sources": { "type": "integer", "minimum": 1, "maximum": 20 },
+    "max_sources": { "type": "integer", "minimum": 1, "maximum": 5000 },
+    "collection_scope": { "enum": ["full_catalog", "legacy_smoke"] },
+    "max_context_items": { "type": "integer", "minimum": 1, "maximum": 5000 },
+    "max_evidence_items": { "type": "integer", "minimum": 1, "maximum": 10000 },
     "source_strategy": { "enum": ["latest_published", "actions"] }
   },
   "$defs": {

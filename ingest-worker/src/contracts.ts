@@ -304,6 +304,9 @@ export interface ResearchRequirements {
   include_topic_radar: boolean;
   report_profile: "detailed_traceable" | "compact_traceable";
   max_sources: number;
+  collection_scope?: "full_catalog" | "legacy_smoke";
+  max_context_items?: number;
+  max_evidence_items?: number;
   objective?: "screen" | "research" | "monitor" | "compare" | "due_diligence" | "meeting_battle_card" | "decision_support";
   as_of?: string;
   horizon?: "intraday" | "days" | "months" | "years" | "transaction";
@@ -367,6 +370,13 @@ export interface ResearchPack {
     source_count: number;
     item_ids: string[];
     source_manifest_hash: string;
+    collection_scope?: "full_catalog" | "legacy_smoke";
+    collection_source_group_count?: number;
+    endpoint_attempt_count?: number;
+    normalized_item_count?: number;
+    target_relevant_item_count?: number;
+    model_context_item_count?: number;
+    evidence_appendix_item_count?: number;
   };
   requirement?: object;
   source_bundle_plan?: object;
@@ -378,6 +388,15 @@ export interface ResearchPack {
    * legacy v1 packs, but every newly generated pack must include it.
    */
   evidence_graph?: ResearchEvidenceGraph;
+  harness?: {
+    pack_id: "investment-research@1";
+    signal_pack_id: "investment-signal@1";
+    action_pack_id: "investment-research-action@1";
+    collection_scope: "full_catalog" | "legacy_smoke";
+  };
+  signals?: object;
+  action_tasks?: object[];
+  action_receipts?: object[];
   evidence: Array<{
     evidence_id: string;
     source_id: string;
@@ -392,6 +411,12 @@ export interface ResearchPack {
     stale: boolean;
     failed_sources: string[];
     coverage_ratio: number;
+    collection_source_group_count?: number;
+    endpoint_attempt_count?: number;
+    normalized_item_count?: number;
+    target_relevant_item_count?: number;
+    model_context_item_count?: number;
+    evidence_appendix_item_count?: number;
   };
   producer: {
     pipeline_version: string;

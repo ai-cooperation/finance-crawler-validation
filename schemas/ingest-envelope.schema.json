@@ -28,13 +28,13 @@
     "items": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 100,
+      "maxItems": 5000,
       "items": { "type": "object" }
     },
     "checkpoints": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 100,
+      "maxItems": 256,
       "items": { "$ref": "#/$defs/checkpoint" }
     }
   },

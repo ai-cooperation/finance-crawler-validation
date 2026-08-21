@@ -23,6 +23,7 @@ export interface WorkflowDispatchRequest {
     research_target: string;
     research_question: string;
     research_include_market_data: string;
+    research_collection_scope: string;
   };
 }
 
@@ -33,12 +34,13 @@ export function buildWorkflowDispatchRequest(job: {
   question?: string;
   requirement_id: string;
   include_market_data?: boolean;
+  collection_scope?: "full_catalog" | "legacy_smoke";
 }): WorkflowDispatchRequest {
   const uniqueSourceIds = [...new Set(job.source_ids)];
   if (!/^research_[a-z0-9_]+$/.test(job.job_id)) {
     throw new HttpError(422, "invalid_research_job_id");
   }
-  if (uniqueSourceIds.length < 1 || uniqueSourceIds.length > 20) {
+  if (uniqueSourceIds.length < 1 || uniqueSourceIds.length > 256) {
     throw new HttpError(422, "invalid_research_source_ids");
   }
   if (!/^req_[a-z0-9_:-]+$/.test(job.requirement_id)) {
@@ -52,7 +54,8 @@ export function buildWorkflowDispatchRequest(job: {
       research_requirement_id: job.requirement_id,
       research_target: JSON.stringify(job.target),
       research_question: job.question ?? "",
-      research_include_market_data: String(job.include_market_data ?? true),
+    research_include_market_data: String(job.include_market_data ?? true),
+      research_collection_scope: job.collection_scope ?? "full_catalog",
     },
   };
 }
@@ -71,6 +74,7 @@ export async function dispatchResearchWorkflow(
     question: job.requirement.question,
     requirement_id: job.requirement.requirement_id,
     include_market_data: job.requirement.include_market_data,
+    collection_scope: job.requirement.collection_scope,
   });
   let response: Response;
   try {

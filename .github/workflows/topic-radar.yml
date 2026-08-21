@@ -73,6 +73,14 @@ on:
         required: false
         type: string
         default: "true"
+      research_collection_scope:
+        description: Production collection boundary; full_catalog always runs all 120 brands and 166 endpoints
+        required: false
+        type: choice
+        options:
+          - full_catalog
+          - legacy_smoke
+        default: full_catalog
 
 permissions:
   contents: read
@@ -86,7 +94,7 @@ concurrency:
 jobs:
   collect-and-ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Reject mutually exclusive control-plane validation modes
         if: >-
@@ -283,6 +291,7 @@ jobs:
           RESEARCH_TARGET: ${{ inputs.research_target }}
           RESEARCH_QUESTION: ${{ inputs.research_question }}
           RESEARCH_INCLUDE_MARKET_DATA: ${{ inputs.research_include_market_data }}
+          RESEARCH_COLLECTION_SCOPE: ${{ inputs.research_collection_scope }}
         run: |
           set -euo pipefail
           test -n "$INGEST_WORKER_URL"
@@ -294,7 +303,7 @@ jobs:
           fi
           echo "include_market_data=$include_market_data" >>"$GITHUB_OUTPUT"
           source_ids_csv=""
-          if [[ -n "$RESEARCH_SOURCE_IDS" ]]; then
+          if [[ -n "$RESEARCH_SOURCE_IDS" && "${RESEARCH_COLLECTION_SCOPE:-full_catalog}" != "full_catalog" ]]; then
             source_ids_csv="$(jq -er '
               if type == "array" and (length >= 12 and length <= 20) and all(.[]; type == "string")
               then join(",") else error("research_source_ids must be a 12–20 item string array") end
@@ -404,7 +413,7 @@ jobs:
           !inputs.verify_research_reports
         run: python -m playwright install --with-deps chromium
 
-      - name: Collect 15-source radar slice
+      - name: Collect radar sources
         if: >-
           steps.admission.outputs.admitted == 'true' &&
           !inputs.verify_alert_delivery &&
@@ -432,6 +441,42 @@ jobs:
           fi
           finance-topic-radar "${collect_args[@]}" --output artifacts/topic-radar
 
+      - name: Collect full 120-brand news catalog and preserve raw payloads
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          inputs.research_collection_scope == 'full_catalog' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        env:
+          TARGET_JSON: ${{ inputs.research_target }}
+          RESEARCH_QUESTION: ${{ inputs.research_question }}
+        run: |
+          set -euo pipefail
+          finance-news-probe \
+            --catalog news-sources.yaml \
+            --executors resource-executors.yaml \
+            --current-executor github_actions_crawl4ai \
+            --max-brands 120 \
+            --exhaustive-endpoints \
+            --capture-raw \
+            --output artifacts/news-catalog
+          finance-news-normalize \
+            --manifest artifacts/news-catalog/news-raw-manifest.json \
+            --workflow-run-id "$GITHUB_RUN_ID" \
+            --commit-sha "$GITHUB_SHA" \
+            --collected-at "$(jq -r '.generated_at' artifacts/news-catalog/news-report.json)" \
+            --target-json "$TARGET_JSON" \
+            --question "$RESEARCH_QUESTION" \
+            --output artifacts/news-catalog/news-ingest-envelope.json
+          finance-h3-assemble \
+            --news-envelope artifacts/news-catalog/news-ingest-envelope.json \
+            --radar-directory artifacts/topic-radar \
+            --target-json "$TARGET_JSON" \
+            --question "$RESEARCH_QUESTION" \
+            --output artifacts/h3
+
       - name: Build OpenBB-compatible market alignment
         if: >-
           steps.admission.outputs.admitted == 'true' &&
@@ -445,9 +490,9 @@ jobs:
         run: |
           set -euo pipefail
           align_args=(
-            --raw-items artifacts/topic-radar/raw-items.json
-            --topic-snapshot artifacts/topic-radar/topic-snapshot.json
-            --output artifacts/topic-radar
+            --raw-items artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/raw-items.json
+            --topic-snapshot artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/topic-snapshot.json
+            --output artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}
             --provider coingecko
           )
           if [[ -n "$TARGET_JSON" ]]; then
@@ -467,9 +512,9 @@ jobs:
           !inputs.verify_research_reports
         run: |
           finance-tradingagents-plan \
-            --topic-snapshot artifacts/topic-radar/topic-snapshot.json \
-            --alignment artifacts/topic-radar/market-topic-alignment.json \
-            --output artifacts/topic-radar/tradingagents \
+            --topic-snapshot artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/topic-snapshot.json \
+            --alignment artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/market-topic-alignment.json \
+            --output artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/tradingagents \
             --plan-id "plan_${GITHUB_RUN_ID}" \
             --created-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --max-topics 3 \
@@ -498,22 +543,22 @@ jobs:
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
-            --data-binary @artifacts/topic-radar/ingest-envelope.json \
+            --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/ingest-envelope.json \
             "$INGEST_WORKER_URL/v1/ingest/items"
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
-            --data-binary @artifacts/topic-radar/topic-snapshot.json \
+            --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/topic-snapshot.json \
             "$INGEST_WORKER_URL/v1/ingest/publish"
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
-            --data-binary @artifacts/topic-radar/market-alignment-envelope.json \
+            --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/market-alignment-envelope.json \
             "$INGEST_WORKER_URL/v1/ingest/market-alignment"
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
-            --data-binary @artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json \
+            --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/tradingagents/tradingagents-plan-envelope.json \
             "$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"
 
       - name: Complete actions-backed research job
@@ -531,6 +576,7 @@ jobs:
           RESEARCH_SOURCE_IDS: ${{ inputs.research_source_ids }}
           RESEARCH_REQUIREMENT_ID: ${{ inputs.research_requirement_id }}
           RESEARCH_TARGET: ${{ inputs.research_target }}
+          RESEARCH_COLLECTION_SCOPE: ${{ inputs.research_collection_scope }}
         run: |
           set -euo pipefail
           test -n "$INGEST_WORKER_URL"
@@ -539,11 +585,13 @@ jobs:
             --header "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
           oidc_token="$(jq -er '.value' <<<"$oidc_response")"
-          run_id="$(jq -er '.run_id' artifacts/topic-radar/ingest-envelope.json)"
-          workflow_run_id="$(jq -er '.workflow_run_id' artifacts/topic-radar/ingest-envelope.json)"
-          commit_sha="$(jq -er '.commit_sha' artifacts/topic-radar/ingest-envelope.json)"
-          plan_id="$(jq -er '.plan.plan_id' artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json)"
-          alignment_id="$(jq -er '.plan.alignment_id' artifacts/topic-radar/tradingagents/tradingagents-plan-envelope.json)"
+          artifact_root="artifacts/topic-radar"
+          if [[ "${RESEARCH_COLLECTION_SCOPE:-full_catalog}" == "full_catalog" ]]; then artifact_root="artifacts/h3"; fi
+          run_id="$(jq -er '.run_id' "$artifact_root/ingest-envelope.json")"
+          workflow_run_id="$(jq -er '.workflow_run_id' "$artifact_root/ingest-envelope.json")"
+          commit_sha="$(jq -er '.commit_sha' "$artifact_root/ingest-envelope.json")"
+          plan_id="$(jq -er '.plan.plan_id' "$artifact_root/tradingagents/tradingagents-plan-envelope.json)"
+          alignment_id="$(jq -er '.plan.alignment_id' "$artifact_root/tradingagents/tradingagents-plan-envelope.json)"
           requirement_id="$RESEARCH_REQUIREMENT_ID"
           test -n "$requirement_id"
           target_json="$RESEARCH_TARGET"
@@ -552,8 +600,11 @@ jobs:
             (.kind | IN("equity", "etf", "crypto", "company", "industry", "topic", "url"))
           ' <<<"$target_json" >/dev/null
           source_ids_json="$RESEARCH_SOURCE_IDS"
+          if [[ "${RESEARCH_COLLECTION_SCOPE:-full_catalog}" == "full_catalog" ]]; then
+            source_ids_json="$(jq -c '[.checkpoints[].source_id] | unique' "$artifact_root/ingest-envelope.json")"
+          fi
           jq -e '
-            type == "array" and (length >= 12 and length <= 20) and
+            type == "array" and (length >= 1 and length <= 256) and
             all(.[]; type == "string") and (length == (unique | length))
           ' <<<"$source_ids_json" >/dev/null
           jq -n \
@@ -777,6 +828,18 @@ jobs:
         with:
           name: finance-topic-radar-${{ github.run_id }}
           path: artifacts/topic-radar/run-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload full-catalog verification summary
+        if: always() && hashFiles('artifacts/h3/full-catalog-report.json') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finance-h3-full-catalog-${{ github.run_id }}
+          path: |
+            artifacts/news-catalog/news-report.json
+            artifacts/news-catalog/news-raw-manifest.json
+            artifacts/h3/full-catalog-report.json
           if-no-files-found: error
           retention-days: 14
 
