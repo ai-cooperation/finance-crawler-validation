@@ -70,6 +70,10 @@
 
 OpenCode／Big Pickle 是通用 runtime；它只依 `task_type` 載入對應 Harness Pack。資料收集與正規化的 deterministic script 不消耗模型 token；模型只在需要分類、摘要或報告推理的 Harness Pack 中啟用。這使同一套 MCP／D1／R2／Actions 基礎設施可以換任務而不混淆權限與驗收標準。
 
+Signal Engine／Action Engine 的進階契約與未來應用擴張，另以 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md) 為 normative extension。兩者不是新的常駐 Agent：Signal Engine 產生有 evidence、反證、新鮮度與 expiry 的可重播觀察；Action Engine 只依 signal、policy、approval、quota 與 idempotency 建立下一個任務。投資研究是第一個 application Harness，保險研究、產業研究、商機／市場開發各自新增 domain signal pack＋action pack＋output schema，不複製 runtime、crawler、job controller 或 D1／R2。
+
+因此現有 Stage 3–4 對齊為共用 Signal／Action 能力的第一個實作面：議題發現與追蹤先產生 `signal_event.v1`，再由 `action_task.v1` 觸發資料補齊、重算、研究包、通知或人工覆核。任何 signal 在 evidence 不足、entity 未解析、來源不獨立或已過期時，必須停在 `insufficient_data|needs_review`，不能直接進入研究結論或外部副作用。
+
 ## 2. 現有基礎與缺口
 
 ### 2.1 已有基礎（已部署／已實測）
@@ -441,6 +445,23 @@ App A 目前可執行的市場 provider 僅是 CoinGecko crypto。Planner 對沒
 - 連續七日 source freshness、current 不倒退、重播不重複、用量低於 ceiling。
 - 任一 stage failed 不得讓 MCP 讀到未驗證 current；排程可安全關閉並從 checkpoint catch-up。
 
+### 4.1 Signal／Action Engine 與後續應用 Harness（延伸施工面）
+
+Signal／Action 不另開一條平行產品線，而是把 Stage 3–4 的議題能力升級成共用平台層，再用 application Harness Pack 延伸到不同領域：
+
+| Harness phase | 主要工作 | frozen output | 依賴與 Gate |
+|---|---|---|---|
+| H0 平台契約 | `signal_event.v1`、`action_task.v1`、`action_receipt.v1`、registry、policy、verifier | `harness_registry.v1` | Stage 0；每條 requirement 都有 test_matrix |
+| H1 Signal Engine | normalized evidence、entity／topic、novelty／momentum／divergence／risk／catalyst | `signal_snapshot.v1`、golden replay | Stage 1–4；不足資料必須 fail closed |
+| H2 Action Engine | refresh、enrich、recalculate、build pack、notify、review、retry／callback | `action_task.v1`、`action_receipt.v1` | H1；冪等、approval、quota、last-good 通過 |
+| H3 投資研究 Harness | investment signal＋OpenBB＋Research Pack／report／App A／B | `research_report.v2`、`decision_memo.v1` | H0–H2；Gate A／B |
+| H4 保險研究 Harness | policy／regulation／claims／exclusion evidence 與 insurance signal | `insurance_research_pack.v1`、`insurance_report.v1` | H0–H2；不核保、不定價、不 bind |
+| H5 產業研究 Harness | industry graph、競品、供應鏈、capacity／demand／regulation signal | `industry_research_pack.v1`、`industry_report.v1` | H0–H2；entity／taxonomy 可反查 |
+| H6 商機／市場開發 Harness | Demand First、company enrichment、qualification、outreach draft | `opportunity_pack.v1`、`outreach_draft.v1` | H0–H2；外部寄送需人工核准 |
+| H7 跨應用營運 | 多 Pack 版本、quota、告警、七日 soak、rollback | `recovery_evidence.v1` | H3–H6；不污染 current |
+
+這個順序保留「先由應用 Agent 收斂需求，再由共用資料服務補齊」的使用者體驗：Application Harness 先產生 `research_requirement`，Data Broker 補資料，Signal Engine 重新計算，Action Engine 再決定要不要建立下一個內部任務。未來新增領域只新增 domain adapter、policy、fixtures、report schema 與 MCP scope，不複製 Crawl4AI、GitHub Actions、Worker、D1／R2 或 runtime。完整欄位契約與 Signal／Action test matrix 見 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md)。
+
 ## 5. 儲存與權限配置
 
 | 內容 | GitHub public repo | D1 | R2 | MCP scope |
@@ -530,6 +551,8 @@ GitHub Actions 只能取得 OIDC／窄權限 ingest 能力；不能持有廣泛 
 | REQ-21 Actions job 有 success／failure terminal callback，不永久停在 queued | admission denial／workflow failure、OIDC binding、D1 status／audit read-back | integration＋invariant | CI＋遠端 bounded failure run |
 | REQ-22 market data 依需求選配且不以錯誤 provider 補資料 | `include_market_data=false` 排除 market source 並產出 `provider=not_requested`；`true` 的 unsupported target 回 `market_target_not_supported` | fixture truth-table＋integration | CI＋遠端 bounded run |
 | INV-01～INV-10 永遠成立 | 每次 schema／migration／release 執行 invariant suite | invariant | CI＋部署前 gate＋生產 watchdog |
+
+Signal／Action Engine 的延伸 requirement 不以本表的投資應用欄位代替；`signal-action-harness-spec.md` 的 `SIG-*`、`ACT-*`、`HAR-*`、`APP-*`、`OPS-*` 是同一計畫的附加 RED 清單。任何新的保險、產業或商機 Pack 都必須先讓共用 H0–H2 與自己的 domain rows 變綠，才能宣稱該應用完成。
 
 ### 最低測試交付
 

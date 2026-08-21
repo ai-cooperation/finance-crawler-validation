@@ -47,6 +47,8 @@ Agent 不直接猜 URL、繞過權限或同步等待爬蟲完成；它只提交�
 |---|---|---|
 | `source_validation` | 120 品牌／166 endpoint 全量能力與 raw capture | `source_matrix.v1` |
 | `evidence_normalization` | item extraction、canonical URL／content fingerprint 去重、noise／relevance gate | `normalized_evidence.v1` |
+| `signal_evaluation` | 共用 Signal Engine＋domain signal pack，計算可重播的變化／背離／風險／催化／意圖觀察 | `signal_snapshot.v1`、`signal_event.v1` |
+| `action_dispatch` | 共用 Action Engine＋domain action pack，依 signal／policy／approval 建立下一個可追蹤任務 | `action_task.v1`、`action_receipt.v1` |
 | `target_research` | target resolver、topic／OpenBB／evidence graph、report generator | `research_pack.v1`＋`research_report.v2` |
 | `decision_discussion` | Grill Me First、唯讀 evidence tools、policy guard | `decision_memo.v1`＋`decision_trace.v1` |
 | `operations_recovery` | callback、retry、alert、last-good、quota、soak | `run_record.v1`＋`recovery_evidence.v1` |
@@ -57,12 +59,16 @@ Agent 不直接猜 URL、繞過權限或同步等待爬蟲完成；它只提交�
 MCP submit task
   → Worker 凍結 task_type + harness_pack@version + input hash
   → GitHub Actions／OpenBB／文件引擎執行
+  → Signal Engine（必要時）產生 signal snapshot
+  → Action Engine（必要時）建立 refresh／enrich／recalculate／review task
   → Harness verifier 判定 pass／partial／blocked
   → D1/R2 寫入 artifact + audit
   → 只有符合 handoff contract 才能交下一個 Harness
 ```
 
 Big Pickle 只做任務編排與已授權 tool calls；資料收集、正規化、去重與基礎統計不經模型。高階 AI 只在 `decision_discussion` 讀取 frozen Research Pack，不得自行回來源抓取。
+
+Signal／Action 的共用契約、application Pack registry、保險／產業／商機開發的後續擴張順序，以及 `SIG-*`／`ACT-*`／`HAR-*` 的 test matrix，固定於 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md)。本文件只規範目前投資研究報告與決策討論兩個應用的交接；新增領域必須先通過該延伸 SPEC 的 H0–H2，再以自己的 domain Pack 進入本文件同樣的 Research Pack／decision boundary。
 
 ### 0.1 目前實作狀態（2026-08-21）
 
