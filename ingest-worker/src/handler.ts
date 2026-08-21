@@ -43,7 +43,10 @@ import {
 import { completeResearchJob, failResearchJob } from "./research-jobs";
 
 
-const MAX_JSON_BYTES = 2_000_000;
+// Full-catalog H3 envelopes carry bounded article content for the private R2
+// boundary. Keep a generous request guard while still rejecting unbounded
+// bodies before JSON parsing.
+const MAX_JSON_BYTES = 20_000_000;
 
 type Authenticator = (request: Request, env: Env) => Promise<AuthContext>;
 type McpAuthenticator = (request: Request, env: Env) => Promise<McpAuthContext>;

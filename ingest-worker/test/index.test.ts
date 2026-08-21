@@ -1715,7 +1715,7 @@ describe("HTTP routing and error contracts", () => {
     const invalidJson = await send({ "Content-Type": "application/json" }, "{");
     const oversized = await send({
       "Content-Type": "application/json",
-      "Content-Length": "2000001",
+      "Content-Length": "20000001",
     }, "{}");
 
     expect(await mediaType.json()).toMatchObject({ error: "unsupported_media_type" });
