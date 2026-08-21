@@ -287,9 +287,16 @@ class _Response:
 
 
 def test_http_request_parses_json_and_maps_transport_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(remote.urllib.request, "urlopen", lambda *_args, **_kwargs: _Response(b'{"result": {}}'))
+    captured: list[Any] = []
+
+    def capture_request(request: Any, **_kwargs: Any) -> _Response:
+        captured.append(request)
+        return _Response(b'{"result": {}}')
+
+    monkeypatch.setattr(remote.urllib.request, "urlopen", capture_request)
     request_json = remote._http_request("https://worker.example/mcp", "token", 1)
     assert request_json({"method": "initialize"}) == {"result": {}}
+    assert captured[0].get_header("User-agent") == "finance-research-remote-gate/1.0"
 
     def raise_url_error(*_args: Any, **_kwargs: Any) -> Any:
         raise remote.urllib.error.URLError("offline")

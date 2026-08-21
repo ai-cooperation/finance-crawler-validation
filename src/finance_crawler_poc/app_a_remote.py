@@ -326,6 +326,7 @@ def _http_request(base_url: str, token: str, timeout: float) -> RequestJson:
                 "Accept": "application/json, text/event-stream",
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
+                "User-Agent": "finance-research-remote-gate/1.0",
             },
             method="POST",
         )
