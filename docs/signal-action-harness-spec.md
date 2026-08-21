@@ -147,13 +147,26 @@ Receipt 至少包含 `action_id`、`status`、`started_at`、`finished_at`、實
 | H0 平台契約 | signal／action schema、registry、policy、artifact envelope、MCP task type | 現有 source／evidence／job contract | `harness_registry.v1`、schemas、test matrix | 每條 REQ 都有測試與 verifier |
 | H1 Signal Engine | normalization、entity/topic、novelty／momentum／divergence／risk／catalyst 基礎 signal | 120／166 全量 frozen raw 與 normalized evidence | `signal_snapshot.v1`、golden replay、signal quality report | deterministic replay、insufficient-data、counter-evidence 通過 |
 | H2 Action Engine | refresh、enrich、recalculate、build pack、notify、review 的任務與 receipt | verified signal、policy、quota | `action_task.v1`、`action_receipt.v1`、failure／recovery evidence | idempotency、approval、callback、last-good、無未授權副作用 |
-| H3 投資研究 Harness | target resolver、OpenBB、investment signal、Research Pack／report／evidence appendix、App A／B | H1/H2、equity／ETF／crypto provider | `research_report.v2`、`decision_memo.v1` | Gate A／B；不得把 signal 當買賣建議 |
+| H3 投資研究 Harness | target resolver、OpenBB、investment signal、Research Pack／report／evidence appendix、App A／B | H1/H2（MVP 可先接 H1-MVP／H2-MVP）、equity／ETF／crypto provider | `research_report.v2`、`decision_memo.v1` | MVP 只可 `candidate|partial|research_only`；完整 Gate A／B 仍需 H1/H2 Full |
 | H4 保險研究 Harness | policy／regulation／claims／exclusion／rate evidence 與保險 signal | H0–H2、保險來源與 ontology | `insurance_research_pack.v1`、`insurance_report.v1` | 引用完整、法域／as-of 正確；不核保／不定價 |
 | H5 產業研究 Harness | industry graph、competitor、supply chain、capacity／demand／regulation signal | H0–H2、產業 taxonomy | `industry_research_pack.v1`、`industry_report.v1` | entity／industry mapping、反證與資料缺口通過 |
 | H6 商機／市場開發 Harness | Demand First、company enrichment、qualification、outreach draft | H0–H2、商機來源與 CRM 權限 | `opportunity_pack.v1`、`outreach_draft.v1` | 不把熱度當需求；外部寄送人工核准 |
 | H7 跨應用營運 | 多 Pack quota、告警、版本遷移、七日 soak、rollback | H3–H6 frozen outputs | cross-domain run／recovery evidence | 來源、模型、Actions 失敗可恢復且不污染 current |
 
 H3 是目前投資研究工作；H4–H6 必須等 H0–H2 的共用契約與 verifier 完成後，以新 Pack 逐一開發。新增應用只新增 domain adapter、policy、fixtures、report schema 與 MCP scope，不複製 crawler、D1/R2、job controller 或 runtime。
+
+### 4.1 MVP 快速路徑（Normative Amendment）
+
+上表的 H0–H2 是完整平台 Gate，不得被誤解成投資 MVP 的全部硬前置。為了先做出可操作的應用，採用「薄版契約先行、應用垂直切片先通、平台完整化並行」：
+
+| 快速路徑 | 只做的範圍 | 可交付結果 | 明確不能宣稱 |
+|---|---|---|---|
+| `H0-MVP` | 凍結共用 envelope、最小 `signal_event`／`action_task`、單一 investment Pack registry | job 能帶 pack／version、input／output hash、quality 狀態 | 不能宣稱所有 domain 已共用完成 |
+| `H1-MVP` | 先接現有已發布 evidence，實作 2–3 種 deterministic signal（例如 novelty、divergence、risk） | `signal_snapshot.v1`、evidence refs、`partial|insufficient_data` | 不能宣稱全量 item normalization 或投資級 signal 校準 |
+| `H2-MVP` | 只開放 `refresh_data`、`build_research_pack`、`open_review` 三種 internal action | `action_task`、terminal receipt、Research Pack refresh | 不開放 broker、核保、外部寄送或自動交易 |
+| `H3-MVP` | 用一個明確 target 打通 Planner → Data Broker → Signal → Action → Research Pack → report | 可操作的投資研究報告候選版 | 不宣稱研究品質 Gate A／B 或正式上線 |
+
+`H1-Full`（120／166 item normalization、去重、entity／topic、source diversity、counter-evidence）與 `H2-Full`（完整 action policy、告警、配額、恢復、跨 Pack scope）同步施工，不阻塞 `H3-MVP`；但任何 `research_only` 以外的決策結論仍必須等待 Full Gate。這樣可以先驗證使用者流程與 MCP tool UX，又不把候選版誤報為投資級產品。
 
 ## 5. Fail-closed 與副作用規則
 
@@ -199,4 +212,3 @@ H3 是目前投資研究工作；H4–H6 必須等 H0–H2 的共用契約與 ve
 - **投資研究 Harness 完成**：H3 的 Gate A／B 通過；這不代表保險、產業或商機 Harness 已完成。
 - **其他應用完成**：各自的 Pack、domain test matrix、negative fixtures、verifier、MCP scope 與報告 schema 通過；不得沿用投資研究的通過證據冒充。
 - **整個平台完成**：H7 的版本遷移、跨 Pack quota、七日 soak、回復與安全稽核通過。
-

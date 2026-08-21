@@ -70,6 +70,8 @@ Big Pickle 只做任務編排與已授權 tool calls；資料收集、正規化�
 
 Signal／Action 的共用契約、application Pack registry、保險／產業／商機開發的後續擴張順序，以及 `SIG-*`／`ACT-*`／`HAR-*` 的 test matrix，固定於 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md)。本文件只規範目前投資研究報告與決策討論兩個應用的交接；新增領域必須先通過該延伸 SPEC 的 H0–H2，再以自己的 domain Pack 進入本文件同樣的 Research Pack／decision boundary。
 
+為避免平台完整化反過來延後第一個應用，採用該延伸 SPEC 的 MVP 快速路徑：`H0-MVP → H1-MVP → H2-MVP → H3-MVP` 可先交付投資研究候選版；`H1-Full／H2-Full` 在背景並行。候選版若為 `partial` 或 `research_only`，不得被 Gate A／B 或使用者介面誤標為投資級完成。
+
 ### 0.1 目前實作狀態（2026-08-21）
 
 App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，Worker 以 `waitUntil` 執行目前已發布的資料快照，產出私有 R2 Research Pack、詳細第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署；遠端真實 run 已產出 15 筆 evidence、3 份 report 並完成私有讀回。

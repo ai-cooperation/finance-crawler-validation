@@ -454,13 +454,15 @@ Signal／Action 不另開一條平行產品線，而是把 Stage 3–4 的議題
 | H0 平台契約 | `signal_event.v1`、`action_task.v1`、`action_receipt.v1`、registry、policy、verifier | `harness_registry.v1` | Stage 0；每條 requirement 都有 test_matrix |
 | H1 Signal Engine | normalized evidence、entity／topic、novelty／momentum／divergence／risk／catalyst | `signal_snapshot.v1`、golden replay | Stage 1–4；不足資料必須 fail closed |
 | H2 Action Engine | refresh、enrich、recalculate、build pack、notify、review、retry／callback | `action_task.v1`、`action_receipt.v1` | H1；冪等、approval、quota、last-good 通過 |
-| H3 投資研究 Harness | investment signal＋OpenBB＋Research Pack／report／App A／B | `research_report.v2`、`decision_memo.v1` | H0–H2；Gate A／B |
+| H3 投資研究 Harness | investment signal＋OpenBB＋Research Pack／report／App A／B | `research_report.v2`、`decision_memo.v1` | MVP 可先用 H0-MVP–H2-MVP；完整 Gate A／B 需 H1/H2 Full |
 | H4 保險研究 Harness | policy／regulation／claims／exclusion evidence 與 insurance signal | `insurance_research_pack.v1`、`insurance_report.v1` | H0–H2；不核保、不定價、不 bind |
 | H5 產業研究 Harness | industry graph、競品、供應鏈、capacity／demand／regulation signal | `industry_research_pack.v1`、`industry_report.v1` | H0–H2；entity／taxonomy 可反查 |
 | H6 商機／市場開發 Harness | Demand First、company enrichment、qualification、outreach draft | `opportunity_pack.v1`、`outreach_draft.v1` | H0–H2；外部寄送需人工核准 |
 | H7 跨應用營運 | 多 Pack 版本、quota、告警、七日 soak、rollback | `recovery_evidence.v1` | H3–H6；不污染 current |
 
 這個順序保留「先由應用 Agent 收斂需求，再由共用資料服務補齊」的使用者體驗：Application Harness 先產生 `research_requirement`，Data Broker 補資料，Signal Engine 重新計算，Action Engine 再決定要不要建立下一個內部任務。未來新增領域只新增 domain adapter、policy、fixtures、report schema 與 MCP scope，不複製 Crawl4AI、GitHub Actions、Worker、D1／R2 或 runtime。完整欄位契約與 Signal／Action test matrix 見 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md)。
+
+**MVP 不等待完整 H0–H2**：先凍結 `H0-MVP` 的最小 envelope／pack registry，以現有已發布 evidence 實作 `H1-MVP` 的 2–3 種 deterministic signal，再以 `H2-MVP` 只開放 `refresh_data`、`build_research_pack`、`open_review`，直接打通投資研究的 `Planner → Data Broker → Signal → Action → Research Pack → report`。完整 120／166 item normalization、signal 校準、跨 Pack policy、告警與恢復走 `H1-Full／H2-Full` 並行施工；MVP 只能標示 `candidate|partial|research_only`，不能宣稱投資級 Gate A／B 或正式上線。
 
 ## 5. 儲存與權限配置
 
