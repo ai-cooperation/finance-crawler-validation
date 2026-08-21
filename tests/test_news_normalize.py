@@ -117,3 +117,18 @@ def test_normalize_strips_markup_punctuation_from_html_url(tmp_path: Path) -> No
         collected_at="2026-08-21T01:00:00Z",
     )
     assert result["items"][0]["canonical_url"] == "https://www.morningstar.com/assets/img/logo.svg"
+
+
+def test_normalize_strips_markdown_link_suffix_from_html_url(tmp_path: Path) -> None:
+    manifest = _write_capture(
+        tmp_path,
+        transport="static_html",
+        content='<html><body>![logo](https://www.morningstar.com/assets/img/morningstar.svg)](https://www.morningstar.com/)</body></html>',
+    )
+    result = normalize_news_capture(
+        manifest,
+        workflow_run_id="123",
+        commit_sha="a" * 40,
+        collected_at="2026-08-21T01:00:00Z",
+    )
+    assert result["items"][0]["canonical_url"] == "https://www.morningstar.com/assets/img/morningstar.svg"

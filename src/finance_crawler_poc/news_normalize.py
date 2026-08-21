@@ -296,7 +296,12 @@ def _parse_datetime(value: str) -> datetime:
 
 def _safe_url(value: str, *, fallback: str) -> str:
     """Strip markup punctuation accidentally captured from HTML/Markdown."""
-    candidate = html.unescape(str(value or "")).strip().rstrip(")]}>.,;:'\"`")
+    candidate = html.unescape(str(value or "")).strip()
+    # HTML-to-text extractors occasionally join Markdown links, yielding
+    # ``https://first.example/a)](https://second.example/b``.  Preserve the
+    # first URL rather than allowing the second URL's scheme into its path.
+    candidate = re.split(r"\]\s*\(", candidate, maxsplit=1)[0]
+    candidate = candidate.rstrip(")]}>.,;:'\"`")
     if not candidate.startswith(("http://", "https://")):
         candidate = fallback
     return candidate
