@@ -58,3 +58,9 @@ def test_assemble_merges_news_and_radar_without_dropping_full_catalog_metadata(t
     assert result["normalized_item_count"] == 2
     assert len(result["items"]) == 2
     assert result["checkpoints"][-1]["source_id"] == "coingecko_markets_api"
+    persisted_envelope = json.loads((tmp_path / "out" / "ingest-envelope.json").read_text(encoding="utf-8"))
+    assert "collection_scope" not in persisted_envelope
+    assert set(persisted_envelope) == {
+        "schema_version", "operation", "run_id", "workflow_run_id", "commit_sha",
+        "snapshot_id", "source_manifest_hash", "collected_at", "items", "checkpoints",
+    }

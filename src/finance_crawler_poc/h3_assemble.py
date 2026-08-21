@@ -64,13 +64,14 @@ def assemble_h3_artifacts(
         "evidence_appendix_item_count": len(items),
         "failed_sources": failed_sources,
     }
-    validate_contract("ingest-envelope", {key: result[key] for key in (
+    ingest_envelope = {key: result[key] for key in (
         "schema_version", "operation", "run_id", "workflow_run_id", "commit_sha", "snapshot_id",
         "source_manifest_hash", "collected_at", "items", "checkpoints",
-    )})
+    )}
+    validate_contract("ingest-envelope", ingest_envelope)
     validate_contract("topic-snapshot", topic_snapshot)
     output_directory.mkdir(parents=True, exist_ok=True)
-    _write_json(output_directory / "ingest-envelope.json", result)
+    _write_json(output_directory / "ingest-envelope.json", ingest_envelope)
     _write_json(output_directory / "topic-snapshot.json", topic_snapshot)
     _write_json(output_directory / "raw-items.json", items)
     _write_json(output_directory / "full-catalog-report.json", {
