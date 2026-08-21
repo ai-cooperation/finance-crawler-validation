@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any, Sequence
 from urllib.parse import urljoin
 
-from finance_crawler_poc.contracts import validate_contract
+from finance_crawler_poc.contracts import ContractValidationError, validate_contract
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -58,6 +58,7 @@ def normalize_news_capture(
     output_root = manifest_path.parent
     attempts_by_brand: dict[str, list[dict[str, Any]]] = {}
     items: list[dict[str, Any]] = []
+    normalization_errors: list[dict[str, str]] = []
     for record in records:
         if not isinstance(record, dict):
             raise ValueError("raw manifest payload record must be an object")
@@ -72,13 +73,24 @@ def normalize_news_capture(
         body = body_path.read_text(encoding="utf-8", errors="replace")
         if not body.strip():
             continue
-        item = _normalize_payload(record, body, collected_at=collected_at)
-        if target or question:
-            item["_target_relevance"] = _target_relevance(item, target=target, question=question)
-        else:
-            item["_target_relevance"] = True
-        item.pop("_target_relevance", None)
-        validate_contract("raw-item", item)
+        try:
+            item = _normalize_payload(record, body, collected_at=collected_at)
+            if target or question:
+                item["_target_relevance"] = _target_relevance(item, target=target, question=question)
+            else:
+                item["_target_relevance"] = True
+            item.pop("_target_relevance", None)
+            validate_contract("raw-item", item)
+        except (ContractValidationError, ValueError) as exc:
+            # One malformed extractor result must not discard the other 180+
+            # endpoints.  Keep an auditable per-endpoint diagnostic; the raw
+            # payload remains in the private boundary artifact for repair.
+            normalization_errors.append({
+                "brand_id": brand_id,
+                "endpoint_id": _required_string(record, "endpoint_id"),
+                "error": str(exc),
+            })
+            continue
         items.append(item)
 
     brands = sorted(attempts_by_brand)
@@ -102,7 +114,9 @@ def normalize_news_capture(
         "collection_source_group_count": len(brands),
         "endpoint_attempt_count": len(records),
         "successful_source_group_count": successful_brands,
-        "failed_endpoint_count": failed_endpoint_count,
+        "failed_endpoint_count": failed_endpoint_count + len(normalization_errors),
+        "normalization_error_count": len(normalization_errors),
+        "normalization_errors": normalization_errors,
         "normalized_item_count": len(items),
         "target_relevant_item_count": len(items),
         "model_context_item_count": len(items),
@@ -300,8 +314,8 @@ def _safe_url(value: str, *, fallback: str) -> str:
     # HTML-to-text extractors occasionally join Markdown links, yielding
     # ``https://first.example/a)](https://second.example/b``.  Preserve the
     # first URL rather than allowing the second URL's scheme into its path.
-    candidate = re.split(r"\]\s*\(", candidate, maxsplit=1)[0]
-    candidate = candidate.rstrip("[]()]>}.,;:'\"`")
+    candidate = re.split(r"\]\s*\(|\)\s*!\[|!\[", candidate, maxsplit=1)[0]
+    candidate = candidate.rstrip("![]()]>}.,;:'\"`")
     if not candidate.startswith(("http://", "https://")):
         candidate = fallback
     return candidate
@@ -352,6 +366,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(json.dumps({key: result[key] for key in (
         "run_id", "snapshot_id", "collection_source_group_count", "endpoint_attempt_count",
         "normalized_item_count", "failed_endpoint_count",
+        "normalization_error_count",
     )}, ensure_ascii=False, sort_keys=True))
     return 0
 

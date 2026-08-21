@@ -58,6 +58,7 @@ def assemble_h3_artifacts(
         "collection_source_group_count": len(checkpoints),
         "endpoint_attempt_count": int(news.get("endpoint_attempt_count", 0)) + len(radar.get("checkpoints", [])),
         "normalized_item_count": len(items),
+        "normalization_error_count": int(news.get("normalization_error_count", 0)),
         "target_relevant_item_count": len(target_relevant),
         "model_context_item_count": len(target_relevant),
         "evidence_appendix_item_count": len(items),
@@ -76,7 +77,7 @@ def assemble_h3_artifacts(
         key: result[key] for key in (
             "collection_scope", "collection_source_group_count", "endpoint_attempt_count",
             "normalized_item_count", "target_relevant_item_count", "model_context_item_count",
-            "evidence_appendix_item_count", "failed_sources", "run_id", "snapshot_id",
+            "evidence_appendix_item_count", "normalization_error_count", "failed_sources", "run_id", "snapshot_id",
         )
     })
     return result
