@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-21T15:53:16.071523+00:00",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC"
+  },
+  "job_id": "research_20260821155318_bec80e96",
+  "request_id": "b3e6f863-07f5-43f9-9c6b-32f4970b2686",
+  "gate_a_status": "passed",
+  "remote_status": "passed",
+  "checks": {
+    "mcp_initialize": "passed",
+    "mcp_tools_catalog": "passed",
+    "planner_source_bundle": "passed",
+    "submit_bounded_job": "passed",
+    "job_terminal": "passed",
+    "research_pack": "passed",
+    "h3_mvp_harness": "passed",
+    "research_report": "passed",
+    "no_personalized_recommendation": "passed",
+    "evidence_appendix": "passed"
+  },
+  "planner": {
+    "source_count": 135,
+    "strategy": "refresh",
+    "sufficiency_status": "refresh_required"
+  },
+  "pack": {
+    "collection_scope": "full_catalog",
+    "collection_source_group_count": 135,
+    "endpoint_attempt_count": 181,
+    "normalized_item_count": 147,
+    "model_context_item_count": 120,
+    "target_relevant_item_count": 147,
+    "evidence_count": 147,
+    "report_count": 3,
+    "quality": {
+      "partial": true,
+      "stale": false,
+      "coverage_ratio": 0.9111111111111111,
+      "failed_source_count": 11,
+      "failed_sources": [
+        "ecb_press_rss",
+        "etf_stream",
+        "federal_reserve_press_rss",
+        "financial_advisor_magazine",
+        "financial_express",
+        "money_stackexchange_api",
+        "openbb_github_issues_api",
+        "private_banker_international",
+        "quant_stackexchange_api",
+        "the_trade",
+        "tradingagents_github_issues_api"
+      ]
+    }
+  },
+  "appendix": {
+    "evidence_count": 147
+  },
+  "redaction": "metadata_only; no MCP token, private raw body, or report text stored"
+}
