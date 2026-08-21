@@ -74,9 +74,9 @@ Signal／Action 的共用契約、application Pack registry、保險／產業／
 
 ### 0.1 目前實作狀態（2026-08-21）
 
-App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，Worker 以 `waitUntil` 執行目前已發布的資料快照，產出私有 R2 Research Pack、詳細第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署；遠端真實 run 已產出 15 筆 evidence、3 份 report 並完成私有讀回。
+App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`tools/list`、`tools/call`，`plan_research_sources` 現在會產出需求、來源 bundle 與 snapshot sufficiency decision；`submit_research_job` 會建立帶 planner artifact 的 D1 job，結果寫入私有 R2 Research Pack、第二意見報告與 evidence appendix，並可用同一個 job ID 讀回。Cloudflare `waitUntil` 的背景執行約 30 秒邊界已由遠端 tail 驗證；因此 `collection_scope=full_catalog` 的 MCP 路徑先產出 deterministic evidence-linked report，較長模型推理改走 `source_strategy=actions` 的 GitHub Actions／OIDC callback。`report_profile`／`requested_outputs` 已在本機實作：detailed／compact profile 會傳入模型邊界，僅要求 evidence appendix 時不啟動模型；`0009_research_planner.sql`、`0010_report_profiles.sql` 已套用驗證帳號。`0008_research_jobs.sql`、target-scoped workflow input、Actions dispatch client、`/v1/research/jobs/complete` 成功 callback 與 `/v1/research/jobs/fail` 失敗 callback 已部署。
 
-2026-08-21 已以新設定的 OpenCode／Big Pickle 完成部署後完整鏈：`plan → submit → Actions → OIDC admission／publish → success callback → get_job_status → Research Pack／report／appendix read-back`，證據見 [`experiments/app-a/20260821-big-pickle-gate-a-final.json`](../experiments/app-a/20260821-big-pickle-gate-a-final.json)，GitHub Actions run [`32462029861`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32462029861)。job 狀態為 `partial/published`，3 份 report、4 筆 evidence，四個 Big Pickle readback tools 全部成功；但 12 個計畫來源中 1 個 Browser source 失敗，且本次明確未要求市場資料，因此品質仍須標示 `partial`／`research_only`。前次因驗證帳號未配置 `ALERT_WEBHOOK_URL`，外部告警／告警恢復步驟回 503，整體 run 被標為 failure 並建立 issue #52；後續已配置 Telegram 中文告警，並以控制平面 run [`32448634111`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32448634111) 驗證外部告警步驟成功。這證明 App A 的部署後工具鏈已通，不代表完整品質 Gate、report v2、App B 或連續營運已完成。`finance-app-a-gate` 仍對品質不足或證據缺口採 fail-closed；本機綠燈不等於線上通過。
+2026-08-21 已以新設定的 OpenCode／Big Pickle 完成部署後全量鏈：`plan → submit → get_job_status 輪詢 → Research Pack → report → evidence appendix`。BTC 實際 job `research_20260821155318_bec80e96` 的 Gate A 為 `passed`：135 source groups、181 endpoint attempts、147 normalized／evidence items、3 份 reports、147 筆 appendix；H3 harness、action receipts 與無個人化建議檢查均通過。來源品質仍為 `partial`（11 個 source failures，coverage `0.9111`），所以這是可稽核的研究候選版，不是投資級決策或 100% 來源成功。正式配額已恢復為每日 2 次、最小間隔 21,600 秒；證據見 [`experiments/app-a/20260821-big-pickle-gate-a-full-catalog.json`](../experiments/app-a/20260821-big-pickle-gate-a-full-catalog.json)。
 
 ### 0.2 本輪本機驗證與未完成項（Normative）
 
@@ -246,7 +246,7 @@ Research Pack 不得含沒有來源的模型敘事；報告可以有 inference�
 - market data 是按需求選配；no-market request 必須完成 `planner → dispatch → --skip-market-data → not_requested alignment`，market-aware request 則必須 fail closed 或使用 target 對應 provider。
 - Big Pickle tool-call smoke test；先使用唯讀 health／小型公開資料，不直接測完整 120 品牌。
 - 這條 smoke test 只驗 MCP tool contract，不得替代全量資料驗證；正式 Gate A 必須使用已完成 120 品牌／166 endpoint normalization、去重與品質標記的 frozen source artifact。
-- `retry_research_job` 必須只重派 Actions 或重新排入 `waitUntil`，不得在 MCP request 內同步等待爬蟲／模型。所有 Actions job 都必須有 success callback 或 failure callback；沒有 callback 的 workflow 不得通過 Gate A。
+- `retry_research_job` 必須只重派 Actions 或重新排入 bounded background execution，且不能讓 MCP request 無界等待爬蟲／模型；running 工作超過 10 分鐘要轉成可重試失敗。所有 Actions job 都必須有 success callback 或 failure callback；沒有 callback 的 workflow 不得通過 Gate A。
 
 ### B1：App B Grill Me First 與決策 session
 
