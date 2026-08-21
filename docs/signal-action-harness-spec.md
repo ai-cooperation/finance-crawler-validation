@@ -162,11 +162,32 @@ H3 是目前投資研究工作；H4–H6 必須等 H0–H2 的共用契約與 ve
 | 快速路徑 | 只做的範圍 | 可交付結果 | 明確不能宣稱 |
 |---|---|---|---|
 | `H0-MVP` | 凍結共用 envelope、最小 `signal_event`／`action_task`、單一 investment Pack registry | job 能帶 pack／version、input／output hash、quality 狀態 | 不能宣稱所有 domain 已共用完成 |
-| `H1-MVP` | 先接現有已發布 evidence，實作 2–3 種 deterministic signal（例如 novelty、divergence、risk） | `signal_snapshot.v1`、evidence refs、`partial|insufficient_data` | 不能宣稱全量 item normalization 或投資級 signal 校準 |
+| `H1-MVP` | 先完成 full-catalog collection 與 target item-level normalization，再實作 2–3 種 deterministic signal（例如 novelty、divergence、risk） | `signal_snapshot.v1`、evidence refs、`partial|insufficient_data` | 不能宣稱 signal 已完成長期校準或因果有效性 |
 | `H2-MVP` | 只開放 `refresh_data`、`build_research_pack`、`open_review` 三種 internal action | `action_task`、terminal receipt、Research Pack refresh | 不開放 broker、核保、外部寄送或自動交易 |
-| `H3-MVP` | 用一個明確 target 打通 Planner → Data Broker → Signal → Action → Research Pack → report | 可操作的投資研究報告候選版 | 不宣稱研究品質 Gate A／B 或正式上線 |
+| `H3-MVP` | 用一個明確 target，讀取 full-catalog evidence，打通 Planner → Data Broker → Signal → Action → Research Pack → report | 可操作的投資研究報告候選版 | 不宣稱研究品質 Gate A／B 或正式上線 |
 
-`H1-Full`（120／166 item normalization、去重、entity／topic、source diversity、counter-evidence）與 `H2-Full`（完整 action policy、告警、配額、恢復、跨 Pack scope）同步施工，不阻塞 `H3-MVP`；但任何 `research_only` 以外的決策結論仍必須等待 Full Gate。這樣可以先驗證使用者流程與 MCP tool UX，又不把候選版誤報為投資級產品。
+H3 的「全量」是收集與 evidence coverage 的全量，不是把 120 個來源的全文一次塞進模型：R2 保存所有可取得 raw payload，item-level pipeline 做 canonical URL／content fingerprint 去重、entity／topic／target relevance；模型只讀經 deterministic ranking、source-group summary 與支持／反證抽樣後的 context window，但 Research Pack／evidence appendix 必須保留完整相關 item refs。`H1-Full`（長期 signal 校準、source diversity、counter-evidence 完整度）與 `H2-Full`（完整 action policy、告警、配額、恢復、跨 Pack scope）同步施工，不阻塞 `H3-MVP`；但任何 `research_only` 以外的決策結論仍必須等待 Full Gate。
+
+### 4.2 H3 全量來源邊界（Normative）
+
+H3 不再使用 12–20 個 source IDs 作為研究資料上限。第一個投資 Harness 的 collection scope 固定為：
+
+- `news_catalog`：120 個唯一品牌、166 個 endpoint，使用 `exhaustive_endpoints=true`，每個 endpoint 都要留下 success／partial／blocked／empty 的終態。
+- `radar_manifest`：現有 15 個官方／新聞／社群／市場來源，作為議題與市場背景層。
+- `market_provider`：BTC 首版使用 CoinGecko；provider response、as-of、symbol 與 hash 必須進 evidence。
+
+各數量不能混成一個欄位：
+
+| 欄位 | 意義 | H3 要求 |
+|---|---|---|
+| `collection_source_group_count` | 品牌／來源群組數 | 120 news brands＋15 radar sources，實際值以 manifest 凍結 |
+| `endpoint_attempt_count` | 實際請求過的 endpoint 數 | 166 news endpoints 必須全量嘗試；未嘗試不得計入成功率 |
+| `normalized_item_count` | 去重後可分析 item 數 | 所有成功 payload 都要進 normalization；不能只保留 top 20 sources |
+| `target_relevant_item_count` | 與 BTC／研究問題相關的 item 數 | 由 target／question／entity／topic relevance 決定 |
+| `model_context_item_count` | 實際送進模型 context 的 item 數 | 可受 token budget 限制，但必須保留 selection rule 與未入選 item refs |
+| `evidence_appendix_item_count` | Research Pack 可反查的完整相關 evidence | 必須涵蓋所有 report claim／counterclaim 的 item refs |
+
+因此「target-scoped」代表在全量收集後做 item-level relevance，不代表先把來源砍成 12–20 個。若 120／166 中有來源失敗，H3 仍可產出 `partial|research_only` 候選版，但失敗集合、缺口與影響必須進 Research Pack；不能以縮小來源集合掩蓋失敗。
 
 ## 5. Fail-closed 與副作用規則
 

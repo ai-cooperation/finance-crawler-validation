@@ -82,7 +82,7 @@ uv run finance-app-a-remote \
 jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,appendix}' /tmp/app-a-remote-gate.json
 ```
 
-這個 verifier 不是部署替代品：若 Worker 仍是舊版、token 無效、`GITHUB_DISPATCH_TOKEN` 缺少或 callback 沒有完成，結果必須是 `gate_a_status=blocked`／`failed`，並保留明確原因。
+上面的 `--max-sources 12` 只保留作為舊版 MCP transport smoke；它不是 H3 投資研究資料驗證。H3 verifier 必須改為 `collection_scope=full_catalog`，核對 120 個 news brands／166 個 endpoints、15 個 radar sources、normalized items 與 target-relevant evidence。若 Worker 仍是舊版、token 無效、`GITHUB_DISPATCH_TOKEN` 缺少或 callback 沒有完成，結果必須是 `gate_a_status=blocked`／`failed`，並保留明確原因。
 
 ## 4.1 本次遠端真實結果（2026-08-21）
 
@@ -106,7 +106,7 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 
 必須保存以下證據：
 
-1. `plan_research_sources` 回傳 `research_requirement`、12–20 個 source IDs 與 sufficiency decision。
+1. H3 的 `plan_research_sources` 回傳 full-catalog source manifest、120 brands／166 endpoints 的 collection counts、target-relevance policy 與 sufficiency decision；12–20 source IDs 只屬於歷史 bounded smoke，不得作為 H3 研究資料上限。
 2. `submit_research_job` bounded 回傳 `request_id/job_id`，狀態先為 `queued` 或 `dispatching`。
 3. `get_job_status` 從 `dispatching` → `processing` → `published`／`partial`，並可在關閉 client 後用同一 `job_id` 恢復；若 dispatch 暫時失敗，`retry_research_job` 只能重試原 job，不得產生另一份需求。
 4. GitHub Actions run 使用完全相同的 `research_target`／`research_source_ids`／`research_requirement_id`，成功時呼叫 OIDC completion callback；若 admission 被拒或 workflow 失敗，必須呼叫 `/v1/research/jobs/fail`，並將同一 job 結束為 `blocked`／`failed`，不可停在 queued。

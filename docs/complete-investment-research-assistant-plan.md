@@ -462,7 +462,7 @@ Signal／Action 不另開一條平行產品線，而是把 Stage 3–4 的議題
 
 這個順序保留「先由應用 Agent 收斂需求，再由共用資料服務補齊」的使用者體驗：Application Harness 先產生 `research_requirement`，Data Broker 補資料，Signal Engine 重新計算，Action Engine 再決定要不要建立下一個內部任務。未來新增領域只新增 domain adapter、policy、fixtures、report schema 與 MCP scope，不複製 Crawl4AI、GitHub Actions、Worker、D1／R2 或 runtime。完整欄位契約與 Signal／Action test matrix 見 [`signal-action-harness-spec.md`](./signal-action-harness-spec.md)。
 
-**MVP 不等待完整 H0–H2**：先凍結 `H0-MVP` 的最小 envelope／pack registry，以現有已發布 evidence 實作 `H1-MVP` 的 2–3 種 deterministic signal，再以 `H2-MVP` 只開放 `refresh_data`、`build_research_pack`、`open_review`，直接打通投資研究的 `Planner → Data Broker → Signal → Action → Research Pack → report`。完整 120／166 item normalization、signal 校準、跨 Pack policy、告警與恢復走 `H1-Full／H2-Full` 並行施工；MVP 只能標示 `candidate|partial|research_only`，不能宣稱投資級 Gate A／B 或正式上線。
+**MVP 不等待完整 H0–H2**：先凍結 `H0-MVP` 的最小 envelope／pack registry，對 120 品牌／166 endpoint 做 full-catalog collection 與 target item-level normalization，再以 `H1-MVP` 實作 2–3 種 deterministic signal；`H2-MVP` 只開放 `refresh_data`、`build_research_pack`、`open_review`，直接打通投資研究的 `Planner → Data Broker → Signal → Action → Research Pack → report`。完整 signal 長期校準、跨 Pack policy、告警與恢復走 `H1-Full／H2-Full` 並行施工；MVP 只能標示 `candidate|partial|research_only`，不能宣稱投資級 Gate A／B 或正式上線。模型不接收 120 個來源全文，而是讀取經去重、target relevance、source-group summary 與支持／反證選擇後的 context；Research Pack 仍保留完整相關 evidence refs。
 
 ## 5. 儲存與權限配置
 
