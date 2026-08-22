@@ -398,8 +398,10 @@ export async function generateResearchReports(
     const evidence = evidenceIds
       .map((itemId) => rawItems.get(itemId))
       .filter((item): item is EvidenceView => item !== undefined)
+      .filter((item) => targetEvidenceMatch(item, request.target))
       .slice(0, MAX_EVIDENCE_ITEMS);
     if (evidence.length === 0) throw new HttpError(409, "research_evidence_missing", [topic.topic_id]);
+    const scopedEvidenceIds = evidence.map((item) => item.item_id);
 
     const generationMode = request.generation_mode
       ?? (model === DETERMINISTIC_RESEARCH_MODEL ? "deterministic_baseline" : "ai_enrichment");
@@ -433,7 +435,7 @@ export async function generateResearchReports(
     let parsedOutput: ParsedResearchOutput;
     let reportModel = model;
     if (model === DETERMINISTIC_RESEARCH_MODEL) {
-      parsedOutput = buildDeterministicResearchOutput(topic, evidenceIds, plannedTopic.market_direction);
+      parsedOutput = buildDeterministicResearchOutput(topic, scopedEvidenceIds, plannedTopic.market_direction);
     } else {
       const generation = await runAiWithFallback(env, runAi, model, {
         messages: [
@@ -460,7 +462,7 @@ export async function generateResearchReports(
         seed: 42,
         response_format: RESEARCH_RESPONSE_SCHEMA,
       });
-      parsedOutput = parseResearchOutput(generation.output, new Set(evidenceIds));
+      parsedOutput = parseResearchOutput(generation.output, new Set(scopedEvidenceIds));
       reportModel = generation.model;
     }
     const generatedAt = now.toISOString();
@@ -489,13 +491,13 @@ export async function generateResearchReports(
       as_of: topicSnapshot.as_of,
       summary: parsedOutput.summary ?? buildFallbackSummary(topic.label),
       second_opinion: true,
-      evidence_ids: evidenceIds,
+      evidence_ids: scopedEvidenceIds,
       bull_case: parsedOutput.bull_case,
       bear_case: parsedOutput.bear_case,
       risk_view: parsedOutput.risk_view,
       catalysts: parsedOutput.catalysts,
       failure_conditions: parsedOutput.failure_conditions,
-      data_gaps: addProfessionalDataGaps(parsedOutput.data_gaps, market, evidenceIds),
+      data_gaps: addProfessionalDataGaps(parsedOutput.data_gaps, market, scopedEvidenceIds),
       recommendation_status: "research_only",
       professional_analysis: professionalAnalysis,
     };
@@ -898,6 +900,22 @@ function isFinancialDepth(value: Record<string, unknown>): boolean {
 function targetLabel(target: ResearchTarget): string {
   const identifier = target.symbol ?? target.name ?? target.url ?? "unidentified";
   return `${target.kind}:${identifier}`;
+}
+
+function targetEvidenceMatch(item: EvidenceView, target: ResearchTarget | undefined): boolean {
+  if (target === undefined) return true;
+  const text = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
+  const terms = [target.symbol, target.name, target.market].filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  ).map((value) => value.toLowerCase());
+  if (target.kind === "crypto") terms.push("bitcoin", "btc", "crypto", "cryptocurrency", "digital asset");
+  if (target.kind === "equity") terms.push("stock", "equity", "shares", "earnings");
+  if (target.kind === "etf") terms.push("etf", "exchange traded fund");
+  return terms.some((term) => term.includes(" ") ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`).test(text));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function asTopicSnapshot(value: unknown): TopicSnapshot {

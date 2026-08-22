@@ -787,6 +787,16 @@ async function buildResearchPack(
     collection_scope: collectionScope,
   });
   const evidenceGraph = buildEvidenceGraph(reports);
+  const targetTopicId = request.target.kind === "crypto"
+    ? "digital_assets"
+    : request.target.kind === "equity"
+      ? "equities_earnings"
+      : request.target.kind === "etf"
+        ? "personal_finance"
+        : undefined;
+  const scopedTopics = targetTopicId === undefined
+    ? topicSnapshot.topics
+    : topicSnapshot.topics.filter((topic) => topic.topic_id === targetTopicId);
   return {
     schema_version: 1,
     job_id: row.job_id,
@@ -820,7 +830,7 @@ async function buildResearchPack(
       requirement: planner.requirement,
       source_bundle_plan: planner.source_bundle,
     }),
-    topics: topicSnapshot.topics,
+    topics: scopedTopics,
     market: request.requirements.include_market_data ? validatedAlignment.market_snapshot : null,
     financial_depth: request.requirements.include_market_data
       ? validatedAlignment.market_snapshot.financial_depth ?? null
