@@ -10,6 +10,7 @@
     "snapshot_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,127}$" },
     "as_of": { "type": "string", "format": "date-time" },
     "provider": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "financial_depth": { "type": "object", "additionalProperties": true },
     "instruments": {
       "type": "array",
       "items": {

@@ -63,6 +63,7 @@
     "action_receipts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
     "topics": { "type": "array", "maxItems": 3, "items": { "type": "object", "additionalProperties": true } },
     "market": { "type": ["object", "null"], "additionalProperties": true },
+    "financial_depth": { "type": ["object", "null"], "additionalProperties": true },
     "reports": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
     "evidence_graph": { "$ref": "#/$defs/evidence_graph" },
     "evidence": {

@@ -503,6 +503,29 @@ jobs:
           fi
           finance-openbb-align "${align_args[@]}"
 
+      - name: Build professional financial depth
+        if: >-
+          steps.admission.outputs.admitted == 'true' &&
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        env:
+          TARGET_JSON: ${{ inputs.research_target }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$TARGET_JSON" ]]; then
+            echo "No target supplied; professional financial depth is not requested for this generic radar run."
+            exit 0
+          fi
+          depth_dir="artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}"
+          finance-research-depth \
+            --market-snapshot "$depth_dir/market-snapshot.json" \
+            --raw-items "$depth_dir/raw-items.json" \
+            --output "$depth_dir/financial-depth" \
+            --target-json "$TARGET_JSON" \
+            --history-days 365
+
       - name: Build bounded TradingAgents run plan
         if: >-
           steps.admission.outputs.admitted == 'true' &&

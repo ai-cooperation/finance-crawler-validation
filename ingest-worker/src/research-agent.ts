@@ -215,6 +215,7 @@ interface MarketSnapshotView {
   provider: string;
   as_of: string;
   instruments: MarketInstrumentView[];
+  financial_depth?: Record<string, unknown>;
 }
 
 interface AlignedTopicView {
@@ -424,7 +425,7 @@ export async function generateResearchReports(
         messages: [
           {
             role: "system",
-            content: `You are a cautious financial research second-opinion assistant. The requested report profile is ${reportProfile}. Do not give a buy or sell instruction. Return only valid JSON with bull_case, bear_case, risk_view, and optional summary, catalysts, failure_conditions, data_gaps. Each claim array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each claim text under ${reportProfile === "compact_traceable" ? 240 : 400} characters.`,
+            content: `You are a cautious financial research second-opinion assistant. The requested report profile is ${reportProfile}. Do not give a buy or sell instruction. Return only valid JSON with bull_case, bear_case, risk_view, and optional summary, catalysts, failure_conditions, data_gaps. Use FINANCIAL_DEPTH for observed returns, volatility, drawdown, valuation status, scenarios, and source conflicts; distinguish observed facts from mechanical non-forecast scenarios and state missing data explicitly. Each claim array has 1 to 3 objects with text, confidence (0 to 1), and evidence_ids. Every evidence_id must be copied exactly from the supplied evidence. Keep each claim text under ${reportProfile === "compact_traceable" ? 240 : 400} characters.`,
           },
           {
             role: "user",
@@ -449,6 +450,11 @@ export async function generateResearchReports(
       reportModel = generation.model;
     }
     const generatedAt = now.toISOString();
+    const professionalAnalysis = buildProfessionalAnalysis(
+      market,
+      evidence.length,
+      alignmentRow.market_snapshot_id,
+    );
     const report: ResearchReport = {
       schema_version: 1,
       report_id: reportId,
@@ -461,6 +467,7 @@ export async function generateResearchReports(
       expires_at: new Date(now.getTime() + REPORT_TTL_MS).toISOString(),
       model: reportModel,
       agent_version: RESEARCH_AGENT_VERSION,
+      report_version: 2,
       report_profile: reportProfile,
       ...(request.research_question === undefined ? {} : { research_question: request.research_question }),
       ...(request.target === undefined ? {} : { target: request.target }),
@@ -473,8 +480,9 @@ export async function generateResearchReports(
       risk_view: parsedOutput.risk_view,
       catalysts: parsedOutput.catalysts,
       failure_conditions: parsedOutput.failure_conditions,
-      data_gaps: parsedOutput.data_gaps,
+      data_gaps: addProfessionalDataGaps(parsedOutput.data_gaps, market, evidenceIds),
       recommendation_status: "research_only",
+      professional_analysis: professionalAnalysis,
     };
     reports.push(await ingestResearchReport(env, {
       schema_version: 1,
@@ -494,6 +502,53 @@ export async function generateResearchReports(
     report_count: reports.length,
     reports,
   };
+}
+
+function addProfessionalDataGaps(
+  existing: ResearchEvidenceNote[],
+  market: MarketSnapshotView,
+  evidenceIds: string[],
+): ResearchEvidenceNote[] {
+  const anchor = evidenceIds[0];
+  if (!anchor) return existing;
+  const depth = market.financial_depth;
+  const additions: ResearchEvidenceNote[] = [];
+  if (!depth) {
+    additions.push({
+      text: "Financial depth was not supplied; historical comparison, valuation, and scenario analysis remain unresolved.",
+      evidence_ids: [anchor],
+    });
+  } else {
+    const timeSeries = isRecord(depth.time_series) ? depth.time_series : {};
+    const valuation = isRecord(depth.valuation) ? depth.valuation : {};
+    if (timeSeries.status !== "available") {
+      additions.push({
+        text: "Historical time-series data is unavailable or insufficient for a stable comparison.",
+        evidence_ids: [anchor],
+      });
+    }
+    if (valuation.status !== "available" && valuation.status !== "not_applicable") {
+      additions.push({
+        text: "Valuation inputs are incomplete; no implied value is published.",
+        evidence_ids: [anchor],
+      });
+    }
+    const conflicts = Array.isArray(depth.source_conflicts) ? depth.source_conflicts : [];
+    if (conflicts.some((conflict) => isRecord(conflict) && conflict.method === "lexical_stance_v1")) {
+      additions.push({
+        text: "Source conflict detection is a lexical screening pass; independent stance calibration remains unresolved.",
+        evidence_ids: [anchor],
+      });
+    }
+  }
+  const merged = [...existing, ...additions];
+  const seen = new Set<string>();
+  return merged.filter((note) => {
+    const key = `${note.text}:${note.evidence_ids.join(",")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 12);
 }
 
 export function parseModelClaims(
@@ -724,6 +779,7 @@ function buildPrompt(
     `SUMMARY=${item.summary}`,
     `CONTENT=${item.content.slice(0, MAX_EVIDENCE_CHARS)}`,
   ].join("\n")).join("\n---\n");
+  const depth = summarizeFinancialDepth(market.financial_depth);
   return [
     `RESEARCH_TARGET=${target ? targetLabel(target) : "not_provided"}`,
     `RESEARCH_QUESTION=${researchQuestion ?? "not_provided"}`,
@@ -740,10 +796,86 @@ function buildPrompt(
     `MARKET_AS_OF=${market.as_of}`,
     "MARKET_INSTRUMENTS:",
     marketLines || "none",
+    `FINANCIAL_DEPTH=${JSON.stringify(depth)}`,
     "EVIDENCE:",
     evidenceLines,
     "Use only the exact EVIDENCE_ID values above. State uncertainty when evidence is sparse or contradictory.",
   ].join("\n");
+}
+
+function summarizeFinancialDepth(depth: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!depth) return { status: "research_only", reason: "financial_depth_not_present" };
+  const timeSeries = isRecord(depth.time_series) ? depth.time_series : {};
+  const valuation = isRecord(depth.valuation) ? depth.valuation : {};
+  const scenarios = isRecord(depth.scenarios) ? depth.scenarios : {};
+  const conflicts = Array.isArray(depth.source_conflicts)
+    ? depth.source_conflicts.map((conflict) => {
+      if (!isRecord(conflict)) return { status: "unknown" };
+      return {
+        topic_id: conflict.topic_id,
+        status: conflict.status,
+        conflict_level: conflict.conflict_level,
+        counts: conflict.counts,
+        independent_source_count: conflict.independent_source_count,
+      };
+    })
+    : [];
+  return {
+    status: depth.status,
+    time_series: {
+      status: timeSeries.status,
+      window_start: timeSeries.window_start,
+      window_end: timeSeries.window_end,
+      point_count: timeSeries.point_count,
+      returns: timeSeries.returns,
+      volatility_annualized_pct: timeSeries.volatility_annualized_pct,
+      max_drawdown_pct: timeSeries.max_drawdown_pct,
+      source_ref: timeSeries.source_ref,
+    },
+    valuation: {
+      status: valuation.status,
+      method: valuation.method,
+      missing_fields: valuation.missing_fields,
+      reason: valuation.reason,
+    },
+    scenarios: {
+      status: scenarios.status,
+      method: scenarios.method,
+      not_a_forecast: scenarios.not_a_forecast,
+      scenarios: scenarios.scenarios,
+    },
+    source_conflicts: conflicts,
+  };
+}
+
+function buildProfessionalAnalysis(
+  market: MarketSnapshotView,
+  evidenceCount: number,
+  marketSnapshotId: string,
+): NonNullable<ResearchReport["professional_analysis"]> {
+  const depth = market.financial_depth;
+  const conflicts = Array.isArray(depth?.source_conflicts)
+    ? depth.source_conflicts.find((conflict) => isRecord(conflict) && conflict.topic_id === "target")
+    : undefined;
+  return {
+    schema_version: 1,
+    status: depth && isProfessionalStatus(depth.status) ? depth.status : "research_only",
+    market_snapshot_id: marketSnapshotId,
+    financial_depth: depth && isFinancialDepth(depth) ? depth as unknown as NonNullable<ResearchReport["professional_analysis"]>["financial_depth"] : null,
+    source_conflict_summary: isRecord(conflicts) ? conflicts : { status: "unknown", reason: "source_conflict_report_not_present" },
+    model_input_scope: {
+      evidence_count: evidenceCount,
+      market_depth_included: depth !== undefined,
+    },
+  };
+}
+
+function isProfessionalStatus(value: unknown): value is "professional_ready" | "professional_partial" | "research_only" | "blocked" {
+  return value === "professional_ready" || value === "professional_partial" || value === "research_only" || value === "blocked";
+}
+
+function isFinancialDepth(value: Record<string, unknown>): boolean {
+  return isProfessionalStatus(value.status) && isRecord(value.time_series) && isRecord(value.valuation) && isRecord(value.scenarios);
 }
 
 function targetLabel(target: ResearchTarget): string {
@@ -807,7 +939,13 @@ function asMarketSnapshot(value: unknown, snapshotId: string): MarketSnapshotVie
       change_24h_pct: candidate.change_24h_pct as number | null,
     });
   }
-  return { snapshot_id: snapshotId, provider: value.provider, as_of: value.as_of, instruments };
+  return {
+    snapshot_id: snapshotId,
+    provider: value.provider,
+    as_of: value.as_of,
+    instruments,
+    ...(isRecord(value.financial_depth) ? { financial_depth: value.financial_depth } : {}),
+  };
 }
 
 async function readJson(bucket: R2Bucket, objectKey: string, kind: string): Promise<unknown> {

@@ -182,6 +182,56 @@ function alignmentEnvelope() {
         market_cap: 1000000,
         source_item_ids: [ITEM_ID],
       }],
+      financial_depth: {
+        schema_version: 1,
+        status: "professional_ready",
+        time_series: {
+          schema_version: 1,
+          status: "available",
+          series_id: "BTC",
+          provider: "fixture",
+          currency: "USD",
+          as_of: "2026-08-20T03:59:00Z",
+          window_start: "2026-08-19T03:59:00Z",
+          window_end: "2026-08-20T03:59:00Z",
+          point_count: 2,
+          points: [
+            { observed_at: "2026-08-19T03:59:00Z", value: 60000 },
+            { observed_at: "2026-08-20T03:59:00Z", value: 64000 },
+          ],
+          returns: { observed_pct: 6.666667 },
+          volatility_annualized_pct: null,
+          max_drawdown_pct: 0,
+          source_item_ids: [ITEM_ID],
+          missing_reason: null,
+          source_ref: {
+            url: "https://example.com/history",
+            response_sha256: "e".repeat(64),
+          },
+        },
+        fundamentals: { status: "unavailable", missing_reason: "provider_not_configured" },
+        valuation: { status: "not_applicable", method: null, missing_fields: [], reason: "crypto" },
+        scenarios: {
+          schema_version: 1,
+          status: "available",
+          method: "observed_range",
+          not_a_forecast: true,
+          scenarios: {
+            base: { price: 64000 },
+            bull: { price: 64000 },
+            bear: { price: 60000 },
+          },
+        },
+        source_conflicts: [{
+          schema_version: 1,
+          topic_id: "target",
+          status: "available",
+          conflict_level: "low",
+          counts: { positive: 1, negative: 0, neutral: 0, unknown: 0 },
+          independent_source_count: 1,
+          evidence_ids: [ITEM_ID],
+        }],
+      },
     },
     alignment: {
       schema_version: 1,
@@ -582,6 +632,7 @@ describe("research report ingest", () => {
           .toContain("Do not give a buy or sell instruction");
         expect((input.messages as Array<{ content: string }>)[1].content).toContain("RESEARCH_TARGET=crypto:BTC");
         expect((input.messages as Array<{ content: string }>)[1].content).toContain("RESEARCH_QUESTION=What are the current drivers and risks for BTC?");
+        expect((input.messages as Array<{ content: string }>)[1].content).toContain("FINANCIAL_DEPTH");
         return {
           response: JSON.stringify({
             bull_case: [{
@@ -654,6 +705,12 @@ describe("research report ingest", () => {
       failure_conditions: [{ text: "A reversal with no confirming breadth would weaken the case." }],
       data_gaps: [{ text: "Independent source confirmation is still needed.", evidence_ids: [ITEM_ID] }],
       recommendation_status: "research_only",
+      report_version: 2,
+      professional_analysis: {
+        status: "professional_ready",
+        market_snapshot_id: "market_20260820t035900z",
+        model_input_scope: { evidence_count: 1, market_depth_included: true },
+      },
     });
     const row = await env.DB.prepare(
       "SELECT report_id, model, agent_version FROM research_reports",

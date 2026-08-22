@@ -802,6 +802,9 @@ async function buildResearchPack(
     }),
     topics: topicSnapshot.topics,
     market: request.requirements.include_market_data ? validatedAlignment.market_snapshot : null,
+    financial_depth: request.requirements.include_market_data
+      ? validatedAlignment.market_snapshot.financial_depth ?? null
+      : null,
     reports,
     evidence_graph: evidenceGraph,
     ...harness,

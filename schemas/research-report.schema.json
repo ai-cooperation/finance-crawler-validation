@@ -34,6 +34,7 @@
     "expires_at": { "type": "string", "format": "date-time" },
     "model": { "type": "string", "minLength": 1, "maxLength": 200 },
     "agent_version": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "report_version": { "const": 2 },
     "report_profile": { "enum": ["detailed_traceable", "compact_traceable"] },
     "research_question": { "type": "string", "minLength": 10, "maxLength": 2000 },
     "target": { "$ref": "#/$defs/target" },
@@ -52,7 +53,20 @@
     "catalysts": { "$ref": "#/$defs/claims" },
     "failure_conditions": { "$ref": "#/$defs/claims" },
     "data_gaps": { "$ref": "#/$defs/evidence_notes" },
-    "recommendation_status": { "enum": ["research_only", "monitor", "requires_human_review"] }
+    "recommendation_status": { "enum": ["research_only", "monitor", "requires_human_review"] },
+    "professional_analysis": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schema_version", "status", "market_snapshot_id", "financial_depth", "source_conflict_summary", "model_input_scope"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "status": { "enum": ["professional_ready", "professional_partial", "research_only", "blocked"] },
+        "market_snapshot_id": { "type": "string" },
+        "financial_depth": { "type": ["object", "null"] },
+        "source_conflict_summary": { "type": "object", "additionalProperties": true },
+        "model_input_scope": { "type": "object", "additionalProperties": true }
+      }
+    }
   },
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },

@@ -17,6 +17,8 @@ CONTRACT_NAMES = frozenset(
         "ingest-envelope",
         "market-alignment-envelope",
         "market-snapshot",
+        "financial-depth",
+        "time-series-snapshot",
         "market-topic-alignment",
         "raw-item",
         "research-requirement",

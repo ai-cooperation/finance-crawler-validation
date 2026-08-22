@@ -62,6 +62,12 @@ python -m pip install -e '.[test]'
 python -m playwright install chromium
 pytest --cov --cov-report=term-missing
 finance-topic-radar --manifest radar-sources.yaml --output /tmp/finance-topic-radar
+finance-research-depth \
+  --market-snapshot /tmp/finance-topic-radar/market-snapshot.json \
+  --raw-items /tmp/finance-topic-radar/raw-items.json \
+  --output /tmp/finance-topic-radar/financial-depth \
+  --target-json '{"kind":"crypto","symbol":"BTC"}' \
+  --history-days 365
 finance-crawler-probe --manifest sources.yaml --output artifacts --repeat 2
 CF_RELAY_BASE_URL=https://your-worker.workers.dev \
   finance-crawler-probe --manifest foreign-community-sources.yaml --output artifacts --repeat 1

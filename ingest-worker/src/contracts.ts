@@ -1,6 +1,7 @@
 import { Validator, type Schema } from "@cfworker/json-schema";
 
 import ingestEnvelopeSchema from "../../schemas/ingest-envelope.schema.json";
+import financialDepthSchema from "../../schemas/financial-depth.schema.json";
 import marketAlignmentEnvelopeSchema from "../../schemas/market-alignment-envelope.schema.json";
 import marketSnapshotSchema from "../../schemas/market-snapshot.schema.json";
 import marketTopicAlignmentSchema from "../../schemas/market-topic-alignment.schema.json";
@@ -130,6 +131,17 @@ export interface MarketSnapshot {
   as_of: string;
   provider: string;
   instruments: MarketInstrument[];
+  financial_depth?: FinancialDepth;
+}
+
+export interface FinancialDepth {
+  schema_version: 1;
+  status: "professional_ready" | "professional_partial" | "research_only" | "blocked";
+  time_series: Record<string, unknown>;
+  fundamentals: Record<string, unknown>;
+  valuation: Record<string, unknown>;
+  scenarios: Record<string, unknown>;
+  source_conflicts: Array<Record<string, unknown>>;
 }
 
 export interface AlignedTopic {
@@ -247,6 +259,7 @@ export interface ResearchReport {
   expires_at: string;
   model: string;
   agent_version: string;
+  report_version?: 2;
   report_profile?: "detailed_traceable" | "compact_traceable";
   research_question?: string;
   target?: ResearchTarget;
@@ -261,6 +274,18 @@ export interface ResearchReport {
   failure_conditions?: ResearchClaim[];
   data_gaps?: ResearchEvidenceNote[];
   recommendation_status?: "research_only" | "monitor" | "requires_human_review";
+  professional_analysis?: {
+    schema_version: 1;
+    status: "professional_ready" | "professional_partial" | "research_only" | "blocked";
+    market_snapshot_id: string;
+    financial_depth: FinancialDepth | null;
+    source_conflict_summary: Record<string, unknown>;
+    model_input_scope: {
+      evidence_count: number;
+      market_depth_included: boolean;
+      prompt_hash?: string;
+    };
+  };
 }
 
 export interface ResearchReportEnvelope {
@@ -382,6 +407,7 @@ export interface ResearchPack {
   source_bundle_plan?: object;
   topics: RadarTopic[];
   market: MarketSnapshot | null;
+  financial_depth?: FinancialDepth | null;
   reports: ResearchReport[];
   /**
    * Derived, stable claim-to-evidence edges. This is optional for replaying
@@ -426,6 +452,7 @@ export interface ResearchPack {
 }
 
 const ingestValidator = new Validator(ingestEnvelopeSchema as Schema, "2020-12", false);
+const financialDepthValidator = new Validator(financialDepthSchema as Schema, "2020-12", false);
 const marketSnapshotValidator = new Validator(marketSnapshotSchema as Schema, "2020-12", false);
 const marketTopicAlignmentValidator = new Validator(
   marketTopicAlignmentSchema as Schema,
@@ -541,6 +568,9 @@ export function validateMarketAlignmentEnvelope(payload: unknown): MarketAlignme
     payload,
   );
   assertValid<MarketSnapshot>("market-snapshot", marketSnapshotValidator, payload.market_snapshot);
+  if (payload.market_snapshot.financial_depth !== undefined) {
+    assertValid<FinancialDepth>("financial-depth", financialDepthValidator, payload.market_snapshot.financial_depth);
+  }
   assertValid<MarketTopicAlignment>(
     "market-topic-alignment",
     marketTopicAlignmentValidator,

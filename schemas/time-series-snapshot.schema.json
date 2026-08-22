@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/time-series-snapshot.schema.json",
+  "title": "Observed market time series",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "series_id", "provider", "currency", "as_of", "point_count", "points", "returns", "source_item_ids", "missing_reason"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["available", "insufficient_data", "unavailable"] },
+    "series_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "currency": { "type": ["string", "null"], "maxLength": 16 },
+    "as_of": { "type": "string", "format": "date-time" },
+    "window_start": { "type": ["string", "null"], "format": "date-time" },
+    "window_end": { "type": ["string", "null"], "format": "date-time" },
+    "point_count": { "type": "integer", "minimum": 0 },
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["observed_at", "value"],
+        "properties": {
+          "observed_at": { "type": "string", "format": "date-time" },
+          "value": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "returns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_pct"],
+      "properties": { "observed_pct": { "type": ["number", "null"] } }
+    },
+    "volatility_annualized_pct": { "type": ["number", "null"] },
+    "max_drawdown_pct": { "type": ["number", "null"] },
+    "source_item_ids": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "missing_reason": { "type": ["string", "null"] },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "response_sha256"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "response_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "hash_kind": { "enum": ["provider_response", "normalized_points"] }
+      }
+    }
+  }
+}

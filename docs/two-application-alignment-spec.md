@@ -80,6 +80,8 @@ App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`to
 
 ### 0.2 本輪本機驗證與未完成項（Normative）
 
+2026-08-22 開始 `professional-research-report-v2` 升級：新增 `financial-depth`／`time-series-snapshot` 契約、歷史市場序列計算、非預測情境表、估值缺口狀態與 lexical source-conflict screening；GitHub Actions 會在 OpenBB alignment 後執行 `finance-research-depth`，把結果放回同一個 market-alignment envelope，Research Agent 會將 depth 摘要送入高階模型並在報告留下 `professional_analysis`。本輪只完成本機契約、計算與 workflow wiring；尚未以新 workflow run 完成 provider 回讀、fundamentals／peer valuation provider 與高階模型 fresh generation，因此不能宣稱 `professional_ready`。
+
 本輪新增的 App A 邊界測試已通過：Worker 共 140 tests；Python gate 全部通過；新增 `finance-app-a-remote` bounded verifier，並通過 `typecheck`、workflow YAML parse、`git diff --check` 與 `deploy:dry`。這些是 CI／發布前證據；遠端鏈證據見 [`experiments/app-a/20260821-mvp-full-actions.json`](../experiments/app-a/20260821-mvp-full-actions.json)。
 
 目前的開發交接固定為：
