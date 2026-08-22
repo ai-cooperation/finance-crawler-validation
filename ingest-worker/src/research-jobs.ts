@@ -717,11 +717,14 @@ async function buildResearchPack(
   );
   const collectionScope = planner?.source_bundle.collection_scope ?? request.requirements.collection_scope ?? "legacy_smoke";
   const maxContextItems = request.requirements.max_context_items ?? (collectionScope === "full_catalog" ? 120 : request.requirements.max_sources);
-  const scopedIds = new Set<string>(
-    Array.isArray((topicSnapshot as unknown as Record<string, any>).target_scope && (topicSnapshot as unknown as Record<string, any>).target_scope.input_item_ids)
-      ? ((topicSnapshot as unknown as Record<string, any>).target_scope.input_item_ids as unknown[]).filter((id): id is string => typeof id === "string")
-      : topicSnapshot.input_item_ids,
-  );
+  const snapshotScope = (topicSnapshot as unknown as Record<string, any>).target_scope;
+  const snapshotScopedIds = Array.isArray(snapshotScope?.input_item_ids)
+    ? (snapshotScope.input_item_ids as unknown[]).filter((id): id is string => typeof id === "string")
+    : [];
+  const fallbackScopedItems = rawItems.filter((item) => targetMatchesEvidence(item, request.target));
+  const scopedIds = new Set<string>(snapshotScopedIds.length > 0
+    ? snapshotScopedIds
+    : fallbackScopedItems.map((item) => item.item_id));
   const targetRelevantItems = rawItems.filter((item) => scopedIds.has(item.item_id));
   const initialItems = targetRelevantItems.slice(0, maxContextItems);
   const reports: ResearchReport[] = [];
@@ -805,7 +808,14 @@ async function buildResearchPack(
       evidence_appendix_item_count: limitedItems.length,
       target_relevant_source_group_count: targetSourceIds.size,
     },
-    ...(topicSnapshot.target_scope === undefined ? {} : { target_scope: topicSnapshot.target_scope }),
+    target_scope: topicSnapshot.target_scope ?? {
+      policy: "worker_target_identity_or_asset_family_v1",
+      target: request.target,
+      input_item_count: rawItems.length,
+      relevant_item_count: targetRelevantItems.length,
+      relevant_source_group_count: targetSourceIds.size,
+      input_item_ids: [...scopedIds],
+    },
     ...(planner === null ? {} : {
       requirement: planner.requirement,
       source_bundle_plan: planner.source_bundle,
@@ -876,6 +886,21 @@ export function buildEvidenceGraph(reports: ResearchReport[]): ResearchEvidenceG
     append(report, "data_gap", report.data_gaps ?? []);
   }
   return { schema_version: 1, claims };
+}
+
+function targetMatchesEvidence(item: RawItemRow, target: ResearchJobRequest["target"]): boolean {
+  const text = `${item.title} ${item.summary}`.toLowerCase();
+  const terms = [target.symbol, target.name, target.market].filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0,
+  ).map((value) => value.toLowerCase());
+  if (target.kind === "crypto") terms.push("bitcoin", "btc", "crypto", "cryptocurrency", "digital asset");
+  if (target.kind === "equity") terms.push("stock", "equity", "shares", "earnings");
+  if (target.kind === "etf") terms.push("etf", "exchange traded fund");
+  return terms.some((term) => term.includes(" ") ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`).test(text));
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function latestPublishedRun(db: D1Database): Promise<RunRow | null> {
