@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-22T00:43:20Z",
+  "git_sha": "7dc1b75ce979a090e92148b98fc93af09884e96d",
+  "worker": {
+    "url": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev",
+    "version_id": "48b5b36e-a9f1-4245-b734-be9739accc73",
+    "health_http_status": 200
+  },
+  "workflow": {
+    "run_id": "32540891073",
+    "url": "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32540891073",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "mcp_chain": {
+    "gate_a_status": "passed",
+    "remote_status": "passed",
+    "request_id": "55e09303-ad3f-453b-8358-09c84de2b758",
+    "job_id": "research_20260822003634_493b163c",
+    "run_id": "run_20260822t003800z",
+    "pack_id": "pack_20260822003634_493b163c",
+    "status": "partial",
+    "pack_as_of": "2026-08-22T00:38:00.597929Z",
+    "report_count": 3,
+    "evidence_count": 149,
+    "appendix_evidence_count": 149
+  },
+  "request": {
+    "target": {
+      "kind": "crypto",
+      "symbol": "BTC"
+    },
+    "question": "BTC recent rally drivers, market structure, downside risks, and conflicting signals",
+    "source_strategy": "actions",
+    "collection_scope": "full_catalog",
+    "planner_source_count": 135
+  },
+  "collection": {
+    "source_group_count": 135,
+    "endpoint_attempt_count": 181,
+    "normalized_item_count": 149,
+    "coverage_ratio": 0.9185185185185185,
+    "target_relevant_item_count": 149,
+    "model_context_item_count": 120,
+    "failed_sources": [
+      "ecb_press_rss",
+      "etf_stream",
+      "federal_reserve_press_rss",
+      "financial_advisor_magazine",
+      "financial_express",
+      "money_stackexchange_api",
+      "openbb_github_issues_api",
+      "private_banker_international",
+      "the_trade",
+      "tradingagents_github_issues_api"
+    ],
+    "partial": true,
+    "stale": false
+  },
+  "market_snapshot": {
+    "snapshot_id": "market_20260822t004038z",
+    "provider": "coingecko",
+    "observed_at": "2026-08-22T00:35:20Z",
+    "price_usd": 77907,
+    "change_24h_pct": 7.7,
+    "market_cap_usd": 1563711573442,
+    "history": {
+      "point_count": 366,
+      "window_start": "2025-08-23T00:00:00Z",
+      "window_end": "2026-08-22T00:38:20Z",
+      "observed_return_pct": -33.320429,
+      "annualized_volatility_pct": 43.781446,
+      "max_drawdown_pct": -53.049398,
+      "source_url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily",
+      "response_sha256": "5b02dfd7db3fb4a05335a4e28d1edf696bcfee84ea1c0fa402222bfd2aaee8e6"
+    }
+  },
+  "reports": [
+    {
+      "report_id": "report_run_20260822t003800z_ai_semiconductors",
+      "topic_id": "ai_semiconductors",
+      "model": "deterministic-evidence-v1",
+      "evidence_count": 6,
+      "recommendation_status": "research_only"
+    },
+    {
+      "report_id": "report_run_20260822t003800z_equities_earnings",
+      "topic_id": "equities_earnings",
+      "model": "deterministic-evidence-v1",
+      "evidence_count": 6,
+      "recommendation_status": "research_only"
+    },
+    {
+      "report_id": "report_run_20260822t003800z_digital_assets",
+      "topic_id": "digital_assets",
+      "model": "deterministic-evidence-v1",
+      "evidence_count": 6,
+      "recommendation_status": "research_only",
+      "professional_analysis_status": "professional_partial"
+    }
+  ],
+  "professional_depth": {
+    "time_series": "available",
+    "valuation": "not_applicable_for_crypto_without_tokenomics_inputs",
+    "fundamentals": "unavailable_provider_not_configured",
+    "scenario_method": "observed_range_not_a_forecast",
+    "source_conflict_method": "lexical_stance_v1_screening_only",
+    "source_conflict_level": "high",
+    "source_conflict_counts": {
+      "positive": 27,
+      "negative": 11,
+      "neutral": 0,
+      "unknown": 111
+    },
+    "independent_source_count": 124,
+    "high_level_model_run": false,
+    "high_level_model_reason": "full_catalog path intentionally publishes deterministic evidence-linked first opinion; model enrichment is a separate path"
+  },
+  "quality_assessment": {
+    "transport_and_traceability": "pass",
+    "professional_research": "partial",
+    "main_failure": "digital_assets report is generic and does not explain the observed BTC rally; unrelated topics were also emitted for a BTC target",
+    "known_limitations": [
+      "No 7-day or 30-day return, volume, liquidity, ETF-flow, derivatives, or on-chain driver decomposition was emitted.",
+      "Crypto valuation was explicitly not attempted because tokenomics inputs/provider were not configured.",
+      "Lexical stance counts are a screening heuristic; 111 of 149 items were unknown and source independence was not verified.",
+      "Ten source groups failed, so the pack is partial despite 91.85% source-group coverage."
+    ]
+  }
+}
