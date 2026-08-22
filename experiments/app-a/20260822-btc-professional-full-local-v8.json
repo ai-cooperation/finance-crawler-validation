@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
-  "observed_at": "2026-08-22T02:58:25Z",
+  "observed_at": "2026-08-22T03:01:20Z",
   "execution": {
     "mode": "local_full_catalog_with_crawl4ai",
     "source_strategy": "browser_api_rss",
+    "history_days": 365,
     "commit_sha": "bf3a6ff",
     "raw_payloads_path": "artifacts/full-local-20260822T025237Z/news-raw",
     "raw_payloads_are_not_embedded": true
@@ -42,16 +43,20 @@
     "status": "professional_ready",
     "time_series": {
       "provider": "coingecko",
-      "point_count": 31,
+      "point_count": 366,
+      "window_start": "2025-08-23T00:00:00Z",
+      "window_end": "2026-08-22T03:01:20Z",
       "returns": {
-        "1d_observed_pct": 0.188733,
-        "3d_observed_pct": 13.032778,
-        "7d_observed_pct": 24.514809,
-        "30d_observed_pct": 20.654994,
-        "90d_observed_pct": 20.654994,
-        "365d_observed_pct": 20.654994
+        "1d_observed_pct": 0.161662,
+        "3d_observed_pct": 13.002236,
+        "7d_observed_pct": 24.481165,
+        "30d_observed_pct": 20.622393,
+        "90d_observed_pct": 1.854576,
+        "365d_observed_pct": -32.89475
       },
-      "response_sha256": "15ddabeeab6288837074735003cb843fd8cc15c76cc04917071a73ae32a1f8b4"
+      "volatility_annualized_pct": 43.780396,
+      "max_drawdown_pct": -53.049398,
+      "response_sha256": "b713c46667f9db700c9b6e2962b212f827b640926971f50c321b4bb5d5057836"
     },
     "fundamentals": {
       "status": "available",
@@ -66,7 +71,7 @@
       "volume": {
         "status": "available",
         "provider": "coingecko",
-        "response_sha256": "15ddabeeab6288837074735003cb843fd8cc15c76cc04917071a73ae32a1f8b4"
+        "response_sha256": "b713c46667f9db700c9b6e2962b212f827b640926971f50c321b4bb5d5057836"
       },
       "etf_flows": {
         "status": "available",
@@ -78,8 +83,8 @@
         "provider": "binance_futures_public",
         "response_sha256": [
           "e6027fb4ebe984ca298f85f6da4df7c5506c95694821d78bcebf6eb346768e63",
-          "7854f199cb86c7e202fa25127a082976d7dd9dfec986bd9b5629c0da06525925",
-          "1d6f455ba6c7532e1fc2caed924a975da0a9d19262f393199f84c2eb0039f0ea"
+          "6a21a16322a2456b67e22ded9f252cb74cc00040b62a76c8df5d158b99f7dad3",
+          "7d3d728cb3723aa21a9c691abc5abe09b240ab0a9b8b4d901c6f0f314770fa5b"
         ]
       },
       "on_chain": {
