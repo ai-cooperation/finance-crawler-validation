@@ -86,7 +86,7 @@ App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`to
 
 目前的開發交接固定為：
 
-1. **完成嚴格品質 Gate A 收尾**：部署後 Big Pickle 的 `submit → status → Research Pack → report／appendix` bounded run 已通；下一個 gate 是修復／替換失敗 Browser source、補足與 target 對應的市場資料 provider，並讓品質不再是 `partial`，才能稱 App A 研究品質完整通過。
+1. **完成嚴格品質 Gate A 收尾**：部署後 Big Pickle 的 `submit → status → Research Pack → report／appendix` bounded run 已通；`professional_ready` 仍須等待新的 full-catalog Actions snapshot 回寫，不能用舊 frozen snapshot 代替。
 2. **再完成 report v2／Evidence Graph**：目前 Research Pack 已先加入 v1-compatible `evidence_graph`（穩定 claim ID、report／topic 關聯與 evidence subset assertion）；仍需把報告本身升級成正式 `research_report.v2`、`quality`、`source_bundle_ref`、`evidence_appendix_ref`、claim／counterclaim／unknown graph、expiry 與 usage receipt，且現有 v1 replay 必須維持雙讀。
 3. **再開發 App B**：完成 `decision-session.schema.json`、`decision-memo.schema.json`、Grill Me First 欄位閘門、唯讀 evidence tools、constraint hash 與 `decision_trace`；App B 不得在缺資料時自行回來源抓取。
 4. **最後才做產品化與連續營運**：雙應用 scope／OAuth onboarding、request_id 恢復 UX、外部告警、低頻 schedule、七日 soak、用量 ceiling、last-good restore 與 rollback。
@@ -99,7 +99,7 @@ App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`to
 
 這一輪的關鍵驗收不是只看 job 成功，而是檢查交接資料：原始 catalog 仍完整保留 149 normalized items；Worker 以 `worker_target_identity_or_asset_family_v1` 將模型 context 收斂至 46 target-relevant items／46 source groups，Research Pack 只保留 `digital_assets` 一個 BTC topic，appendix 仍保留 51 筆可稽核 evidence。報告是 fresh Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast` 變體，不是先前 report ID 的 replay；`report_instance_id` 使同一 frozen run 的多次研究不會誤讀舊報告。
 
-Research Pack 現在會輸出 1／3／7／30／90／365 日 observed return、年化波動與最大回撤；BTC 本輪為 `-0.473708%`、`12.285413%`、`23.691526%`、`19.857232%`、`1.208467%`、`-33.320429%`，年化波動 `43.781446%`、最大回撤 `-53.049398%`。市場驅動只列 candidate（4 筆、`causal_status=unresolved`），並明示 volume／ETF flows／derivatives／on-chain provider 未配置；估值為 crypto `not_applicable`、fundamentals `unavailable`，所以 `professional_analysis.status` 仍是 `professional_partial`，不能宣稱投資決策級或因果歸因完成。舊 frozen market snapshot 的衝突方法仍是 `lexical_stance_v1`，校準狀態保持 `unresolved`；新全量 Actions run 產生的 v2 snapshot 才能把該欄位升級至 `source_conflict_screen_v2`。
+Research Pack 現在會輸出 1／3／7／30／90／365 日 observed return、年化波動與最大回撤。品質修正已在本機以真實公開 provider 驗證：CoinGecko 價格／成交量／tokenomics、Binance Futures funding／open interest／24h volume、Blockchain.com 確認交易數、The Block 公開 ETF-flow JSON 均回傳資料與 response hash；`lexical_stance_v2_calibrated` 也以 frozen calibration set（precision／recall／F1、set hash）通過。對同一組 BTC evidence，`financial_depth.status=professional_ready`，但事件仍標為 `causal_status=unresolved`，所以報告不會把標題直接寫成因果結論。這個 ready 結果尚屬本機 provider bundle 驗證；新的 full-catalog Actions snapshot 尚未在配額閘門解除後重跑，遠端報告仍須以新 snapshot 回讀結果為準。
 
 本輪曾實際嘗試一次 Actions full-catalog dispatch，Worker 正確以 `minimum_interval`（約 16,247 秒）拒絕，workflow 只執行 admission／failure callback，沒有啟動 Browser／Crawl4AI，未繞過額度保護。這個結果本身是 quota guard 的真實驗證，不得算成新的 120-source fresh crawl；待閘門允許後再用同一 target／同一 source bundle 觸發新快照。
 

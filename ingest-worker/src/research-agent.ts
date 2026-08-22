@@ -554,7 +554,9 @@ function addProfessionalDataGaps(
       });
     }
     const conflicts = Array.isArray(depth.source_conflicts) ? depth.source_conflicts : [];
-    if (conflicts.some((conflict) => isRecord(conflict) && ["source_conflict_screen_v2", "lexical_stance_v1"].includes(String(conflict.method)))) {
+    if (conflicts.some((conflict) => isRecord(conflict)
+      && ["source_conflict_screen_v2", "lexical_stance_v1"].includes(String(conflict.method))
+      && String(conflict.calibration_status ?? "unresolved") !== "calibrated")) {
       additions.push({
         text: "Source conflict detection is a calibrated-screening gap; independent stance calibration remains unresolved.",
         evidence_ids: [anchor],

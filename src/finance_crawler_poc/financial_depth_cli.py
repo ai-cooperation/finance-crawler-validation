@@ -7,7 +7,14 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from finance_crawler_poc.contracts import validate_contract
-from finance_crawler_poc.market_depth import build_financial_depth, fetch_market_history
+from finance_crawler_poc.market_depth import (
+    build_financial_depth,
+    fetch_market_history,
+    fetch_market_provider_bundle,
+)
+
+
+_ORIGINAL_FETCH_MARKET_HISTORY = fetch_market_history
 
 
 def build_depth_artifact(
@@ -27,18 +34,32 @@ def build_depth_artifact(
     if not isinstance(market_snapshot, dict) or not isinstance(raw_items, list):
         raise ValueError("financial-depth inputs must be a market snapshot object and raw-item array")
     as_of = generated_at or str(market_snapshot.get("as_of") or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
-    history_url = "https://api.coingecko.com/api/v3/coins/{id}/market_chart"
     try:
-        history_result = fetch_market_history(target, days=history_days)
-        if len(history_result) == 3:
-            points, provider, history_url = history_result
-            history_response_sha256 = None
+        # Preserve the old seam for unit tests and downstream callers that
+        # inject a deterministic history provider.  Production uses the full
+        # provider bundle, including volume/ETF/derivatives/on-chain data.
+        if fetch_market_history is not _ORIGINAL_FETCH_MARKET_HISTORY:
+            history_result = fetch_market_history(target, days=history_days)
+            if len(history_result) == 3:
+                points, provider, history_url = history_result
+                history_response_sha256 = None
+            else:
+                points, provider, history_url, history_response_sha256 = history_result
+            provider_data = None
         else:
-            points, provider, history_url, history_response_sha256 = history_result
+            bundle = fetch_market_provider_bundle(target, days=history_days)
+            points = bundle["points"]
+            provider = bundle["provider"]
+            history_url = bundle["history_url"]
+            history_response_sha256 = bundle["history_response_sha256"]
+            if fundamentals is None and isinstance(bundle.get("fundamentals"), dict):
+                fundamentals = bundle["fundamentals"]
+            provider_data = bundle.get("provider_data") if isinstance(bundle.get("provider_data"), dict) else None
     except (RuntimeError, ValueError) as exc:
         points, provider, history_response_sha256 = [], "unavailable", None
-        history_url = f"{history_url}?target={target.get('symbol', '')}"
+        history_url = f"https://provider.invalid/history?target={target.get('symbol', '')}"
         failure = str(exc)
+        provider_data = None
     else:
         failure = None
     depth = build_financial_depth(
@@ -51,6 +72,7 @@ def build_depth_artifact(
         evidence=raw_items,
         fundamentals=fundamentals,
         history_response_sha256=history_response_sha256,
+        provider_data=provider_data,
     )
     if failure is not None:
         depth["status"] = "research_only"

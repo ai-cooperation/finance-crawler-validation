@@ -73,9 +73,9 @@ Research Requirement
 
 ## 可接受狀態
 
-- `professional_ready`: depth、衝突矩陣與 evidence graph 通過閘門。
+- `professional_ready`: depth、衝突矩陣、market confirmation providers 與 evidence graph 通過閘門。
 - `professional_partial`: 有可用資料但仍有缺口，報告可以讀取但必須標示限制。
 - `research_only`: 只有新聞／市場快照，沒有足夠時間序列或基本面。
 - `blocked`: target identity、provider 或 evidence path 無法驗證。
 
-目前內建的 `lexical_stance_v1` 只是衝突篩選器，不是獨立校準的 stance oracle；只要使用此方法，狀態固定為 `professional_partial`，不能誤標為 `professional_ready`。要升級為 ready，必須提交 frozen calibration set、classifier version 與 precision／recall 證據。
+`lexical_stance_v1` 仍只能作為舊快照的篩選器，不能通過 ready gate。新版本 `lexical_stance_v2_calibrated` 提交 frozen calibration set、classifier version、precision／recall 與 calibration-set hash；只有校準狀態為 `calibrated`、至少兩個獨立來源、時間序列可用、且 volume／ETF flows／derivatives／on-chain provider 均有真實 response hash 時，才可標成 `professional_ready`。因果歸因仍必須在報告中標為 observed association 或 unresolved，不得把新聞標題直接寫成因果結論。

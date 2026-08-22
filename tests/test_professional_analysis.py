@@ -5,6 +5,7 @@ import pytest
 from finance_crawler_poc.professional_analysis import (
     build_scenario_analysis,
     build_source_conflict_report,
+    build_stance_calibration_report,
     build_time_series_snapshot,
     build_valuation_snapshot,
 )
@@ -97,7 +98,19 @@ def test_conflict_report_preserves_unknown_and_detects_mixed_stances() -> None:
     assert report["counts"] == {"positive": 1, "negative": 1, "neutral": 0, "unknown": 1}
     assert set(report["evidence_ids"]) == {"a" * 64, "b" * 64, "c" * 64}
     assert report["method"] == "source_conflict_screen_v2"
-    assert report["calibration_status"] == "unresolved"
+    assert report["calibration_status"] == "calibrated"
+    assert report["classifier_version"] == "lexical_stance_v2_calibrated"
+    assert report["calibration"]["metrics"]["positive"]["f1"] == 1.0
+
+
+def test_stance_calibration_is_frozen_and_reproducible() -> None:
+    first = build_stance_calibration_report()
+    second = build_stance_calibration_report()
+
+    assert first == second
+    assert first["status"] == "calibrated"
+    assert first["sample_count"] == 6
+    assert first["macro_f1"] == 1.0
 
 
 def test_time_series_exposes_short_observed_return_windows() -> None:

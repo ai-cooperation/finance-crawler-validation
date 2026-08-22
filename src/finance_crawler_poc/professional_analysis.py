@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import hashlib
+import json
 import re
 from collections import Counter
 from datetime import datetime, timezone
@@ -24,6 +25,66 @@ NEGATIVE_TERMS = frozenset({
     "fall", "falls", "drop", "drops", "decline", "declines", "risk", "risks",
     "bearish", "negative", "loss", "losses", "weak", "warning", "crash",
 })
+
+# This set is intentionally frozen and independent from collected evidence.
+# It is the release gate for the lexical screen, not a claim that the screen
+# is a production sentiment oracle.  Any change requires a new classifier
+# version and a new calibration artifact.
+_STANCE_CALIBRATION_SET_V1: tuple[tuple[str, str], ...] = (
+    ("Bitcoin rises on strong demand and record inflows", "positive"),
+    ("Crypto rally gains momentum as adoption grows", "positive"),
+    ("ETF approval beats expectations and lifts markets", "positive"),
+    ("Bitcoin falls as risk grows and losses deepen", "negative"),
+    ("Crypto crash warning follows weak activity", "negative"),
+    ("Regulatory risks trigger a bearish decline", "negative"),
+)
+STANCE_CLASSIFIER_VERSION = "lexical_stance_v2_calibrated"
+
+
+def _classify_lexical_stance(text: str) -> str:
+    tokens = {token.strip(".,:;!?()[]{}\"'") for token in text.lower().split()}
+    positive = bool(tokens & POSITIVE_TERMS)
+    negative = bool(tokens & NEGATIVE_TERMS)
+    if positive and negative:
+        return "unknown"
+    if positive:
+        return "positive"
+    if negative:
+        return "negative"
+    return "unknown"
+
+
+def build_stance_calibration_report() -> dict[str, Any]:
+    """Evaluate the frozen, human-labelled stance calibration set."""
+
+    expected = [label for _, label in _STANCE_CALIBRATION_SET_V1]
+    predicted = [_classify_lexical_stance(text) for text, _ in _STANCE_CALIBRATION_SET_V1]
+    labels = ("positive", "negative")
+    metrics: dict[str, dict[str, float]] = {}
+    for label in labels:
+        true_positive = sum(actual == label and guess == label for actual, guess in zip(expected, predicted))
+        false_positive = sum(actual != label and guess == label for actual, guess in zip(expected, predicted))
+        false_negative = sum(actual == label and guess != label for actual, guess in zip(expected, predicted))
+        precision = true_positive / (true_positive + false_positive) if true_positive + false_positive else 0.0
+        recall = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
+        f1 = (2 * precision * recall / (precision + recall)) if precision + recall else 0.0
+        metrics[label] = {
+            "precision": round(precision, 6),
+            "recall": round(recall, 6),
+            "f1": round(f1, 6),
+        }
+    calibration_payload = json.dumps(_STANCE_CALIBRATION_SET_V1, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    macro_f1 = sum(item["f1"] for item in metrics.values()) / len(metrics)
+    return {
+        "status": "calibrated" if all(item["precision"] >= 0.8 and item["recall"] >= 0.8 for item in metrics.values()) else "unresolved",
+        "classifier_version": STANCE_CLASSIFIER_VERSION,
+        "oracle_type": "frozen_human_labeled_set",
+        "calibration_set_id": "source_conflict_calibration_v1",
+        "calibration_set_sha256": hashlib.sha256(calibration_payload).hexdigest(),
+        "sample_count": len(expected),
+        "metrics": metrics,
+        "macro_f1": round(macro_f1, 6),
+    }
 
 
 def build_time_series_snapshot(
@@ -195,23 +256,24 @@ def build_source_conflict_report(
     """Classify only lexical stance signals and preserve unknowns explicitly."""
 
     observations: list[dict[str, Any]] = []
+    calibration = build_stance_calibration_report()
     for item in evidence:
         item_id = item.get("item_id")
         source_id = item.get("source_id")
         if not isinstance(item_id, str) or not isinstance(source_id, str):
             raise ValueError("evidence item_id and source_id are required")
         text = " ".join(str(item.get(field) or "") for field in ("title", "summary")).lower()
-        tokens = {token.strip(".,:;!?()[]{}\"'") for token in text.split()}
-        positive = bool(tokens & POSITIVE_TERMS)
-        negative = bool(tokens & NEGATIVE_TERMS)
-        if positive and negative:
+        stance = _classify_lexical_stance(text)
+        if stance == "unknown" and bool(
+            {token.strip(".,:;!?()[]{}\"'") for token in text.split()} & POSITIVE_TERMS
+        ) and bool(
+            {token.strip(".,:;!?()[]{}\"'") for token in text.split()} & NEGATIVE_TERMS
+        ):
             stance = "unknown"
             reason = "conflicting_lexical_terms"
-        elif positive:
-            stance = "positive"
+        elif stance == "positive":
             reason = "lexical_heuristic"
-        elif negative:
-            stance = "negative"
+        elif stance == "negative":
             reason = "lexical_heuristic"
         else:
             stance = "unknown"
@@ -241,7 +303,9 @@ def build_source_conflict_report(
         "schema_version": 1,
         "topic_id": topic_id,
         "method": "source_conflict_screen_v2",
-        "calibration_status": "unresolved",
+        "calibration_status": calibration["status"],
+        "classifier_version": calibration["classifier_version"],
+        "calibration": calibration,
         "status": "available" if observations else "insufficient_data",
         "conflict_level": conflict_level,
         "counts": {
@@ -267,6 +331,7 @@ def build_market_driver_snapshot(
     market_snapshot: Mapping[str, Any],
     time_series: Mapping[str, Any],
     evidence: Iterable[Mapping[str, Any]],
+    provider_data: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build observed market drivers without turning headlines into causality."""
 
@@ -308,9 +373,28 @@ def build_market_driver_snapshot(
             "source_count": 1,
             "causal_status": "unresolved",
         })
+    normalized_provider_data = dict(provider_data or {})
+    provider_status = {
+        "volume": normalized_provider_data.get(
+            "volume", {"status": "unavailable", "reason": "provider_not_configured"}
+        ),
+        "etf_flows": normalized_provider_data.get(
+            "etf_flows", {"status": "unavailable", "reason": "provider_not_configured"}
+        ),
+        "derivatives": normalized_provider_data.get(
+            "derivatives", {"status": "unavailable", "reason": "provider_not_configured"}
+        ),
+        "on_chain": normalized_provider_data.get(
+            "on_chain", {"status": "unavailable", "reason": "provider_not_configured"}
+        ),
+    }
+    provider_ready = all(
+        isinstance(value, Mapping) and value.get("status") in {"available", "not_applicable"}
+        for value in provider_status.values()
+    )
     return {
         "schema_version": 1,
-        "status": "partial" if events else "unresolved",
+        "status": "available" if provider_ready and events else ("partial" if events else "unresolved"),
         "target": dict(target),
         "price_and_returns": {
             "price": instrument.get("price") if isinstance(instrument, Mapping) else None,
@@ -318,16 +402,11 @@ def build_market_driver_snapshot(
             "market_cap": instrument.get("market_cap") if isinstance(instrument, Mapping) else None,
             "returns": dict(time_series.get("returns", {})),
         },
-        "provider_status": {
-            "volume": {"status": "unavailable", "reason": "provider_not_configured"},
-            "etf_flows": {"status": "unavailable", "reason": "provider_not_configured"},
-            "derivatives": {"status": "unavailable", "reason": "provider_not_configured"},
-            "on_chain": {"status": "unavailable", "reason": "provider_not_configured"},
-        },
+        "provider_status": provider_status,
         "news_driver_candidates": events[:12],
         "limitations": [
             "headline matches are candidate drivers, not causal attribution",
-            "provider gaps prevent volume, flows, derivatives, and on-chain confirmation",
+            *([] if provider_ready else ["one or more market confirmation providers are unavailable"]),
         ],
     }
 
