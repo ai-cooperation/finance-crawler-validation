@@ -55,7 +55,12 @@ def _classify_lexical_stance(text: str) -> str:
 
 
 def build_stance_calibration_report() -> dict[str, Any]:
-    """Evaluate the frozen, human-labelled stance calibration set."""
+    """Evaluate the frozen reference set used by the release gate.
+
+    The labels are an internal deterministic fixture.  They prove classifier
+    reproducibility and unknown handling; they are not an external sentiment
+    benchmark and must not be presented as one.
+    """
 
     expected = [label for _, label in _STANCE_CALIBRATION_SET_V1]
     predicted = [_classify_lexical_stance(text) for text, _ in _STANCE_CALIBRATION_SET_V1]
@@ -78,7 +83,8 @@ def build_stance_calibration_report() -> dict[str, Any]:
     return {
         "status": "calibrated" if all(item["precision"] >= 0.8 and item["recall"] >= 0.8 for item in metrics.values()) else "unresolved",
         "classifier_version": STANCE_CLASSIFIER_VERSION,
-        "oracle_type": "frozen_human_labeled_set",
+        "oracle_type": "frozen_reference_labels",
+        "labeling_note": "internal deterministic fixture; not an external sentiment benchmark",
         "calibration_set_id": "source_conflict_calibration_v1",
         "calibration_set_sha256": hashlib.sha256(calibration_payload).hexdigest(),
         "sample_count": len(expected),

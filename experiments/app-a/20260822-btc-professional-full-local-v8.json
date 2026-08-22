@@ -104,7 +104,8 @@
       "negative_precision": 1.0,
       "negative_recall": 1.0,
       "macro_f1": 1.0
-    }
+    },
+    "calibration_labeling_note": "internal deterministic fixture; not an external sentiment benchmark"
   },
   "quality_boundary": {
     "professional_ready_means": "market depth, calibrated conflict screen, provider evidence hashes and evidence graph gates passed",
