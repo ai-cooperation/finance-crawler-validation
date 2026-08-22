@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-22T02:30:46Z",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev",
+  "worker_version_id": "da82da0e-c4fc-4c74-83dc-1537f173b3f9",
+  "source_strategy": "latest_published",
+  "collection_scope": "full_catalog",
+  "target": {"kind": "crypto", "symbol": "BTC"},
+  "request_id": "6cc7ed70-3680-4db8-839d-ec30af422ca0",
+  "job_id": "research_20260822023046_71f3dcb0",
+  "pack_id": "pack_20260822023046_71f3dcb0",
+  "gate_a_status": "passed",
+  "checks": {
+    "mcp_initialize": "passed",
+    "mcp_tools_catalog": "passed",
+    "planner_source_bundle": "passed",
+    "submit_bounded_job": "passed",
+    "job_terminal": "passed",
+    "research_pack": "passed",
+    "research_report": "passed",
+    "evidence_appendix": "passed",
+    "h3_mvp_harness": "passed",
+    "no_personalized_recommendation": "passed"
+  },
+  "catalog": {
+    "source_group_count": 135,
+    "endpoint_attempt_count": 181,
+    "normalized_item_count": 149,
+    "failed_source_group_count": 10,
+    "coverage_ratio": 0.9259259259,
+    "failed_source_ids": [
+      "ecb_press_rss", "etf_stream", "federal_reserve_press_rss",
+      "financial_advisor_magazine", "financial_express", "money_stackexchange_api",
+      "openbb_github_issues_api", "private_banker_international", "the_trade",
+      "tradingagents_github_issues_api"
+    ]
+  },
+  "target_scope": {
+    "policy": "worker_target_identity_or_asset_family_v1",
+    "input_item_count": 149,
+    "relevant_item_count": 46,
+    "relevant_source_group_count": 46,
+    "model_context_item_count": 46,
+    "evidence_appendix_item_count": 51
+  },
+  "topics": [{
+    "topic_id": "digital_assets",
+    "item_count": 43,
+    "source_count": 43,
+    "evidence_count": 43
+  }],
+  "report": {
+    "report_id": "report_run_20260822t003800z_digital_assets_ai_research_20260822023046_71f3dcb0",
+    "topic_id": "digital_assets",
+    "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "generation_mode": "ai_enrichment",
+    "professional_status": "professional_partial",
+    "model_input_evidence_count": 6,
+    "recommendation_status": "research_only",
+    "data_gaps": ["source conflict detection is a calibrated-screening gap; independent stance calibration remains unresolved"]
+  },
+  "financial_depth": {
+    "status": "professional_partial",
+    "time_series": {
+      "point_count": 366,
+      "observed_return_pct": -33.320429,
+      "returns_1d_pct": -0.473708,
+      "returns_3d_pct": 12.285413,
+      "returns_7d_pct": 23.691526,
+      "returns_30d_pct": 19.857232,
+      "returns_90d_pct": 1.208467,
+      "returns_365d_pct": -33.320429,
+      "volatility_annualized_pct": 43.781446,
+      "max_drawdown_pct": -53.049398
+    },
+    "market_drivers_status": "unresolved",
+    "market_driver_candidate_count": 4,
+    "market_driver_causal_status": "unresolved",
+    "provider_gaps": ["volume", "etf_flows", "derivatives", "on_chain"],
+    "source_conflict_method": "lexical_stance_v1",
+    "source_conflict_calibration": "unresolved",
+    "valuation_status": "not_applicable",
+    "fundamentals_status": "unavailable"
+  },
+  "privacy": {
+    "raw_payloads_included": false,
+    "mcp_token_included": false,
+    "private_r2_content_included": false
+  }
+}
