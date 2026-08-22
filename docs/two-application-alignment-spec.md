@@ -95,7 +95,7 @@ App A 已完成第一個可部署垂直切片：`/mcp` 支援 `initialize`、`to
 
 ### 0.3 2026-08-22 全量後處理與 AI fresh report 驗證
 
-本輪先部署 `3d17eabd-567e-4a47-994d-a1a45eb454cf`，再以已發布的 135 source groups／181 endpoint frozen catalog 執行 latest-published 路徑，避免在 Actions `minimum_interval` 配額閘門前重複派工。最後一輪 Worker 版本 `da82da0e-c4fc-4c74-83dc-1537f173b3f9` 的真實 job `research_20260822023046_71f3dcb0` 通過 Gate A：`initialize → tools/list → plan → submit → get_job_status → Research Pack → AI report → evidence appendix` 全部通過，證據見 [`experiments/app-a/20260822-btc-professional-target-scoped-v7.json`](../experiments/app-a/20260822-btc-professional-target-scoped-v7.json)。
+本輪先部署 `3d17eabd-567e-4a47-994d-a1a45eb454cf`，再以已發布的 135 source groups／181 endpoint frozen catalog 執行 latest-published 路徑，避免在 Actions `minimum_interval` 配額閘門前重複派工。最後一輪 Worker 版本 `e847d064-7293-4f8e-981e-ecba3237d870` 的真實 job `research_20260822023046_71f3dcb0` 通過 Gate A：`initialize → tools/list → plan → submit → get_job_status → Research Pack → AI report → evidence appendix` 全部通過，證據見 [`experiments/app-a/20260822-btc-professional-target-scoped-v7.json`](../experiments/app-a/20260822-btc-professional-target-scoped-v7.json)。
 
 這一輪的關鍵驗收不是只看 job 成功，而是檢查交接資料：原始 catalog 仍完整保留 149 normalized items；Worker 以 `worker_target_identity_or_asset_family_v1` 將模型 context 收斂至 46 target-relevant items／46 source groups，Research Pack 只保留 `digital_assets` 一個 BTC topic，appendix 仍保留 51 筆可稽核 evidence。報告是 fresh Workers AI `@cf/meta/llama-3.3-70b-instruct-fp8-fast` 變體，不是先前 report ID 的 replay；`report_instance_id` 使同一 frozen run 的多次研究不會誤讀舊報告。
 
