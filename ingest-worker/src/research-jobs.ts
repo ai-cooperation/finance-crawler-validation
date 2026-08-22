@@ -950,7 +950,7 @@ function enrichFinancialDepth(
     const text = `${item.title} ${item.summary}`.toLowerCase();
     const matched = terms.find(([term]) => text.includes(term));
     const title = item.title.trim();
-    if (!matched || !title) continue;
+    if (!matched || !title || /\bcapture\b|_html\s+capture/i.test(title)) continue;
     const key = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 120);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -963,13 +963,17 @@ function enrichFinancialDepth(
       causal_status: "unresolved",
     });
   }
+  const normalizedReturns = {
+    ...returns,
+    ...deriveObservedReturns(timeSeries.points),
+  };
   return {
     ...depth,
     market_drivers: {
       schema_version: 1,
       status: "unresolved",
       target,
-      price_and_returns: { returns },
+      price_and_returns: { returns: normalizedReturns },
       provider_status: {
         volume: { status: "unavailable", reason: "provider_not_configured" },
         etf_flows: { status: "unavailable", reason: "provider_not_configured" },
@@ -983,6 +987,21 @@ function enrichFinancialDepth(
       ],
     },
   } as FinancialDepth;
+}
+
+function deriveObservedReturns(points: unknown): Record<string, number> {
+  if (!Array.isArray(points)) return {};
+  const values = points
+    .map((point) => isRecord(point) && typeof point.value === "number" ? point.value : null)
+    .filter((value): value is number => value !== null && Number.isFinite(value) && value > 0);
+  const result: Record<string, number> = {};
+  for (const days of [1, 3, 7, 30, 90, 365]) {
+    const index = values.length - 1 - days;
+    if (index >= 0 && values[index] > 0 && values.length > 1) {
+      result[`${days}d_observed_pct`] = Number((((values[values.length - 1] / values[index]) - 1) * 100).toFixed(6));
+    }
+  }
+  return result;
 }
 
 function isRecord(value: unknown): value is Record<string, any> {
