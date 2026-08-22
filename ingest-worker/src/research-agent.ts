@@ -363,7 +363,17 @@ export async function generateResearchReports(
     };
   }
 
-  const selectedTopics = plan.topics
+  const targetTopicId = request.target?.kind === "crypto"
+    ? "digital_assets"
+    : request.target?.kind === "equity"
+      ? "equities_earnings"
+      : request.target?.kind === "etf"
+        ? "personal_finance"
+        : undefined;
+  const plannedTopics = targetTopicId === undefined
+    ? plan.topics
+    : plan.topics.filter((topic) => topic.topic_id === targetTopicId);
+  const selectedTopics = plannedTopics
     .filter((topic) => topic.decision === "run")
     .slice(0, request.max_reports ?? plan.budget.max_topics);
   if (selectedTopics.length === 0) throw new HttpError(409, "no_topics_to_research");
