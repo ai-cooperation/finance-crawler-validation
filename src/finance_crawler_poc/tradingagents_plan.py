@@ -19,6 +19,7 @@ def build_tradingagents_run_plan(
     model: str,
     requested_topic_ids: Iterable[str] = (),
     divergence_threshold: float = 0.5,
+    target: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a bounded, evidence-linked TradingAgents execution plan.
 
@@ -100,16 +101,24 @@ def build_tradingagents_run_plan(
             ],
         )
 
+    target_topic = {
+        "crypto": "digital_assets",
+        "equity": "equities_earnings",
+        "etf": "personal_finance",
+    }.get(str((target or {}).get("kind")))
     ranked = sorted(
         topics,
         key=lambda topic: (
             0 if topic["topic_id"] in requested else 1,
+            0 if target_topic is not None and topic["topic_id"] == target_topic else 1,
             0 if _is_significant_divergence(topic, divergence_threshold) else 1,
             -float(topic["score"]),
             topic["topic_id"],
         ),
     )
     selected_ids = {topic["topic_id"] for topic in ranked[:max_topics]}
+    if target_topic is not None and target_topic in topic_ids and max_topics > 0:
+        selected_ids = {target_topic}
     entries = []
     for topic in topics:
         topic_id = topic["topic_id"]

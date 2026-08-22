@@ -391,7 +391,11 @@ export async function generateResearchReports(
       .slice(0, MAX_EVIDENCE_ITEMS);
     if (evidence.length === 0) throw new HttpError(409, "research_evidence_missing", [topic.topic_id]);
 
-    const reportId = `report_${request.run_id}_${topic.topic_id}`;
+    const generationMode = request.generation_mode
+      ?? (model === DETERMINISTIC_RESEARCH_MODEL ? "deterministic_baseline" : "ai_enrichment");
+    const reportId = request.generation_mode === undefined
+      ? `report_${request.run_id}_${topic.topic_id}`
+      : `report_${request.run_id}_${topic.topic_id}_${generationMode === "ai_enrichment" ? "ai" : "baseline"}`;
     const existing = await env.DB.prepare(
       "SELECT object_key FROM research_reports WHERE report_id = ?",
     ).bind(reportId).first<StoredRow>();
@@ -469,6 +473,7 @@ export async function generateResearchReports(
       agent_version: RESEARCH_AGENT_VERSION,
       report_version: 2,
       report_profile: reportProfile,
+      generation_mode: generationMode,
       ...(request.research_question === undefined ? {} : { research_question: request.research_question }),
       ...(request.target === undefined ? {} : { target: request.target }),
       as_of: topicSnapshot.as_of,
@@ -534,9 +539,9 @@ function addProfessionalDataGaps(
       });
     }
     const conflicts = Array.isArray(depth.source_conflicts) ? depth.source_conflicts : [];
-    if (conflicts.some((conflict) => isRecord(conflict) && conflict.method === "lexical_stance_v1")) {
+    if (conflicts.some((conflict) => isRecord(conflict) && conflict.method === "source_conflict_screen_v2")) {
       additions.push({
-        text: "Source conflict detection is a lexical screening pass; independent stance calibration remains unresolved.",
+        text: "Source conflict detection is a calibrated-screening gap; independent stance calibration remains unresolved.",
         evidence_ids: [anchor],
       });
     }
@@ -808,6 +813,7 @@ function summarizeFinancialDepth(depth: Record<string, unknown> | undefined): Re
   const timeSeries = isRecord(depth.time_series) ? depth.time_series : {};
   const valuation = isRecord(depth.valuation) ? depth.valuation : {};
   const scenarios = isRecord(depth.scenarios) ? depth.scenarios : {};
+  const marketDrivers = isRecord(depth.market_drivers) ? depth.market_drivers : {};
   const conflicts = Array.isArray(depth.source_conflicts)
     ? depth.source_conflicts.map((conflict) => {
       if (!isRecord(conflict)) return { status: "unknown" };
@@ -844,6 +850,7 @@ function summarizeFinancialDepth(depth: Record<string, unknown> | undefined): Re
       not_a_forecast: scenarios.not_a_forecast,
       scenarios: scenarios.scenarios,
     },
+    market_drivers: marketDrivers,
     source_conflicts: conflicts,
   };
 }

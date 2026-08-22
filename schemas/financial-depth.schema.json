@@ -12,7 +12,8 @@
     "fundamentals": { "$ref": "#/$defs/data_status" },
     "valuation": { "$ref": "#/$defs/data_status" },
     "scenarios": { "type": "object", "additionalProperties": true },
-    "source_conflicts": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+    "source_conflicts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "market_drivers": { "type": "object", "additionalProperties": true }
   },
   "$defs": {
     "time_series": {

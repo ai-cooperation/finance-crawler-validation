@@ -30,6 +30,18 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/sha256" }
     },
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["policy", "input_item_count", "relevant_item_count", "relevant_source_group_count", "input_item_ids"],
+      "properties": {
+        "policy": { "type": "string", "minLength": 1 },
+        "input_item_count": { "type": "integer", "minimum": 0 },
+        "relevant_item_count": { "type": "integer", "minimum": 0 },
+        "relevant_source_group_count": { "type": "integer", "minimum": 0 },
+        "input_item_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } }
+      }
+    },
     "topics": {
       "type": "array",
       "maxItems": 3,

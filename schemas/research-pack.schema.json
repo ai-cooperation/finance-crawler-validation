@@ -42,9 +42,11 @@
         "normalized_item_count": { "type": "integer", "minimum": 0 },
         "target_relevant_item_count": { "type": "integer", "minimum": 0 },
         "model_context_item_count": { "type": "integer", "minimum": 0 },
-        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 }
+        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 },
+        "target_relevant_source_group_count": { "type": "integer", "minimum": 0 }
       }
     },
+    "target_scope": { "type": "object", "additionalProperties": true },
     "requirement": { "type": "object", "additionalProperties": true },
     "source_bundle_plan": { "type": "object", "additionalProperties": true },
     "harness": {
@@ -97,7 +99,8 @@
         "normalized_item_count": { "type": "integer", "minimum": 0 },
         "target_relevant_item_count": { "type": "integer", "minimum": 0 },
         "model_context_item_count": { "type": "integer", "minimum": 0 },
-        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 }
+        "evidence_appendix_item_count": { "type": "integer", "minimum": 0 },
+        "target_relevant_source_group_count": { "type": "integer", "minimum": 0 }
       }
     },
     "producer": {

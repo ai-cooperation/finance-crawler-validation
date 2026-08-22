@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Sequence
 
 from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.radar import build_topic_snapshot
+from finance_crawler_poc.target_scope import select_target_items
 
 
 def assemble_h3_artifacts(
@@ -30,8 +30,9 @@ def assemble_h3_artifacts(
     items = _dedupe_items([*news.get("items", []), *radar.get("items", [])])
     checkpoints = _merge_checkpoints([*news.get("checkpoints", []), *radar.get("checkpoints", [])])
     failed_sources = [str(row["source_id"]) for row in checkpoints if row.get("status") != "success"]
+    target_items, target_scope = select_target_items(items, target=target, question=question)
     topic_snapshot = build_topic_snapshot(
-        items,
+        target_items,
         run_id=run_id,
         snapshot_id=snapshot_id,
         as_of=collected_at,
@@ -42,7 +43,6 @@ def assemble_h3_artifacts(
     source_manifest_hash = hashlib.sha256(
         json.dumps({"news": news.get("source_manifest_hash"), "radar": radar.get("source_manifest_hash")}, sort_keys=True).encode()
     ).hexdigest()
-    target_relevant = [item for item in items if _is_relevant(item, target, question)]
     result = {
         "schema_version": 1,
         "operation": "upsert_items",
@@ -59,9 +59,10 @@ def assemble_h3_artifacts(
         "endpoint_attempt_count": int(news.get("endpoint_attempt_count", 0)) + len(radar.get("checkpoints", [])),
         "normalized_item_count": len(items),
         "normalization_error_count": int(news.get("normalization_error_count", 0)),
-        "target_relevant_item_count": len(target_relevant),
-        "model_context_item_count": len(target_relevant),
-        "evidence_appendix_item_count": len(items),
+        "target_relevant_item_count": len(target_items),
+        "model_context_item_count": len(target_items),
+        "evidence_appendix_item_count": len(target_items),
+        "target_scope": target_scope,
         "failed_sources": failed_sources,
     }
     ingest_envelope = {key: result[key] for key in (
@@ -104,18 +105,6 @@ def _merge_checkpoints(checkpoints: list[dict[str, Any]]) -> list[dict[str, Any]
         if existing is None or checkpoint.get("status") == "success":
             by_source[source_id] = checkpoint
     return list(by_source.values())
-
-
-def _is_relevant(item: dict[str, Any], target: dict[str, Any] | None, question: str | None) -> bool:
-    terms: list[str] = []
-    if target:
-        terms.extend(str(target.get(key, "")) for key in ("symbol", "name", "market"))
-    if question:
-        terms.extend(re.findall(r"[A-Za-z0-9]{3,}", question))
-    if not terms:
-        return True
-    haystack = f"{item.get('title', '')} {item.get('summary', '')}".casefold()
-    return any(term.casefold() in haystack for term in terms if term)
 
 
 def _write_json(path: Path, payload: object) -> None:

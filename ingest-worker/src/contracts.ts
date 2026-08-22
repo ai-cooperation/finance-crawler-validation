@@ -112,6 +112,7 @@ export interface TopicSnapshot {
   failed_sources: string[];
   input_item_ids: string[];
   topics: RadarTopic[];
+  target_scope?: Record<string, unknown>;
 }
 
 export interface MarketInstrument {
@@ -142,6 +143,7 @@ export interface FinancialDepth {
   valuation: Record<string, unknown>;
   scenarios: Record<string, unknown>;
   source_conflicts: Array<Record<string, unknown>>;
+  market_drivers?: Record<string, unknown>;
 }
 
 export interface AlignedTopic {
@@ -261,6 +263,7 @@ export interface ResearchReport {
   agent_version: string;
   report_version?: 2;
   report_profile?: "detailed_traceable" | "compact_traceable";
+  generation_mode?: "deterministic_baseline" | "ai_enrichment";
   research_question?: string;
   target?: ResearchTarget;
   as_of?: string;
@@ -309,6 +312,7 @@ export interface ResearchAgentRequest {
   research_question?: string;
   authorize_model_execution: true;
   report_profile?: "detailed_traceable" | "compact_traceable";
+  generation_mode?: "deterministic_baseline" | "ai_enrichment";
   requested_outputs?: Array<"quick_card" | "detailed_report" | "evidence_appendix">;
   model?: string;
   max_reports?: number;
@@ -402,7 +406,9 @@ export interface ResearchPack {
     target_relevant_item_count?: number;
     model_context_item_count?: number;
     evidence_appendix_item_count?: number;
+    target_relevant_source_group_count?: number;
   };
+  target_scope?: Record<string, unknown>;
   requirement?: object;
   source_bundle_plan?: object;
   topics: RadarTopic[];
@@ -443,6 +449,7 @@ export interface ResearchPack {
     target_relevant_item_count?: number;
     model_context_item_count?: number;
     evidence_appendix_item_count?: number;
+    target_relevant_source_group_count?: number;
   };
   producer: {
     pipeline_version: string;

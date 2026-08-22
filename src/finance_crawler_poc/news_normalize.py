@@ -21,6 +21,7 @@ from typing import Any, Sequence
 from urllib.parse import urljoin
 
 from finance_crawler_poc.contracts import ContractValidationError, validate_contract
+from finance_crawler_poc.target_scope import select_target_items
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -75,11 +76,6 @@ def normalize_news_capture(
             continue
         try:
             item = _normalize_payload(record, body, collected_at=collected_at)
-            if target or question:
-                item["_target_relevance"] = _target_relevance(item, target=target, question=question)
-            else:
-                item["_target_relevance"] = True
-            item.pop("_target_relevance", None)
             validate_contract("raw-item", item)
         except (ContractValidationError, ValueError) as exc:
             # One malformed extractor result must not discard the other 180+
@@ -99,6 +95,7 @@ def normalize_news_capture(
     failed_endpoint_count = sum(
         record.get("outcome") != "success" for record in records if isinstance(record, dict)
     )
+    scoped_items, target_scope = select_target_items(items, target=target, question=question)
     normalized = {
         "schema_version": 1,
         "operation": "upsert_items",
@@ -118,9 +115,12 @@ def normalize_news_capture(
         "normalization_error_count": len(normalization_errors),
         "normalization_errors": normalization_errors,
         "normalized_item_count": len(items),
-        "target_relevant_item_count": len(items),
-        "model_context_item_count": len(items),
-        "evidence_appendix_item_count": len(items),
+        # Raw items stay complete/public.  These counters describe the
+        # target-scoped view consumed by radar and report generation.
+        "target_relevant_item_count": len(scoped_items),
+        "model_context_item_count": len(scoped_items),
+        "evidence_appendix_item_count": len(scoped_items),
+        "target_scope": target_scope,
     }
     # A completely failed capture is still a useful diagnostic result, but it
     # cannot be submitted to the ingest endpoint because that contract
@@ -228,16 +228,6 @@ def _checkpoint(brand_id: str, records: list[dict[str, Any]], collected_at: str)
         "last_article_date": None,
         "cursor": None,
     }
-
-
-def _target_relevance(item: dict[str, Any], *, target: dict[str, Any] | None, question: str | None) -> bool:
-    terms = []
-    if target:
-        terms.extend(str(target.get(key, "")) for key in ("symbol", "name", "market"))
-    if question:
-        terms.extend(re.findall(r"[A-Za-z0-9]{3,}", question))
-    haystack = f"{item['title']} {item['summary']}".lower()
-    return not terms or any(term.lower() in haystack for term in terms if term)
 
 
 def _first_mapping(value: Any) -> dict[str, Any] | None:

@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.tradingagents_plan import build_tradingagents_run_plan
@@ -24,6 +24,7 @@ def write_tradingagents_plan(
     max_usd: float,
     model: str,
     requested_topic_ids: Sequence[str] = (),
+    target: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     topic_snapshot = _read_object(topic_snapshot_path, "topic snapshot")
     alignment = _read_object(alignment_path, "market alignment") if alignment_path else None
@@ -38,6 +39,7 @@ def write_tradingagents_plan(
         max_usd=max_usd,
         model=model,
         requested_topic_ids=requested_topic_ids,
+        target=target,
     )
     output_directory.mkdir(parents=True, exist_ok=True)
     _write_json(output_directory / "tradingagents-run-plan.json", plan)
@@ -101,6 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-usd", type=float, default=0.0)
     parser.add_argument("--model", default="tradingagents-deferred")
     parser.add_argument("--requested-topic-id", action="append", default=[])
+    parser.add_argument("--target-json")
     return parser
 
 
@@ -119,6 +122,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_usd=args.max_usd,
         model=args.model,
         requested_topic_ids=args.requested_topic_id,
+        target=json.loads(args.target_json) if args.target_json else None,
     )
     print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     return 0

@@ -14,6 +14,7 @@ import {
   validateResearchReportEnvelope,
   validateMarketAlignmentEnvelope,
   validateTopicSnapshot,
+  PayloadValidationError,
 } from "./contracts";
 import type { AuthContext, McpAuthContext } from "./auth";
 import {
@@ -23,7 +24,7 @@ import {
   sha256Hex,
 } from "./storage";
 import { canonicalJson } from "./canonical-json";
-import { DETERMINISTIC_RESEARCH_MODEL, generateResearchReports, type AiRunner } from "./research-agent";
+import { generateResearchReports, type AiRunner } from "./research-agent";
 import {
   buildPersistedResearchPlan,
   type ResearchRequirement,
@@ -424,11 +425,7 @@ export async function executeResearchJob(
         report_profile: request.requirements.report_profile,
         requested_outputs: request.requirements.requested_outputs,
         max_reports: 3,
-        // Cloudflare's synchronous request window is bounded. Full-catalog
-        // MCP jobs therefore publish a deterministic, evidence-linked first
-        // opinion; the AI report path remains available for explicit Actions
-        // report runs and later user-triggered enrichment.
-        ...(fullCatalog ? { model: DETERMINISTIC_RESEARCH_MODEL } : {}),
+        ...(fullCatalog ? { generation_mode: "ai_enrichment" as const } : {}),
       },
       { workflowRunId: run.workflow_run_id, commitSha: run.commit_sha },
       now,
@@ -504,6 +501,7 @@ export async function executeResearchJob(
       job_id: row.job_id,
       error_code: code,
       error_message: error instanceof Error ? error.message : String(error),
+      error_details: error instanceof PayloadValidationError ? error.details : undefined,
       error_stack: error instanceof Error ? error.stack : undefined,
     }));
     await updateJob(env, row, status, now, code);
@@ -719,7 +717,13 @@ async function buildResearchPack(
   );
   const collectionScope = planner?.source_bundle.collection_scope ?? request.requirements.collection_scope ?? "legacy_smoke";
   const maxContextItems = request.requirements.max_context_items ?? (collectionScope === "full_catalog" ? 120 : request.requirements.max_sources);
-  const initialItems = rawItems.slice(0, maxContextItems);
+  const scopedIds = new Set<string>(
+    Array.isArray((topicSnapshot as unknown as Record<string, any>).target_scope && (topicSnapshot as unknown as Record<string, any>).target_scope.input_item_ids)
+      ? ((topicSnapshot as unknown as Record<string, any>).target_scope.input_item_ids as unknown[]).filter((id): id is string => typeof id === "string")
+      : topicSnapshot.input_item_ids,
+  );
+  const targetRelevantItems = rawItems.filter((item) => scopedIds.has(item.item_id));
+  const initialItems = targetRelevantItems.slice(0, maxContextItems);
   const reports: ResearchReport[] = [];
   for (const reportId of reportIds) {
     const reportRow = await env.DB.prepare(
@@ -742,7 +746,7 @@ async function buildResearchPack(
   // not audit a claim back to its source.
   const includedItemIds = new Set(
     collectionScope === "full_catalog"
-      ? rawItems.map((item) => item.item_id)
+      ? targetRelevantItems.map((item) => item.item_id)
       : initialItems.map((item) => item.item_id),
   );
   for (const report of reports) {
@@ -757,20 +761,24 @@ async function buildResearchPack(
   }
   const limitedItems = rawItems.filter((item) => includedItemIds.has(item.item_id));
   const sourceIds = new Set(limitedItems.map((item) => item.source_id));
+  const targetSourceIds = new Set(targetRelevantItems.map((item) => item.source_id));
   const failedSources = Array.isArray(topicSnapshot.failed_sources)
     ? topicSnapshot.failed_sources.filter((source): source is string => typeof source === "string")
     : [];
   const snapshotTime = Date.parse(topicSnapshot.as_of);
   const stale = Number.isFinite(snapshotTime) && now.getTime() - snapshotTime > 86_400_000;
   const expectedSourceGroups = planner?.source_bundle.expected_source_group_count ?? request.requirements.max_sources;
+  // Coverage measures source collection health, not how many sources happened
+  // to publish a target headline.  A BTC pack with no BTC headline must not
+  // be misreported as a failed crawl.
   const coverageRatio = expectedSourceGroups === 0
     ? 0
-    : Math.min(1, sourceIds.size / expectedSourceGroups);
+    : Math.min(1, Math.max(0, (expectedSourceGroups - failedSources.length) / expectedSourceGroups));
   const harness = await buildInvestmentHarnessArtifacts({
     target: request.target as unknown as Record<string, unknown>,
     topics: topicSnapshot.topics,
-    input_item_count: rawItems.length,
-    input_source_count: sourceIds.size,
+    input_item_count: targetRelevantItems.length,
+    input_source_count: targetSourceIds.size,
     snapshot_id: run.snapshot_id,
     generated_at: topicSnapshot.as_of,
     collection_scope: collectionScope,
@@ -795,7 +803,9 @@ async function buildResearchPack(
       target_relevant_item_count: limitedItems.length,
       model_context_item_count: initialItems.length,
       evidence_appendix_item_count: limitedItems.length,
+      target_relevant_source_group_count: targetSourceIds.size,
     },
+    ...(topicSnapshot.target_scope === undefined ? {} : { target_scope: topicSnapshot.target_scope }),
     ...(planner === null ? {} : {
       requirement: planner.requirement,
       source_bundle_plan: planner.source_bundle,
@@ -828,6 +838,7 @@ async function buildResearchPack(
       target_relevant_item_count: limitedItems.length,
       model_context_item_count: initialItems.length,
       evidence_appendix_item_count: limitedItems.length,
+      target_relevant_source_group_count: targetSourceIds.size,
     },
     producer: {
       pipeline_version: PIPELINE_VERSION,

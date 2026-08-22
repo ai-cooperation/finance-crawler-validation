@@ -226,6 +226,7 @@ jobs:
               plan_id: $plan_id,
               alignment_id: $alignment_id,
               authorize_model_execution: true,
+              generation_mode: "ai_enrichment",
               max_reports: 3
             }' >"$RUNNER_TEMP/research-agent-request.json"
           response_status="$(curl --silent --show-error \
@@ -533,6 +534,8 @@ jobs:
           !inputs.verify_freshness_watchdog &&
           !inputs.verify_soak_boundary &&
           !inputs.verify_research_reports
+        env:
+          TARGET_JSON: ${{ inputs.research_target }}
         run: |
           finance-tradingagents-plan \
             --topic-snapshot artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/topic-snapshot.json \
@@ -544,7 +547,8 @@ jobs:
             --max-claims-per-topic 6 \
             --max-tokens 12000 \
             --max-usd 0 \
-            --model tradingagents-deferred
+            --model tradingagents-deferred \
+            --target-json "$TARGET_JSON"
 
       - name: Ingest and publish through GitHub OIDC
         if: >-

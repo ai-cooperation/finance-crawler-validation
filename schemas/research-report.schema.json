@@ -36,6 +36,7 @@
     "agent_version": { "type": "string", "minLength": 1, "maxLength": 100 },
     "report_version": { "const": 2 },
     "report_profile": { "enum": ["detailed_traceable", "compact_traceable"] },
+    "generation_mode": { "enum": ["deterministic_baseline", "ai_enrichment"] },
     "research_question": { "type": "string", "minLength": 10, "maxLength": 2000 },
     "target": { "$ref": "#/$defs/target" },
     "as_of": { "type": "string", "format": "date-time" },

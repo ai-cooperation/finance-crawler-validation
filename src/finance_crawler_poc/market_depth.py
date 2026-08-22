@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from finance_crawler_poc.professional_analysis import (
+    build_market_driver_snapshot,
     build_scenario_analysis,
     build_source_conflict_report,
     build_time_series_snapshot,
@@ -72,11 +73,18 @@ def build_financial_depth(
         current_price=current_price if isinstance(current_price, (int, float)) else None,
         horizon="observed_window",
     )
-    conflict = build_source_conflict_report(evidence, topic_id="target")
+    evidence_list = list(evidence)
+    conflict = build_source_conflict_report(evidence_list, topic_id="target")
+    market_drivers = build_market_driver_snapshot(
+        target=target,
+        market_snapshot=market_snapshot,
+        time_series=time_series,
+        evidence=evidence_list,
+    )
     if (
         time_series["status"] == "available"
         and valuation["status"] in {"available", "not_applicable"}
-        and conflict["method"] == "calibrated_stance_v1"
+        and conflict.get("calibration_status") == "calibrated"
     ):
         status = "professional_ready"
     elif time_series["status"] == "available":
@@ -89,10 +97,11 @@ def build_financial_depth(
         "schema_version": 1,
         "status": status,
         "time_series": time_series,
-        "fundamentals": {"status": "unavailable", "missing_reason": "provider_not_configured"},
+        "fundamentals": dict(fundamentals) if fundamentals is not None else {"status": "unavailable", "missing_reason": "provider_not_configured"},
         "valuation": valuation,
         "scenarios": scenarios,
         "source_conflicts": [conflict],
+        "market_drivers": market_drivers,
     }
 
 

@@ -96,6 +96,20 @@ def test_conflict_report_preserves_unknown_and_detects_mixed_stances() -> None:
     assert report["conflict_level"] == "high"
     assert report["counts"] == {"positive": 1, "negative": 1, "neutral": 0, "unknown": 1}
     assert set(report["evidence_ids"]) == {"a" * 64, "b" * 64, "c" * 64}
+    assert report["method"] == "source_conflict_screen_v2"
+    assert report["calibration_status"] == "unresolved"
+
+
+def test_time_series_exposes_short_observed_return_windows() -> None:
+    snapshot = build_time_series_snapshot(
+        [{"observed_at": f"2026-01-{day:02d}T00:00:00Z", "value": float(day)} for day in range(1, 9)],
+        series_id="BTC",
+        provider="fixture",
+        as_of="2026-01-08T00:00:00Z",
+        source_item_ids=[],
+    )
+    assert snapshot["returns"]["3d_observed_pct"] == 60.0
+    assert snapshot["returns"]["7d_observed_pct"] == 700.0
 
 
 def test_invalid_time_series_input_is_rejected() -> None:

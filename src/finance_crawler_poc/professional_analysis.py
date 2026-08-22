@@ -8,6 +8,8 @@ and records when a requested calculation is not applicable or lacks inputs.
 from __future__ import annotations
 
 import math
+import hashlib
+import re
 from collections import Counter
 from datetime import datetime, timezone
 from statistics import pstdev
@@ -61,6 +63,8 @@ def build_time_series_snapshot(
     returns: dict[str, float | None] = {
         "observed_pct": _pct_change(values[0], values[-1]) if len(values) >= 2 else None,
     }
+    for window in (1, 3, 7, 30, 90, 365):
+        returns[f"{window}d_observed_pct"] = _window_return(ordered, window)
     daily_returns = [
         (current / previous) - 1
         for previous, current in zip(values, values[1:])
@@ -212,17 +216,23 @@ def build_source_conflict_report(
         else:
             stance = "unknown"
             reason = "no_calibrated_stance_signal"
+        canonical = str(item.get("canonical_url") or "")
+        title_key = re.sub(r"[^a-z0-9]+", " ", str(item.get("title") or "").lower()).strip()
+        cluster = hashlib.sha256((canonical or title_key).encode("utf-8")).hexdigest()[:16]
         observations.append({
             "evidence_id": item_id,
             "source_id": source_id,
+            "cluster_id": cluster,
             "stance": stance,
             "reason": reason,
         })
     counts = Counter(observation["stance"] for observation in observations)
     positive = counts.get("positive", 0)
     negative = counts.get("negative", 0)
-    if positive and negative:
-        conflict_level = "high" if min(positive, negative) >= 1 else "medium"
+    positive_clusters = {observation["cluster_id"] for observation in observations if observation["stance"] == "positive"}
+    negative_clusters = {observation["cluster_id"] for observation in observations if observation["stance"] == "negative"}
+    if positive_clusters and negative_clusters:
+        conflict_level = "high"
     elif positive or negative:
         conflict_level = "low"
     else:
@@ -230,7 +240,8 @@ def build_source_conflict_report(
     return {
         "schema_version": 1,
         "topic_id": topic_id,
-        "method": "lexical_stance_v1",
+        "method": "source_conflict_screen_v2",
+        "calibration_status": "unresolved",
         "status": "available" if observations else "insufficient_data",
         "conflict_level": conflict_level,
         "counts": {
@@ -239,7 +250,8 @@ def build_source_conflict_report(
             "neutral": counts.get("neutral", 0),
             "unknown": counts.get("unknown", 0),
         },
-        "independent_source_count": len({observation["source_id"] for observation in observations}),
+        "independent_source_count": len({observation["cluster_id"] for observation in observations}),
+        "cluster_count": len({observation["cluster_id"] for observation in observations}),
         "observations": observations,
         "evidence_ids": [observation["evidence_id"] for observation in observations],
         "limitations": [
@@ -249,8 +261,90 @@ def build_source_conflict_report(
     }
 
 
+def build_market_driver_snapshot(
+    *,
+    target: Mapping[str, Any],
+    market_snapshot: Mapping[str, Any],
+    time_series: Mapping[str, Any],
+    evidence: Iterable[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Build observed market drivers without turning headlines into causality."""
+
+    symbol = str(target.get("symbol") or "").upper()
+    instrument = next(
+        (candidate for candidate in market_snapshot.get("instruments", [])
+         if isinstance(candidate, Mapping) and str(candidate.get("symbol") or "").upper() == symbol),
+        None,
+    )
+    events: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    driver_terms = (
+        ("etf", "ETF flows"), ("institution", "Institutional demand"),
+        ("inflow", "Fund inflows"), ("outflow", "Fund outflows"),
+        ("regulation", "Regulation"), ("regulatory", "Regulation"),
+        ("rate", "Rates and liquidity"), ("liquidity", "Rates and liquidity"),
+        ("liquidation", "Liquidations"), ("leverage", "Leverage"),
+        ("hack", "Security event"), ("approval", "Approval/catalyst"),
+    )
+    for item in evidence:
+        item_id = item.get("item_id")
+        if not isinstance(item_id, str):
+            continue
+        text = " ".join(str(item.get(field) or "") for field in ("title", "summary")).casefold()
+        matched = next(((term, label) for term, label in driver_terms if term in text), None)
+        if matched is None:
+            continue
+        term, label = matched
+        key = re.sub(r"[^a-z0-9]+", " ", str(item.get("title") or "").casefold()).strip()[:120]
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        events.append({
+            "event_id": hashlib.sha256(key.encode("utf-8")).hexdigest()[:16],
+            "label": label,
+            "trigger_term": term,
+            "title": str(item.get("title") or "")[:300],
+            "evidence_ids": [item_id],
+            "source_count": 1,
+            "causal_status": "unresolved",
+        })
+    return {
+        "schema_version": 1,
+        "status": "partial" if events else "unresolved",
+        "target": dict(target),
+        "price_and_returns": {
+            "price": instrument.get("price") if isinstance(instrument, Mapping) else None,
+            "change_24h_pct": instrument.get("change_24h_pct") if isinstance(instrument, Mapping) else None,
+            "market_cap": instrument.get("market_cap") if isinstance(instrument, Mapping) else None,
+            "returns": dict(time_series.get("returns", {})),
+        },
+        "provider_status": {
+            "volume": {"status": "unavailable", "reason": "provider_not_configured"},
+            "etf_flows": {"status": "unavailable", "reason": "provider_not_configured"},
+            "derivatives": {"status": "unavailable", "reason": "provider_not_configured"},
+            "on_chain": {"status": "unavailable", "reason": "provider_not_configured"},
+        },
+        "news_driver_candidates": events[:12],
+        "limitations": [
+            "headline matches are candidate drivers, not causal attribution",
+            "provider gaps prevent volume, flows, derivatives, and on-chain confirmation",
+        ],
+    }
+
+
 def _pct_change(start: float, end: float) -> float:
     return round(((end / start) - 1) * 100, 6)
+
+
+def _window_return(points: list[Mapping[str, Any]], days: int) -> float | None:
+    if len(points) < 2:
+        return None
+    # Daily market providers normally expose one point per day.  Use the
+    # nearest available observation when a provider has a missing day.
+    index = max(0, len(points) - 1 - days)
+    if index >= len(points) - 1:
+        return None
+    return _pct_change(float(points[index]["value"]), float(points[-1]["value"]))
 
 
 def _max_drawdown(values: list[float]) -> float:

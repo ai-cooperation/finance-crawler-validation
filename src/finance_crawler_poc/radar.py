@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
+from finance_crawler_poc.target_scope import select_target_items
+
 
 @dataclass(frozen=True)
 class TopicDefinition:
@@ -35,7 +37,8 @@ def build_topic_snapshot(
     target: Mapping[str, Any] | None = None,
     question: str | None = None,
 ) -> dict[str, Any]:
-    item_list = list(items)
+    all_items = list(items)
+    item_list, target_scope = select_target_items(all_items, target=target, question=question)
     target_terms = _target_terms(target, question)
     ranked: list[dict[str, Any]] = []
     for definition in TOPICS:
@@ -83,6 +86,7 @@ def build_topic_snapshot(
         "failed_sources": failures,
         "input_item_ids": list(dict.fromkeys(str(item["item_id"]) for item in item_list)),
         "topics": topics,
+        "target_scope": target_scope,
     }
 
 
