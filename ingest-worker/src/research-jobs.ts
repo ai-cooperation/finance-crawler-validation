@@ -6,6 +6,7 @@ import {
   type ResearchReport,
   type ResearchEvidenceGraph,
   type ResearchEvidenceGraphClaim,
+  type FinancialDepth,
   validateResearchJobRequest,
   validateResearchPack,
   validateResearchJobCompletion,
@@ -788,6 +789,11 @@ async function buildResearchPack(
     collection_scope: collectionScope,
   });
   const evidenceGraph = buildEvidenceGraph(reports);
+  const financialDepth = enrichFinancialDepth(
+    validatedAlignment.market_snapshot.financial_depth ?? null,
+    request.target,
+    limitedItems,
+  );
   const targetTopicId = request.target.kind === "crypto"
     ? "digital_assets"
     : request.target.kind === "equity"
@@ -845,10 +851,10 @@ async function buildResearchPack(
       source_bundle_plan: planner.source_bundle,
     }),
     topics: scopedTopics,
-    market: request.requirements.include_market_data ? validatedAlignment.market_snapshot : null,
-    financial_depth: request.requirements.include_market_data
-      ? validatedAlignment.market_snapshot.financial_depth ?? null
+    market: request.requirements.include_market_data
+      ? { ...validatedAlignment.market_snapshot, financial_depth: financialDepth ?? undefined }
       : null,
+    financial_depth: request.requirements.include_market_data ? financialDepth : null,
     reports,
     evidence_graph: evidenceGraph,
     ...harness,
@@ -921,6 +927,66 @@ function targetMatchesEvidence(item: RawItemRow, target: ResearchJobRequest["tar
   if (target.kind === "equity") terms.push("stock", "equity", "shares", "earnings");
   if (target.kind === "etf") terms.push("etf", "exchange traded fund");
   return terms.some((term) => term.includes(" ") ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`).test(text));
+}
+
+function enrichFinancialDepth(
+  depth: FinancialDepth | null | undefined,
+  target: ResearchJobRequest["target"],
+  evidence: RawItemRow[],
+): FinancialDepth | null {
+  if (depth === null || depth === undefined) return null;
+  if (depth.market_drivers !== undefined) return depth;
+  const timeSeries = isRecord(depth.time_series) ? depth.time_series : {};
+  const returns = isRecord(timeSeries.returns) ? timeSeries.returns : {};
+  const candidates: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
+  const terms: Array<[string, string]> = [
+    ["etf", "ETF flows"], ["inflow", "Fund inflows"], ["outflow", "Fund outflows"],
+    ["regulation", "Regulation"], ["rate", "Rates and liquidity"],
+    ["liquidation", "Liquidations"], ["leverage", "Leverage"],
+    ["approval", "Approval/catalyst"], ["hack", "Security event"],
+  ];
+  for (const item of evidence) {
+    const text = `${item.title} ${item.summary}`.toLowerCase();
+    const matched = terms.find(([term]) => text.includes(term));
+    const title = item.title.trim();
+    if (!matched || !title) continue;
+    const key = title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().slice(0, 120);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    candidates.push({
+      event_id: key,
+      label: matched[1],
+      title: title.slice(0, 300),
+      evidence_ids: [item.item_id],
+      source_count: 1,
+      causal_status: "unresolved",
+    });
+  }
+  return {
+    ...depth,
+    market_drivers: {
+      schema_version: 1,
+      status: "unresolved",
+      target,
+      price_and_returns: { returns },
+      provider_status: {
+        volume: { status: "unavailable", reason: "provider_not_configured" },
+        etf_flows: { status: "unavailable", reason: "provider_not_configured" },
+        derivatives: { status: "unavailable", reason: "provider_not_configured" },
+        on_chain: { status: "unavailable", reason: "provider_not_configured" },
+      },
+      news_driver_candidates: candidates.slice(0, 12),
+      limitations: [
+        "headline matches are candidate drivers, not causal attribution",
+        "provider gaps prevent volume, flows, derivatives, and on-chain confirmation",
+      ],
+    },
+  } as FinancialDepth;
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function escapeRegExp(value: string): string {
