@@ -426,6 +426,7 @@ export async function executeResearchJob(
         requested_outputs: request.requirements.requested_outputs,
         max_reports: 3,
         ...(fullCatalog ? { generation_mode: "ai_enrichment" as const } : {}),
+        report_instance_id: jobId,
       },
       { workflowRunId: run.workflow_run_id, commitSha: run.commit_sha },
       now,
@@ -796,7 +797,20 @@ async function buildResearchPack(
         : undefined;
   const scopedTopics = targetTopicId === undefined
     ? topicSnapshot.topics
-    : topicSnapshot.topics.filter((topic) => topic.topic_id === targetTopicId);
+    : topicSnapshot.topics
+      .filter((topic) => topic.topic_id === targetTopicId)
+      .map((topic) => {
+        const scopedEvidenceIds = topic.evidence_ids.filter((itemId) => scopedIds.has(itemId));
+        const scopedSourceCount = new Set(
+          targetRelevantItems.filter((item) => scopedEvidenceIds.includes(item.item_id)).map((item) => item.source_id),
+        ).size;
+        return {
+          ...topic,
+          evidence_ids: scopedEvidenceIds.length > 0 ? scopedEvidenceIds : topic.evidence_ids.slice(0, 1),
+          item_count: scopedEvidenceIds.length > 0 ? scopedEvidenceIds.length : topic.item_count,
+          source_count: scopedSourceCount > 0 ? scopedSourceCount : topic.source_count,
+        };
+      });
   return {
     schema_version: 1,
     job_id: row.job_id,
@@ -806,14 +820,14 @@ async function buildResearchPack(
     source_bundle: {
       run_id: run.run_id,
       snapshot_id: run.snapshot_id,
-      source_count: sourceIds.size,
+      source_count: targetSourceIds.size,
       item_ids: limitedItems.map((item) => item.item_id),
       source_manifest_hash: run.source_manifest_hash,
       collection_scope: collectionScope,
       collection_source_group_count: expectedSourceGroups,
       endpoint_attempt_count: planner?.source_bundle.expected_endpoint_count ?? sourceIds.size,
       normalized_item_count: rawItems.length,
-      target_relevant_item_count: limitedItems.length,
+      target_relevant_item_count: targetRelevantItems.length,
       model_context_item_count: initialItems.length,
       evidence_appendix_item_count: limitedItems.length,
       target_relevant_source_group_count: targetSourceIds.size,
@@ -855,7 +869,7 @@ async function buildResearchPack(
       collection_source_group_count: expectedSourceGroups,
       endpoint_attempt_count: planner?.source_bundle.expected_endpoint_count ?? sourceIds.size,
       normalized_item_count: rawItems.length,
-      target_relevant_item_count: limitedItems.length,
+      target_relevant_item_count: targetRelevantItems.length,
       model_context_item_count: initialItems.length,
       evidence_appendix_item_count: limitedItems.length,
       target_relevant_source_group_count: targetSourceIds.size,

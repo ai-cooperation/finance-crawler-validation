@@ -45,6 +45,7 @@
     "authorize_model_execution": { "const": true },
     "model": { "type": "string", "minLength": 1, "maxLength": 200 },
     "generation_mode": { "enum": ["deterministic_baseline", "ai_enrichment"] },
+    "report_instance_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{7,63}$" },
     "max_reports": { "type": "integer", "minimum": 1, "maximum": 3 }
   }
 }

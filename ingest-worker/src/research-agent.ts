@@ -405,9 +405,12 @@ export async function generateResearchReports(
 
     const generationMode = request.generation_mode
       ?? (model === DETERMINISTIC_RESEARCH_MODEL ? "deterministic_baseline" : "ai_enrichment");
-    const reportId = request.generation_mode === undefined
+    const reportSuffix = request.report_instance_id === undefined
+      ? ""
+      : `_${request.report_instance_id}`;
+    const reportId = request.generation_mode === undefined && reportSuffix === ""
       ? `report_${request.run_id}_${topic.topic_id}`
-      : `report_${request.run_id}_${topic.topic_id}_${generationMode === "ai_enrichment" ? "ai" : "baseline"}`;
+      : `report_${request.run_id}_${topic.topic_id}_${generationMode === "ai_enrichment" ? "ai" : "baseline"}${reportSuffix}`;
     const existing = await env.DB.prepare(
       "SELECT object_key FROM research_reports WHERE report_id = ?",
     ).bind(reportId).first<StoredRow>();

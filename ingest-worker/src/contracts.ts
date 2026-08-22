@@ -264,6 +264,7 @@ export interface ResearchReport {
   report_version?: 2;
   report_profile?: "detailed_traceable" | "compact_traceable";
   generation_mode?: "deterministic_baseline" | "ai_enrichment";
+  report_instance_id?: string;
   research_question?: string;
   target?: ResearchTarget;
   as_of?: string;
@@ -313,6 +314,7 @@ export interface ResearchAgentRequest {
   authorize_model_execution: true;
   report_profile?: "detailed_traceable" | "compact_traceable";
   generation_mode?: "deterministic_baseline" | "ai_enrichment";
+  report_instance_id?: string;
   requested_outputs?: Array<"quick_card" | "detailed_report" | "evidence_appendix">;
   model?: string;
   max_reports?: number;
