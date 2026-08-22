@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "report_id": "report_local_full_btc_v9",
+  "generated_at": "2026-08-22T04:25:08Z",
+  "verdict": "PASS",
+  "checks": {
+    "schema_valid": true,
+    "evidence_refs_valid": true,
+    "all_sections_nonempty": true,
+    "professional_ready": true,
+    "fundamentals_available": true,
+    "providers_all_available": true,
+    "valuation_policy_explicit": true,
+    "conflict_calibrated": true,
+    "collection_partial_explicit": true,
+    "no_action_instruction": true,
+    "causal_limit_explicit": true,
+    "quality_gate": true
+  },
+  "claim_count": 13,
+  "data_gap_count": 5,
+  "evidence_count": 13,
+  "evidence_referenced_count": 9,
+  "model": "qwen3.8-27b",
+  "model_output_correction": "deterministic post-generation audit corrected valuation-policy wording, removed causal/forecast overreach, and added quantitative time-series claims; original output retained separately in local run artifacts.",
+  "limitations": [
+    "AI enrichment was run on the local Qwen endpoint, not Cloudflare Workers AI.",
+    "This is research_only and requires human review; it is not an investment decision."
+  ]
+}

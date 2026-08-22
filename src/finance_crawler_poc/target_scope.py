@@ -86,7 +86,27 @@ def select_target_items(
 
 
 def _matches_terms(item: Mapping[str, Any], terms: tuple[str, ...]) -> bool:
-    text = " ".join(str(item.get(field) or "") for field in ("title", "summary", "content")).casefold()
+    # The raw payload is retained for audit/replay, but it is not a relevance
+    # field. RSS feeds and browser captures commonly contain navigation,
+    # related-story rails, and footer links; matching those would turn a
+    # generic homepage into false evidence for the requested asset.
+    title = str(item.get("title") or "").strip()
+    summary = str(item.get("summary") or "").strip()
+    kind = str(item.get("kind") or "").casefold()
+    # A browser/HTML capture without an article timestamp is a page snapshot,
+    # not a dated evidence item. Its summary often contains the site's global
+    # navigation and must not make it target-relevant. Market/official data is
+    # exempt because the provider timestamp is the data observation itself.
+    if kind == "news" and not item.get("published_at"):
+        return False
+    if kind == "news" and re.search(r"\b(?:browser|html)\s+capture\b", title.casefold()):
+        return False
+    # News feeds are normalized to one item per editorial headline. Restrict
+    # their identity match to the headline; feed descriptions frequently
+    # concatenate several unrelated stories. Other typed data can use its
+    # short summary because the provider controls that field.
+    text_fields = (title,) if kind in {"news", "community", "developer_community"} else (title, summary)
+    text = " ".join(text_fields).casefold()
     for term in terms:
         if not term:
             continue

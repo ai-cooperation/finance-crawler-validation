@@ -153,3 +153,63 @@ def test_target_scope_excludes_generic_finance_headlines_from_btc_radar() -> Non
     assert snapshot["target_scope"]["input_item_count"] == 3
     assert snapshot["target_scope"]["relevant_item_count"] == 1
     assert snapshot["input_item_ids"] == [items[0]["item_id"]]
+
+
+def test_target_scope_ignores_btc_in_raw_channel_payload() -> None:
+    item = raw_item(
+        source_id="generic_news",
+        layer="news",
+        title="Markets homepage capture",
+    )
+    item["content"] = "Navigation links: Bitcoin, crypto, Ethereum and digital assets"
+    snapshot = build_topic_snapshot(
+        [item],
+        run_id="run_20260810t020500z",
+        snapshot_id="radar_20260810t020500z",
+        as_of="2026-08-10T02:05:00Z",
+        failed_sources=[],
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        question="What are the recent drivers and risks?",
+    )
+    assert snapshot["target_scope"]["relevant_item_count"] == 0
+    assert snapshot["topics"] == []
+
+
+def test_target_scope_excludes_unpublished_browser_capture_pages() -> None:
+    item = raw_item(
+        source_id="generic_news",
+        layer="news",
+        title="generic_news_browser capture",
+    )
+    item["summary"] = "Markets navigation: Bitcoin crypto Ethereum digital assets"
+    item["published_at"] = None
+    snapshot = build_topic_snapshot(
+        [item],
+        run_id="run_20260810t020500z",
+        snapshot_id="radar_20260810t020500z",
+        as_of="2026-08-10T02:05:00Z",
+        failed_sources=[],
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        question="What are the recent drivers and risks?",
+    )
+    assert snapshot["target_scope"]["relevant_item_count"] == 0
+
+
+def test_target_scope_uses_news_headline_not_multi_story_feed_summary() -> None:
+    item = raw_item(
+        source_id="finance_feed",
+        layer="news",
+        title="Bond market outlook",
+    )
+    item["summary"] = "Bond market outlook. Bitcoin roars back in a separate feed story."
+    item["published_at"] = "2026-08-10T02:05:00Z"
+    snapshot = build_topic_snapshot(
+        [item],
+        run_id="run_20260810t020500z",
+        snapshot_id="radar_20260810t020500z",
+        as_of="2026-08-10T02:05:00Z",
+        failed_sources=[],
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        question="What are the recent drivers and risks?",
+    )
+    assert snapshot["target_scope"]["relevant_item_count"] == 0

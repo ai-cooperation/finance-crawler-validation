@@ -1,0 +1,529 @@
+{
+  "schema_version": 1,
+  "report_id": "report_local_full_btc_v9",
+  "topic_snapshot_id": "radar_20260822t025751z",
+  "plan_id": "plan_local_quality_v9",
+  "alignment_id": "align_20260822t040506z",
+  "market_snapshot_id": "market_20260822t040506z",
+  "topic_id": "digital_assets",
+  "generated_at": "2026-08-22T04:25:08Z",
+  "expires_at": "2026-08-23T04:25:08Z",
+  "model": "qwen3.8-27b",
+  "agent_version": "local-report-quality-v2",
+  "report_version": 2,
+  "report_profile": "detailed_traceable",
+  "generation_mode": "ai_enrichment",
+  "research_question": "What is driving BTC now, and what could invalidate the thesis?",
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC",
+    "name": "Bitcoin"
+  },
+  "as_of": "2026-08-22T02:57:51.777706Z",
+  "summary": "BTC is observed at $78,424.00 with a 24h spot change of +5.7% and a 1d close-to-close return of -0.062%; these metrics use different observation boundaries and are non-comparable. The 7d, 30d and 365d observed returns are +24.20%, +20.35% and -33.04%, with 43.78% annualized volatility and a -53.05% maximum drawdown. Fundamentals and volume, ETF flows, derivatives and on-chain data are available; intrinsic valuation is not applicable by the current crypto policy. Collection is partial (116/120 news groups succeeded), and causal attribution remains unresolved.",
+  "second_opinion": true,
+  "evidence_ids": [
+    "af92da0885d640d8f3ff533c5f40b1a246d52d0c6aa35ef827d8746880162b6d",
+    "f39d0e1b0130d6b23cd02e713c515c4c04272cb2091354850b21685a76484a7b",
+    "e0aaf3e610f704f90effa13298d10424409cdd130adc005b4966efb5662aa9d8",
+    "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7",
+    "ca6eed32368f60739f4634b600faacde6f61cd1ad28a533e8d5ddacb440ef2c8",
+    "e0307dcd45c0c6bd4887e16325bfba4d04c76bcbf2ab9a916691514fb1106efc",
+    "ce90b98c63bd6d7b28109bff38163634c0497dc8d2f54925e352842c2bdb8207",
+    "911aaef5acd14ab760768590076d3e278742fceb8b29693d4d5f0e84dbe29d3c",
+    "62b4aabd24f075480c034cd93813fa4059c302ad5cd303936407e7aa4450c1ca",
+    "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101",
+    "70764ceb249ffb5584b59e6e4c13ed1897fc05e7846a461ef2d67f2066f0f045",
+    "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4",
+    "a81daca9d8e7e69f04cbd8317f9358e33dd992be16431deb10d8841ad801011d"
+  ],
+  "bull_case": [
+    {
+      "text": "Source-reported opinion from Ray Dalio recommends Bitcoin and gold while describing a potential debt-crisis signal; this is an opinion, not a verified causal link to the observed price move.",
+      "confidence": 0.6,
+      "evidence_ids": [
+        "af92da0885d640d8f3ff533c5f40b1a246d52d0c6aa35ef827d8746880162b6d",
+        "70764ceb249ffb5584b59e6e4c13ed1897fc05e7846a461ef2d67f2066f0f045"
+      ]
+    },
+    {
+      "text": "A Pantera Capital portfolio manager is quoted as viewing recent Bitcoin surges constructively; this is a source-reported stance, not an independent flow or performance measurement.",
+      "confidence": 0.55,
+      "evidence_ids": [
+        "e0307dcd45c0c6bd4887e16325bfba4d04c76bcbf2ab9a916691514fb1106efc"
+      ]
+    },
+    {
+      "text": "The observed 7d and 30d returns are positive (+24.20% and +20.35%), a descriptive momentum observation within the frozen provider window, not a forecast.",
+      "confidence": 0.9,
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    }
+  ],
+  "bear_case": [
+    {
+      "text": "The observed 365d return is -33.04% and the maximum drawdown is -53.05%, documenting substantial historical downside within the 365-day window.",
+      "confidence": 0.95,
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    },
+    {
+      "text": "A Bitcoin commentary item frames the asset as having no central point of control; the regulatory and enforcement implications remain a subjective source-reported view.",
+      "confidence": 0.45,
+      "evidence_ids": [
+        "62b4aabd24f075480c034cd93813fa4059c302ad5cd303936407e7aa4450c1ca"
+      ]
+    },
+    {
+      "text": "A reported Illinois lawsuit over a 0.2% digital-asset tax and proposed SEC crypto-asset rules show active regulatory events; their effect on BTC valuation is unresolved.",
+      "confidence": 0.7,
+      "evidence_ids": [
+        "e0aaf3e610f704f90effa13298d10424409cdd130adc005b4966efb5662aa9d8",
+        "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101"
+      ]
+    }
+  ],
+  "risk_view": [
+    {
+      "text": "Annualized volatility is 43.78% and the observed maximum drawdown is -53.05%; these are descriptive risk measures, not a probability of a future move.",
+      "confidence": 0.95,
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    },
+    {
+      "text": "A reported $130 million Bitcoin exploit was followed by Coldcard security changes; the item supports a custody-security risk flag, not a quantified probability of recurrence.",
+      "confidence": 0.75,
+      "evidence_ids": [
+        "ca6eed32368f60739f4634b600faacde6f61cd1ad28a533e8d5ddacb440ef2c8"
+      ]
+    },
+    {
+      "text": "The 24h ticker change (+5.7%) and 1d close-to-close return (-0.062%) are non-comparable observation boundaries; this timestamp mismatch limits short-horizon attribution.",
+      "confidence": 0.95,
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    }
+  ],
+  "catalysts": [
+    {
+      "text": "Candidate macro catalyst to monitor: debt-buyback and debt-crisis commentary cited by Ray Dalio; no causal effect on BTC is established in this pack.",
+      "confidence": 0.5,
+      "evidence_ids": [
+        "af92da0885d640d8f3ff533c5f40b1a246d52d0c6aa35ef827d8746880162b6d"
+      ]
+    },
+    {
+      "text": "Candidate regulatory catalyst to monitor: proposed SEC Reg CA rules could clarify issuance pathways; implementation and market effect are unresolved.",
+      "confidence": 0.45,
+      "evidence_ids": [
+        "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101"
+      ]
+    }
+  ],
+  "failure_conditions": [
+    {
+      "text": "Treat the constructive thesis as unresolved if regulatory events accumulate without a measurable BTC response in the aligned time window; this is a monitoring rule, not a forecast.",
+      "confidence": 0.65,
+      "evidence_ids": [
+        "e0aaf3e610f704f90effa13298d10424409cdd130adc005b4966efb5662aa9d8",
+        "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101"
+      ]
+    },
+    {
+      "text": "Treat the thesis as unresolved if additional custody exploits appear or security remediation cannot be independently verified; the current pack contains one reported incident only.",
+      "confidence": 0.7,
+      "evidence_ids": [
+        "ca6eed32368f60739f4634b600faacde6f61cd1ad28a533e8d5ddacb440ef2c8"
+      ]
+    }
+  ],
+  "data_gaps": [
+    {
+      "text": "Causal attribution for the current price movement is unresolved; the pack records temporal observations and source-reported opinions, not a causal identification design.",
+      "evidence_ids": [
+        "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7"
+      ]
+    },
+    {
+      "text": "Intrinsic valuation is not applicable by the current crypto policy, so no implied value or fair-value range is published even though supply and market-cap fields are available.",
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    },
+    {
+      "text": "The 24h ticker change (+5.7%) and 1d close-to-close return (-0.062%) use different observation boundaries and should not be combined as one return.",
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    },
+    {
+      "text": "News coverage is partial: private_banker_international, the_trade, etf_com and etf_stream failed, so relevant narratives may be missing.",
+      "evidence_ids": [
+        "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7"
+      ]
+    },
+    {
+      "text": "ETF flow, derivatives and on-chain observations have different latest timestamps; cross-series alignment and causal attribution remain unresolved.",
+      "evidence_ids": [
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4"
+      ]
+    }
+  ],
+  "recommendation_status": "research_only",
+  "professional_analysis": {
+    "schema_version": 1,
+    "status": "professional_ready",
+    "market_snapshot_id": "market_20260822t040506z",
+    "source_conflict_summary": {
+      "calibration": {
+        "calibration_set_id": "source_conflict_calibration_v1",
+        "calibration_set_sha256": "98048852f801740ad446cb334086041359bfebced36c0a28ec8f16d9aab5961b",
+        "classifier_version": "lexical_stance_v2_calibrated",
+        "labeling_note": "internal deterministic fixture; not an external sentiment benchmark",
+        "macro_f1": 1.0,
+        "metrics": {
+          "negative": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          },
+          "positive": {
+            "f1": 1.0,
+            "precision": 1.0,
+            "recall": 1.0
+          }
+        },
+        "oracle_type": "frozen_reference_labels",
+        "sample_count": 6,
+        "status": "calibrated"
+      },
+      "calibration_status": "calibrated",
+      "classifier_version": "lexical_stance_v2_calibrated",
+      "cluster_count": 11,
+      "conflict_level": "low",
+      "counts": {
+        "negative": 0,
+        "neutral": 0,
+        "positive": 1,
+        "unknown": 12
+      },
+      "evidence_ids": [
+        "af92da0885d640d8f3ff533c5f40b1a246d52d0c6aa35ef827d8746880162b6d",
+        "f39d0e1b0130d6b23cd02e713c515c4c04272cb2091354850b21685a76484a7b",
+        "e0aaf3e610f704f90effa13298d10424409cdd130adc005b4966efb5662aa9d8",
+        "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7",
+        "ca6eed32368f60739f4634b600faacde6f61cd1ad28a533e8d5ddacb440ef2c8",
+        "e0307dcd45c0c6bd4887e16325bfba4d04c76bcbf2ab9a916691514fb1106efc",
+        "ce90b98c63bd6d7b28109bff38163634c0497dc8d2f54925e352842c2bdb8207",
+        "911aaef5acd14ab760768590076d3e278742fceb8b29693d4d5f0e84dbe29d3c",
+        "62b4aabd24f075480c034cd93813fa4059c302ad5cd303936407e7aa4450c1ca",
+        "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101",
+        "70764ceb249ffb5584b59e6e4c13ed1897fc05e7846a461ef2d67f2066f0f045",
+        "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4",
+        "a81daca9d8e7e69f04cbd8317f9358e33dd992be16431deb10d8841ad801011d"
+      ],
+      "independent_source_count": 11,
+      "limitations": [
+        "lexical stance is a screening signal, not a sentiment oracle",
+        "source independence and coordinated reposts require separate verification"
+      ],
+      "method": "source_conflict_screen_v2",
+      "observations": [
+        {
+          "cluster_id": "aaaa5408fc7bca4f",
+          "evidence_id": "af92da0885d640d8f3ff533c5f40b1a246d52d0c6aa35ef827d8746880162b6d",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "cnbc",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "6d98922e10529830",
+          "evidence_id": "f39d0e1b0130d6b23cd02e713c515c4c04272cb2091354850b21685a76484a7b",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "stockhead",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "d094cca6e7e20b86",
+          "evidence_id": "e0aaf3e610f704f90effa13298d10424409cdd130adc005b4966efb5662aa9d8",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "coindesk",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "552e43ae5e35357a",
+          "evidence_id": "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "cointelegraph",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "4afa0424465a7ffc",
+          "evidence_id": "ca6eed32368f60739f4634b600faacde6f61cd1ad28a533e8d5ddacb440ef2c8",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "decrypt",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "d56006d414d61f1d",
+          "evidence_id": "e0307dcd45c0c6bd4887e16325bfba4d04c76bcbf2ab9a916691514fb1106efc",
+          "reason": "lexical_heuristic",
+          "source_id": "bitcoin_magazine",
+          "stance": "positive"
+        },
+        {
+          "cluster_id": "b046f43124fe48b8",
+          "evidence_id": "ce90b98c63bd6d7b28109bff38163634c0497dc8d2f54925e352842c2bdb8207",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "cryptoslate",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "b046f43124fe48b8",
+          "evidence_id": "911aaef5acd14ab760768590076d3e278742fceb8b29693d4d5f0e84dbe29d3c",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "cryptoslate",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "33ed9b172afafecb",
+          "evidence_id": "62b4aabd24f075480c034cd93813fa4059c302ad5cd303936407e7aa4450c1ca",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "beincrypto",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "dc884e35c80ae5ae",
+          "evidence_id": "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "crowdfund_insider",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "aaaa5408fc7bca4f",
+          "evidence_id": "70764ceb249ffb5584b59e6e4c13ed1897fc05e7846a461ef2d67f2066f0f045",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "cnbc_top_news_rss",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "d9da0a8547ee84c5",
+          "evidence_id": "cc5f8696a8c337841c397b71e419c190c116671060309bca4063390f83718eb4",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "coingecko_markets_api",
+          "stance": "unknown"
+        },
+        {
+          "cluster_id": "0d0cdb0f51717da0",
+          "evidence_id": "a81daca9d8e7e69f04cbd8317f9358e33dd992be16431deb10d8841ad801011d",
+          "reason": "no_calibrated_stance_signal",
+          "source_id": "coingecko_markets_api",
+          "stance": "unknown"
+        }
+      ],
+      "schema_version": 1,
+      "status": "available",
+      "topic_id": "target"
+    },
+    "model_input_scope": {
+      "collection_source_group_count": 135,
+      "endpoint_attempt_count": 181,
+      "normalized_item_count": 168,
+      "news_success_groups": 116,
+      "news_total_groups": 120,
+      "failed_news_sources": [
+        "private_banker_international",
+        "the_trade",
+        "etf_com",
+        "etf_stream"
+      ],
+      "target_relevant_item_count": 13,
+      "target_relevant_source_group_count": 11,
+      "evidence_filter": "target_identity_or_asset_family_v2_headline_quality",
+      "full_catalog_snapshot_partial": true,
+      "causal_attribution": "unresolved"
+    },
+    "financial_depth": {
+      "status": "professional_ready",
+      "time_series": {
+        "status": "available",
+        "window_start": "2025-08-23T00:00:00Z",
+        "window_end": "2026-08-22T04:02:40Z",
+        "point_count": 366,
+        "returns": {
+          "1d_observed_pct": 0.018691,
+          "30d_observed_pct": 20.450216,
+          "365d_observed_pct": -32.990536,
+          "3d_observed_pct": 12.840937,
+          "7d_observed_pct": 24.303481,
+          "90d_observed_pct": 1.709189,
+          "observed_pct": -32.990536
+        },
+        "volatility_annualized_pct": 43.779831,
+        "max_drawdown_pct": -53.049398,
+        "source_ref": {
+          "hash_kind": "provider_response",
+          "response_sha256": "0e6f4e54166c5f5b52cc99cdb4f1e8a9df8d5a0733a491e6a1dfc8123ca33fa3",
+          "url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily"
+        }
+      },
+      "fundamentals": {
+        "circulating_supply": 20071518.0,
+        "kind": "crypto_market_structure",
+        "market_cap_usd": 1574230349075.0,
+        "max_supply": 21000000.0,
+        "price_usd": 78398.0,
+        "provider": "coingecko",
+        "source_ref": {
+          "response_sha256": "cc4fe788977bbdbf8fcfbf5eadc2ec6a1bf244119ac3ebf7906ee3539810f0b6",
+          "url": "https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false"
+        },
+        "status": "available",
+        "total_supply": 20071518.0,
+        "total_volume_usd": 66367981676.0
+      },
+      "valuation": {
+        "status": "not_applicable",
+        "market_price": 78424.0,
+        "reason": "intrinsic_valuation_method_not_authorized_for_crypto_without_tokenomics_inputs"
+      },
+      "scenarios": {
+        "assumptions": {
+          "lookback_end": "2026-08-22T04:02:40Z",
+          "lookback_start": "2025-08-23T00:00:00Z",
+          "source": "observed_provider_points"
+        },
+        "evidence_ids": [],
+        "horizon": "observed_window",
+        "method": "observed_range",
+        "not_a_forecast": true,
+        "scenarios": {
+          "base": {
+            "basis": "latest_observation",
+            "price": 78424.0
+          },
+          "bear": {
+            "basis": "observed_window_low",
+            "price": 58566.091992
+          },
+          "bull": {
+            "basis": "observed_window_high",
+            "price": 124739.810888
+          }
+        },
+        "schema_version": 1,
+        "status": "available"
+      },
+      "market_drivers": {
+        "price_and_returns": {
+          "change_24h_pct": 5.7,
+          "market_cap": 1574076397442.0,
+          "price": 78424.0,
+          "returns": {
+            "1d_observed_pct": 0.018691,
+            "30d_observed_pct": 20.450216,
+            "365d_observed_pct": -32.990536,
+            "3d_observed_pct": 12.840937,
+            "7d_observed_pct": 24.303481,
+            "90d_observed_pct": 1.709189,
+            "observed_pct": -32.990536
+          }
+        },
+        "provider_status": {
+          "derivatives": {
+            "funding_observed_at": "2026-08-22T00:00:00Z",
+            "funding_point_count": 30,
+            "latest_funding_rate": 0.0001,
+            "open_interest_contracts": 105923.393,
+            "provider": "binance_futures_public",
+            "quote_volume_24h_usd": 30255171295.0,
+            "source_refs": [
+              {
+                "response_sha256": "e6027fb4ebe984ca298f85f6da4df7c5506c95694821d78bcebf6eb346768e63",
+                "url": "https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=30"
+              },
+              {
+                "response_sha256": "99fe3c034a9d4354df25861dc7cb5e82527685a3e3abb014f1eccc9055e96f8c",
+                "url": "https://fapi.binance.com/fapi/v1/openInterest?symbol=BTCUSDT"
+              },
+              {
+                "response_sha256": "84c39d4d7f9c5e5116d09d6f1ec0028d103d8eeaba219d98eb099101dd566e7b",
+                "url": "https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT"
+              }
+            ],
+            "status": "available",
+            "symbol": "BTCUSDT"
+          },
+          "etf_flows": {
+            "latest_net_flow_usd": 606300000.0,
+            "observed_at": "2026-08-20T12:00:00Z",
+            "point_count": 654,
+            "provider": "theblock_tbstat_public_json",
+            "series_count": 12,
+            "source_ref": {
+              "response_sha256": "935280d178a190691fa1d8ab7d49a1097963abf037d488fe409c1d5821d2ee51",
+              "url": "https://data.tbstat.com/dashboard/markets_structuredproducts_btcspotetfflows_daily_other.json"
+            },
+            "status": "available"
+          },
+          "on_chain": {
+            "latest_value": 831035.0,
+            "metric": "confirmed_transactions_per_day",
+            "observed_at": "2026-08-16T00:00:00Z",
+            "point_count": 25,
+            "provider": "blockchain_com_charts",
+            "source_ref": {
+              "response_sha256": "dbe9686f0a5281c56d011ec2c2740211ca9cebdbdd96e8fe0043fd64a22ee1c7",
+              "url": "https://api.blockchain.info/charts/n-transactions?timespan=30days&format=json"
+            },
+            "status": "available"
+          },
+          "volume": {
+            "latest": {
+              "observed_at": "2026-08-22T04:02:40Z",
+              "value": 66895637397.217155
+            },
+            "point_count": 366,
+            "provider": "coingecko",
+            "source_ref": {
+              "response_sha256": "0e6f4e54166c5f5b52cc99cdb4f1e8a9df8d5a0733a491e6a1dfc8123ca33fa3",
+              "url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily"
+            },
+            "status": "available"
+          }
+        },
+        "news_driver_candidates": [
+          {
+            "causal_status": "unresolved",
+            "event_id": "559e8e425ac8b8ae",
+            "evidence_ids": [
+              "11cb61aebe633f4cd037b0ace5ce34b4cc2502b44ba1b07995b09fa4501b62f7"
+            ],
+            "label": "Regulation",
+            "source_count": 1,
+            "title": "Here’s what happened in crypto today",
+            "trigger_term": "regulation"
+          },
+          {
+            "causal_status": "unresolved",
+            "event_id": "c0f2f3e2d9e877e5",
+            "evidence_ids": [
+              "39a0a026ff32571c23ad78cd69b35849c8b925721af270e18971c7d0a2558101"
+            ],
+            "label": "Regulation",
+            "source_count": 1,
+            "title": "Regulation Crypto Assets: Here is a Comparison to Reg A and Reg CF",
+            "trigger_term": "regulation"
+          }
+        ],
+        "limitations": [
+          "headline matches are candidate drivers, not causal attribution"
+        ]
+      }
+    }
+  }
+}

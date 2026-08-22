@@ -91,7 +91,10 @@ def build_topic_snapshot(
 
 
 def _matches(definition: TopicDefinition, item: dict[str, Any]) -> bool:
-    text = f" {item.get('title', '')} {item.get('summary', '')} {item.get('content', '')} ".casefold()
+    # Topic membership must be derived from normalized editorial fields, not
+    # the full raw RSS/HTML payload (which includes unrelated navigation and
+    # recommendation text). Raw payload remains available via evidence IDs.
+    text = f" {item.get('title', '')} {item.get('summary', '')} ".casefold()
     return any(_contains_keyword(text, keyword) for keyword in definition.keywords)
 
 
