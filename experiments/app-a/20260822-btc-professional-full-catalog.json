@@ -74,6 +74,12 @@
       "max_drawdown_pct": -53.049398,
       "source_url": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily",
       "response_sha256": "5b02dfd7db3fb4a05335a4e28d1edf696bcfee84ea1c0fa402222bfd2aaee8e6"
+    },
+    "audit_derived_returns_not_emitted_by_report": {
+      "3d_pct": 20.540427,
+      "7d_pct": 23.732123,
+      "30d_pct": 17.963457,
+      "method": "latest_frozen_point / nearest_point_at_lookback_from_same_365d_series"
     }
   },
   "reports": [
