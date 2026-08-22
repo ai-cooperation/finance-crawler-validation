@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-22T02:58:25Z",
+  "execution": {
+    "mode": "local_full_catalog_with_crawl4ai",
+    "source_strategy": "browser_api_rss",
+    "commit_sha": "bf3a6ff",
+    "raw_payloads_path": "artifacts/full-local-20260822T025237Z/news-raw",
+    "raw_payloads_are_not_embedded": true
+  },
+  "collection": {
+    "catalog_brands": 120,
+    "successful_brands": 116,
+    "failed_brands": 4,
+    "brand_success_rate": 0.9667,
+    "endpoint_attempts": 166,
+    "normalized_item_count": 168,
+    "source_group_count": 135,
+    "failed_source_ids": [
+      "private_banker_international",
+      "the_trade",
+      "etf_com",
+      "etf_stream"
+    ],
+    "failure_classes": {
+      "http_403_or_cloudflare_challenge": 3,
+      "rss_timeout_plus_http_403": 1
+    },
+    "fresh_radar": {
+      "source_count": 15,
+      "successful_sources": 15,
+      "failed_sources": 0,
+      "items": 43
+    },
+    "target_scope": {
+      "target": {"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+      "relevant_items": 86,
+      "relevant_source_groups": 80
+    }
+  },
+  "financial_depth": {
+    "status": "professional_ready",
+    "time_series": {
+      "provider": "coingecko",
+      "point_count": 31,
+      "returns": {
+        "1d_observed_pct": 0.188733,
+        "3d_observed_pct": 13.032778,
+        "7d_observed_pct": 24.514809,
+        "30d_observed_pct": 20.654994,
+        "90d_observed_pct": 20.654994,
+        "365d_observed_pct": 20.654994
+      },
+      "response_sha256": "15ddabeeab6288837074735003cb843fd8cc15c76cc04917071a73ae32a1f8b4"
+    },
+    "fundamentals": {
+      "status": "available",
+      "provider": "coingecko",
+      "kind": "crypto_market_structure"
+    },
+    "valuation": {
+      "status": "not_applicable",
+      "reason": "crypto_intrinsic_valuation_not_authorized_without_tokenomics_method"
+    },
+    "market_confirmation_providers": {
+      "volume": {
+        "status": "available",
+        "provider": "coingecko",
+        "response_sha256": "15ddabeeab6288837074735003cb843fd8cc15c76cc04917071a73ae32a1f8b4"
+      },
+      "etf_flows": {
+        "status": "available",
+        "provider": "theblock_tbstat_public_json",
+        "response_sha256": "935280d178a190691fa1d8ab7d49a1097963abf037d488fe409c1d5821d2ee51"
+      },
+      "derivatives": {
+        "status": "available",
+        "provider": "binance_futures_public",
+        "response_sha256": [
+          "e6027fb4ebe984ca298f85f6da4df7c5506c95694821d78bcebf6eb346768e63",
+          "7854f199cb86c7e202fa25127a082976d7dd9dfec986bd9b5629c0da06525925",
+          "1d6f455ba6c7532e1fc2caed924a975da0a9d19262f393199f84c2eb0039f0ea"
+        ]
+      },
+      "on_chain": {
+        "status": "available",
+        "provider": "blockchain_com_charts",
+        "response_sha256": "dbe9686f0a5281c56d011ec2c2740211ca9cebdbdd96e8fe0043fd64a22ee1c7"
+      }
+    },
+    "market_drivers_status": "available",
+    "causal_attribution": "unresolved_by_design"
+  },
+  "source_conflict": {
+    "method": "source_conflict_screen_v2",
+    "calibration_status": "calibrated",
+    "classifier_version": "lexical_stance_v2_calibrated",
+    "calibration_set_id": "source_conflict_calibration_v1",
+    "calibration_set_sha256": "98048852f801740ad446cb334086041359bfebced36c0a28ec8f16d9aab5961b",
+    "independent_source_count": 162,
+    "calibration_metrics": {
+      "positive_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_precision": 1.0,
+      "negative_recall": 1.0,
+      "macro_f1": 1.0
+    }
+  },
+  "quality_boundary": {
+    "professional_ready_means": "market depth, calibrated conflict screen, provider evidence hashes and evidence graph gates passed",
+    "not_claimed": [
+      "causal market attribution",
+      "price forecast",
+      "buy_or_sell_recommendation",
+      "fresh Cloudflare D1/R2 publication"
+    ],
+    "next_remote_step": "rerun the same full-catalog workflow after the Actions minimum_interval gate expires"
+  }
+}
