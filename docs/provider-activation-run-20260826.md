@@ -68,7 +68,6 @@
 - Worker staged snapshot typecheck／dry deploy：已通過；bundle 565.69 KiB、gzip 85.60 KiB。
 - 現行 production `/health`（2026-08-26 16:34 台北時間）：HTTP 200，但只回既有 `{ok, service}`，尚未包含本輪 `provider_registry` summary，因此可證實新版本尚未部署。
 - Cloudflare 阻擋：本機 Wrangler OAuth 目前是 `alan.chen75@gmail.com`／account `cb8f37b75da7355292c6c23a17adf6c6`，目標資源屬驗證 account `ca985c195ab218488fc0744692dbde21`。為避免跨帳號誤部署，本輪不以錯誤 OAuth 發布。
-- GitHub 阻擋：本機 `gh` 的 `ai-cooperation` 與 Alan token 均失效，尚不能 push 或取得新的 Actions run 證據。
-- SecondBrain：目前 MCP 回 `Login required for MCP access`；本地紀錄已更新，但尚未寫入 SB。
+- GitHub 阻擋：本機 `gh` 的 `ai-cooperation` 與 Alan token 均失效；SSH 已驗證為 `AlanChen75`，可讀 repository refs，但 push `ai-cooperation/finance-crawler-validation` 被 GitHub 明確拒絕。限定變更已建立本機 commit `e2f3ec9`，尚未出現在遠端，不能取得新的 Actions run 證據。
 
 正式發布完成的驗收條件是：正確帳號 deploy 成功、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP tools/list 與一次有權限讀回成功，且 GitHub commit／workflow run 可追溯。執行 deploy 指令本身不算完成。

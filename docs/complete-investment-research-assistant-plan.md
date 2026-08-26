@@ -26,7 +26,7 @@
 
 本輪再加入 `finance-app-a-remote` bounded verifier：部署後可用安全環境的 MCP token 執行 `initialize → tools/list → plan → submit → poll → Research Pack／report／appendix`，只輸出 job／artifact metadata 與 gate checks，不輸出 token 或 private raw content；非 terminal、callback 失敗或個人化建議會 fail closed。`opencode.json` 已固定 `opencode/big-pickle` 作為 App A 編排模型。verifier 是遠端驗收工具，不是部署或 Gate A 證據本身。
 
-2026-08-26 的 Provider Activation 階段把 110 個研究資料 provider 與 120 個新聞品牌分開治理：110 個 provider 中 50 個為 L4 route-integrated，剩餘 60 個均已有 L1 connector contract；其中 51 個可繼續完成 parser／resolver／credential，9 個因商業合約、政策或停止服務而只供規劃、不可執行。這輪由 79 個原始 backlog 升級 19 個 route，剩餘 60 個重跑存活驗證為 58／60。完整定義與實測證據見 [`provider-catalog-spec.md`](./provider-catalog-spec.md) 與 [`provider-activation-run-20260826.md`](./provider-activation-run-20260826.md)。本機 Worker 已包含 REST／MCP provider discovery，但因 Wrangler 與 GitHub CLI 目前不是目標驗證帳號的有效憑證，尚未完成 production 發布；不得用 dry deploy 代替遠端驗收。
+2026-08-26 的 Provider Activation 階段把 110 個研究資料 provider 與 120 個新聞品牌分開治理：110 個 provider 中 50 個為 L4 route-integrated，剩餘 60 個均已有 L1 connector contract；其中 51 個可繼續完成 parser／resolver／credential，9 個因商業合約、政策或停止服務而只供規劃、不可執行。這輪由 79 個原始 backlog 升級 19 個 route，剩餘 60 個重跑存活驗證為 58／60。完整定義與實測證據見 [`provider-catalog-spec.md`](./provider-catalog-spec.md) 與 [`provider-activation-run-20260826.md`](./provider-activation-run-20260826.md)。本機 Worker 已包含 REST／MCP provider discovery，但 Wrangler OAuth 仍是非目標 Cloudflare account，GitHub SSH 身分 `AlanChen75` 對 `ai-cooperation` repository 也只有讀取、沒有 push 權限，尚未完成 production 發布；不得用本機 commit 或 dry deploy 代替遠端驗收。
 
 ## 1. 目標能力邊界
 
