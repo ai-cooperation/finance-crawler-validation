@@ -13,6 +13,7 @@ import {
 } from "./contracts";
 import type { AuthContext } from "./auth";
 import { HttpError, ingestResearchReport, type ResearchReportResult } from "./storage";
+import { matchesTargetEvidence } from "./target-evidence";
 
 
 export const DEFAULT_RESEARCH_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -907,20 +908,9 @@ function targetLabel(target: ResearchTarget): string {
   return `${target.kind}:${identifier}`;
 }
 
-function targetEvidenceMatch(item: EvidenceView, target: ResearchTarget | undefined): boolean {
+export function targetEvidenceMatch(item: EvidenceView, target: ResearchTarget | undefined): boolean {
   if (target === undefined) return true;
-  const text = `${item.title} ${item.summary} ${item.content}`.toLowerCase();
-  const terms = [target.symbol, target.name, target.market].filter(
-    (value): value is string => typeof value === "string" && value.trim().length > 0,
-  ).map((value) => value.toLowerCase());
-  if (target.kind === "crypto") terms.push("bitcoin", "btc", "crypto", "cryptocurrency", "digital asset");
-  if (target.kind === "equity") terms.push("stock", "equity", "shares", "earnings");
-  if (target.kind === "etf") terms.push("etf", "exchange traded fund");
-  return terms.some((term) => term.includes(" ") ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`).test(text));
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return matchesTargetEvidence(item, target);
 }
 
 function asTopicSnapshot(value: unknown): TopicSnapshot {
