@@ -41,6 +41,13 @@ import {
   handleMcpRequest,
 } from "./mcp";
 import { completeResearchJob, failResearchJob } from "./research-jobs";
+import {
+  getProvider,
+  listProviders,
+  parseProviderFilters,
+  providerRegistrySummary,
+  ProviderQueryError,
+} from "./provider-registry";
 
 
 // Full-catalog H3 envelopes carry bounded article content for the private R2
@@ -102,7 +109,40 @@ export function createHandler(
       const requestId = crypto.randomUUID();
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/health") {
-        return jsonResponse({ ok: true, service: "finance-crawler-ingest" }, 200);
+        return jsonResponse({
+          ok: true,
+          service: "finance-crawler-ingest",
+          provider_registry: providerRegistrySummary(),
+        }, 200);
+      }
+      if (url.pathname === "/v1/providers") {
+        if (request.method !== "GET") {
+          return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
+        }
+        try {
+          return publicJsonResponse(listProviders(parseProviderFilters(url.searchParams)), 200);
+        } catch (error) {
+          const code = error instanceof ProviderQueryError ? error.code : "provider_query_invalid";
+          return jsonResponse({ error: code, request_id: requestId }, 422);
+        }
+      }
+      if (url.pathname.startsWith("/v1/providers/")) {
+        if (request.method !== "GET") {
+          return jsonResponse({ error: "method_not_allowed", request_id: requestId }, 405);
+        }
+        let providerId: string;
+        try {
+          providerId = decodeURIComponent(url.pathname.slice("/v1/providers/".length));
+        } catch {
+          return jsonResponse({ error: "provider_id_invalid", request_id: requestId }, 400);
+        }
+        if (!/^[a-z][a-z0-9_-]{1,127}$/.test(providerId)) {
+          return jsonResponse({ error: "provider_id_invalid", request_id: requestId }, 400);
+        }
+        const provider = getProvider(providerId);
+        return provider
+          ? publicJsonResponse(provider, 200)
+          : jsonResponse({ error: "provider_not_found", request_id: requestId }, 404);
       }
       if (url.pathname === "/v1/status") {
         if (request.method !== "GET") {
@@ -446,6 +486,16 @@ function jsonResponse(payload: object, status: number): Response {
     status,
     headers: {
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
+function publicJsonResponse(payload: object, status: number): Response {
+  return Response.json(payload, {
+    status,
+    headers: {
+      "Cache-Control": "public, max-age=300",
       "X-Content-Type-Options": "nosniff",
     },
   });

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "registry_id": "investment_research_provider_activation_v1",
+  "catalog_id": "investment_research_providers_v1",
+  "checked_at": "2026-08-26T07:52:43.801914Z",
+  "summary": {
+    "total": 1,
+    "survival_verified": 1,
+    "data_payload_verified": 0,
+    "outcomes": {
+      "reachable": 1
+    }
+  },
+  "results": [
+    {
+      "provider_id": "portfolio_optimizer",
+      "probe_scope": "control_plane",
+      "execution_policy": "probe_only",
+      "attempt_count": 1,
+      "survival_verified": true,
+      "data_payload_verified": false,
+      "outcome": "reachable",
+      "status_code": 200,
+      "final_url": "https://portfoliooptimizer.io/",
+      "content_type": "text/html",
+      "sample_bytes": 24640,
+      "response_sha256": "6fe9e604876363e465621ac1bc5eb7d13e78a1d7d3e3a4cd0fc85172ea166f76",
+      "error": null
+    }
+  ]
+}

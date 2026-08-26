@@ -15,6 +15,13 @@ import {
 import { buildPersistedResearchPlan } from "./research-planner";
 import { HttpError } from "./storage";
 import { PayloadValidationError } from "./contracts";
+import {
+  getProvider,
+  listProviders,
+  parseProviderFilterObject,
+  PROVIDER_MCP_TOOLS,
+  ProviderQueryError,
+} from "./provider-registry";
 
 
 export interface McpRequestResult {
@@ -25,6 +32,7 @@ export interface McpRequestResult {
 export interface McpRequestDependencies extends ResearchJobExecutionDependencies, ResearchJobDispatchDependencies {}
 
 const TOOLS = [
+  ...PROVIDER_MCP_TOOLS,
   {
     name: "resolve_target",
     description: "Validate and normalize a research target before creating a job. Use kind, symbol/name/market, or url; do not use asset or asset_class.",
@@ -214,6 +222,17 @@ export async function handleMcpRequest(
   if (!name) return { response: failure(request.id, -32602, "tool_name_required") };
   try {
     switch (name) {
+      case "list_data_providers":
+        requireScope(auth, "research:read");
+        return toolSuccess(request.id, listProviders(parseProviderFilterObject(args)));
+      case "get_data_provider": {
+        requireScope(auth, "research:read");
+        const providerId = stringField(asRecord(args), "provider_id");
+        if (!providerId) throw new HttpError(422, "provider_id_required");
+        const provider = getProvider(providerId);
+        if (!provider) throw new HttpError(404, "provider_not_found");
+        return toolSuccess(request.id, provider);
+      }
       case "resolve_target":
         requireScope(auth, "research:read");
         return toolSuccess(request.id, resolveTarget(args));
@@ -433,6 +452,9 @@ function normalizeToolError(error: unknown): { code: string; details: string[] }
   if (error instanceof HttpError) return { code: error.code, details: error.details };
   if (error instanceof PayloadValidationError) {
     return { code: "invalid_payload", details: error.details };
+  }
+  if (error instanceof ProviderQueryError) {
+    return { code: "invalid_provider_query", details: [error.code] };
   }
   return { code: "internal_error", details: [] };
 }

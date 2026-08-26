@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/provider-activation-registry.schema.json",
+  "title": "Provider activation registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "generated_at", "catalog_id", "connections"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "registry_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "catalog_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$"},
+    "connections": {"type": "array", "items": {"$ref": "#/$defs/connection"}}
+  },
+  "$defs": {
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "catalog_status", "execution_policy", "data_plane_state", "adapter", "runtime", "transports", "required_configuration", "probe", "next_action"],
+      "properties": {
+        "provider_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{1,127}$"},
+        "catalog_status": {"enum": ["catalogued_unverified", "adapter_required", "commercial_only", "blocked", "deprecated"]},
+        "execution_policy": {"enum": ["probe_only", "not_executable"]},
+        "data_plane_state": {"enum": ["payload_probe_ready", "adapter_contract_ready", "survival_probe_ready", "commercial_onboarding_required", "policy_review_required", "retired"]},
+        "adapter": {"type": "string", "minLength": 2},
+        "runtime": {"enum": ["github_actions", "cloudflare_worker", "hybrid"]},
+        "transports": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 2}},
+        "required_configuration": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$"}},
+        "probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "url", "scope", "expected_content", "expected_statuses", "max_attempts", "timeout_seconds"],
+          "properties": {
+            "method": {"const": "GET"},
+            "url": {"type": "string", "format": "uri", "pattern": "^https://"},
+            "survival_url": {"type": "string", "format": "uri", "pattern": "^https://"},
+            "scope": {"enum": ["control_plane", "data_payload"]},
+            "expected_content": {"enum": ["any", "json", "csv", "rss", "zip"]},
+            "expected_statuses": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 100, "maximum": 599}},
+            "max_attempts": {"type": "integer", "minimum": 1, "maximum": 3},
+            "timeout_seconds": {"type": "number", "minimum": 1, "maximum": 30}
+          }
+        },
+        "next_action": {"type": "string", "minLength": 8}
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # 可稽核的 AI 投資研究助手：完整 SDD／TDD 計畫
 
-更新日期：2026-08-21
+更新日期：2026-08-26
 文件狀態：目標架構與施工契約；未標示為「已驗收」的項目不得宣稱完成。
 
 本文件的應用層以 [`two-application-alignment-spec.md`](./two-application-alignment-spec.md) 為最新規範補充：研究報告產生器與決策討論助手是兩個分開驗收的產品，不把低成本資料編排模型與高階決策推理混成一個 Agent。
@@ -25,6 +25,8 @@
 本輪另外完成 Research Pack v1-compatible `evidence_graph`：每個報告主張會以穩定 claim ID 連回 report、topic 與 evidence appendix；遠端核心資料鏈已驗收，但正式 `research_report.v2` 與嚴格 Gate A client／告警條件仍未完成。
 
 本輪再加入 `finance-app-a-remote` bounded verifier：部署後可用安全環境的 MCP token 執行 `initialize → tools/list → plan → submit → poll → Research Pack／report／appendix`，只輸出 job／artifact metadata 與 gate checks，不輸出 token 或 private raw content；非 terminal、callback 失敗或個人化建議會 fail closed。`opencode.json` 已固定 `opencode/big-pickle` 作為 App A 編排模型。verifier 是遠端驗收工具，不是部署或 Gate A 證據本身。
+
+2026-08-26 的 Provider Activation 階段把 110 個研究資料 provider 與 120 個新聞品牌分開治理：110 個 provider 中 50 個為 L4 route-integrated，剩餘 60 個均已有 L1 connector contract；其中 51 個可繼續完成 parser／resolver／credential，9 個因商業合約、政策或停止服務而只供規劃、不可執行。這輪由 79 個原始 backlog 升級 19 個 route，剩餘 60 個重跑存活驗證為 58／60。完整定義與實測證據見 [`provider-catalog-spec.md`](./provider-catalog-spec.md) 與 [`provider-activation-run-20260826.md`](./provider-activation-run-20260826.md)。本機 Worker 已包含 REST／MCP provider discovery，但因 Wrangler 與 GitHub CLI 目前不是目標驗證帳號的有效憑證，尚未完成 production 發布；不得用 dry deploy 代替遠端驗收。
 
 ## 1. 目標能力邊界
 
@@ -85,6 +87,7 @@ Signal Engine／Action Engine 的進階契約與未來應用擴張，另以 [`si
 - App A job／Research Pack：`research_jobs`、`research_packs` D1 index，private R2 `research-packs/*`，MCP `/mcp` tool catalog 與 token scope。
 - P2 全量來源驗證：120 個唯一品牌、166 個 endpoint 已以 `exhaustive_endpoints=true` 實際執行；品牌 fallback 成功 116／120（96.67%），endpoint 成功 123／166（74.10%），證據為 GitHub Actions run [`32469254983`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32469254983)。這只證明來源能力與 fallback 邊界，不代表文章級去重、標的相關性或投資研究品質已通過。
 - P1 垂直切片：一次 15 來源 run，14／15 成功，產生 3 topics、market alignment 與 3 份 Workers AI 第二意見。
+- Provider Catalog：110 個研究資料 provider 已有統一能力與權利目錄；50 個 L4 route-integrated，60 個在 activation registry。Worker runtime registry 不含 secret 值，可由 REST／MCP 查詢 adapter、auth 欄位、地區、metric 與 next action；production 部署仍待驗證帳號授權。
 
 ### 2.2 必須補上的產品能力
 
@@ -196,6 +199,7 @@ App A 目前可執行的市場 provider 僅是 CoinGecko crypto。Planner 對沒
 - `source_manifest_hash`、來源權利與 SLA。
 - GitHub Actions trigger、上一個成功 checkpoint、resource budget。
 - 路由策略：RSS、json API、static HTML、Browser／Crawl4AI。
+- `provider_runtime_registry`：只允許 L4 route 進入 collector；L1–L3 只能供 Data Broker 規劃、probe 或產生 activation task。
 
 **Output／交接包**
 
@@ -209,6 +213,7 @@ App A 目前可執行的市場 provider 僅是 CoinGecko crypto。Planner 對沒
 - 所有 item 通過 schema、content hash 與 rights check。
 - 同一 item 重播不得產生第二筆業務資料。
 - 每個失敗來源留下可追溯原因；`robots_denied`、`auth_required`、paywall 等合規終止不得自動切換成規避策略。
+- provider control-plane 存活不得自動改寫 `callable=true`；缺 credential、parser、target mapping 或 rights gate 時必須保留 blocked reason。
 - 覆蓋率低於規則集門檻時標記 `partial`；不足以支撐結論時 current 保留 last-good。
 
 **Failure／recovery**：只前進成功 checkpoint；runner、timeout、429 交由 catch-up 重試；raw 不完整時不進入研究階段。
@@ -553,7 +558,9 @@ GitHub Actions 只能取得 OIDC／窄權限 ingest 能力；不能持有廣泛 
 | REQ-20 七日 soak 的 run、用量、告警、R2 hash 可重現 | 私有 observation verifier | detector | production only |
 | REQ-21 Actions job 有 success／failure terminal callback，不永久停在 queued | admission denial／workflow failure、OIDC binding、D1 status／audit read-back | integration＋invariant | CI＋遠端 bounded failure run |
 | REQ-22 market data 依需求選配且不以錯誤 provider 補資料 | `include_market_data=false` 排除 market source 並產出 `provider=not_requested`；`true` 的 unsupported target 回 `market_target_not_supported` | fixture truth-table＋integration | CI＋遠端 bounded run |
-| INV-01～INV-10 永遠成立 | 每次 schema／migration／release 執行 invariant suite | invariant | CI＋部署前 gate＋生產 watchdog |
+| REQ-23 Provider activation 不把 survival 冒充 data route | L1–L4 truth table、登入頁／JSON／RSS／CSV／ZIP fixture、缺 credential 與 deprecated provider | unit＋schema＋遠端 bounded probe | CI＋production registry detector |
+| REQ-24 Provider registry 可由 REST／MCP 查詢且不洩漏 secret | summary、filter boundary、scope allow／deny、generated registry 重生 diff | integration＋security | CI＋部署後 endpoint detector |
+| INV-01～INV-11 永遠成立 | 每次 schema／migration／release 執行 invariant suite | invariant | CI＋部署前 gate＋生產 watchdog |
 
 Signal／Action Engine 的延伸 requirement 不以本表的投資應用欄位代替；`signal-action-harness-spec.md` 的 `SIG-*`、`ACT-*`、`HAR-*`、`APP-*`、`OPS-*` 是同一計畫的附加 RED 清單。任何新的保險、產業或商機 Pack 都必須先讓共用 H0–H2 與自己的 domain rows 變綠，才能宣稱該應用完成。
 

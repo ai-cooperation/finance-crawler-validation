@@ -33,6 +33,8 @@
 
 ## 來源矩陣
 
+投資研究資料來源另由 `data/provider-catalog.yaml` 管理，避免把「新聞品牌抓取能力」與「財報、總經、行情、產業、ESG、社群 API 能力」混成同一個成功率。2026-08-26 的 110 個 provider 中，50 個已是 L4 route-integrated，60 個保留在 activation registry；起始 79 個 backlog 已全數建立 adapter／runtime／probe／設定需求 contract，並有 19 個升級成 route。剩餘 60 個中 51 個可繼續做 parser／resolver／credential，9 個為不可自動執行的商業、封鎖或停止服務來源。實測與未決案例見 [`docs/provider-activation-run-20260826.md`](docs/provider-activation-run-20260826.md)；Worker 預定以 `GET /v1/providers`、`GET /v1/providers/:provider_id` 及 MCP `list_data_providers`／`get_data_provider` 提供能力查詢。現行 production 尚未部署本版，不能把本機通過誤稱為已上線。
+
 新版新聞架構把來源單位改為唯一品牌／機構，`news-sources.yaml` 已固定 120 家（100 家財經專業媒體、20 家綜合媒體財經部門）與四類 166 個 endpoints；RSS、API、靜態 HTML、Browser 只算同品牌的取得路徑。平台依每個工作的能力、時間、回應大小、成本、配額及憑證即時選擇；GitHub Actions 手動 scope `news_120` 必須指定 bounded `brand_ids`，並產生品牌級 `news-report.json`。契約與遷移狀態見 [`docs/resource-aware-news-architecture.md`](docs/resource-aware-news-architecture.md) 與 [`docs/p2-news-observation-contract.md`](docs/p2-news-observation-contract.md)，executor policy 見 `resource-executors.yaml`。
 
 資料保存、Crawl4AI＋OpenBB＋TradingAgents 背景分析、Cloudflare 權限分離、MCP 與 GitHub Actions 失效恢復的後續工作，統一追蹤於 [`docs/cf-gh-mcp-implementation-plan.md`](docs/cf-gh-mcp-implementation-plan.md)。

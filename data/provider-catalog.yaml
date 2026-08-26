@@ -1,0 +1,1602 @@
+schema_version: 1
+catalog_id: investment_research_providers_v1
+generated_at: '2026-08-26T08:00:00Z'
+scope: Investment research providers for filings, fundamentals, market, macro, industry, commodity, news, social, ESG, governance, identifiers and crypto data.
+
+discovery_sources:
+  - discovery_id: public_apis
+    repository_url: https://github.com/public-apis/public-apis
+    branch: master
+    commit_sha: c045a2eb505f0f8b7992bb4af53cc020f25003fd
+    repository_path: README.md#finance-news-cryptocurrency-government-open-data
+    retrieved_at: '2026-08-26T07:00:00Z'
+    license: MIT
+  - discovery_id: openbb
+    repository_url: https://github.com/OpenBB-finance/OpenBB
+    branch: develop
+    commit_sha: 3e071fcc2cd9f891cac6040ae60296dba76dab46
+    repository_path: openbb_platform/providers
+    retrieved_at: '2026-08-26T07:05:00Z'
+    license: mixed-provider-terms
+  - discovery_id: finmind
+    repository_url: https://github.com/FinMind/FinMind
+    branch: master
+    commit_sha: 6fd199699cc12fbf6e97c733bfb4cf8fb5e8b0d2
+    repository_path: README.md;FinMind/data/data_loader.py
+    retrieved_at: '2026-08-26T07:10:00Z'
+    license: Apache-2.0-code;non-commercial-data-terms
+  - discovery_id: akshare
+    repository_url: https://github.com/akfamily/akshare
+    branch: main
+    commit_sha: 0e7db00cb98ac6709e2b553efb5a79629aca7a72
+    repository_path: docs;akshare
+    retrieved_at: '2026-08-26T07:15:00Z'
+    license: MIT-code;source-specific-data-terms
+  - discovery_id: awesome_realtime
+    repository_url: https://github.com/bytewax/awesome-public-real-time-datasets
+    branch: main
+    commit_sha: f598d0a7b08c8ec29457d97b15828095372a102b
+    repository_path: README.md
+    retrieved_at: '2026-08-26T07:20:00Z'
+    license: CC0-1.0-list;source-specific-data-terms
+  - discovery_id: finance_database
+    repository_url: https://github.com/JerBouma/FinanceDatabase
+    branch: main
+    commit_sha: e3c554bb511076f5dff3728b38daa75619ae5f8e
+    repository_path: README.md;financedatabase
+    retrieved_at: '2026-08-26T07:25:00Z'
+    license: MIT
+
+provider_defaults:
+  provider_type: publisher
+  source_tier: unknown
+  access:
+    transports: [browser]
+    auth: unknown
+    cost_tier: unknown
+  rights:
+    public_raw_storage: unknown
+  integration:
+    status: catalogued_unverified
+    callable: false
+    adapter: none
+
+providers:
+  # OpenBB provider inventory: all 32 provider directories plus the platform.
+  - provider_id: openbb
+    name: OpenBB Platform
+    provider_type: library
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://openbb.co/
+    documentation_url: https://docs.openbb.co/platform
+    categories: [provider_router, finance]
+    geographies: [global]
+    asset_classes: [equity, fixed_income, commodity, crypto, fx, derivatives]
+    access: {transports: [python_library, json_api], auth: unknown, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Wrapper only; independence comes from the selected upstream provider.}
+
+  - provider_id: alpha_vantage
+    name: Alpha Vantage
+    source_tier: aggregator
+    discovered_via: [openbb, public_apis, awesome_realtime]
+    homepage_url: https://www.alphavantage.co/
+    documentation_url: https://www.alphavantage.co/documentation/
+    categories: [market, fundamentals, macro, news]
+    requirement_ids: [peer.comparison]
+    metrics: [valuation, revenue_growth, gross_margin, operating_margin, news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, fx, crypto, commodity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={api_key}', required_parameters: [function, symbol, api_key], credential_env: ALPHA_VANTAGE_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.alphavantage.co/documentation/}
+
+  - provider_id: benzinga
+    name: Benzinga
+    source_tier: direct_secondary
+    discovered_via: [openbb]
+    homepage_url: https://www.benzinga.com/
+    documentation_url: https://docs.benzinga.com/
+    categories: [news, earnings, analyst_ratings]
+    metrics: [news_sentiment, analyst_rating, earnings_event]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: paid}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: biztoc
+    name: BizToc
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://biztoc.com/
+    documentation_url: https://biztoc.com/
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, crypto, macro]
+
+  - provider_id: bls
+    name: US Bureau of Labor Statistics
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://www.bls.gov/
+    documentation_url: https://www.bls.gov/developers/
+    categories: [macro, labor, price_index]
+    requirement_ids: [industry.market_demand, industry.price_capacity_cycle]
+    metrics: [market_size_or_demand, price_or_spread, labor_cost, period]
+    geographies: [US]
+    asset_classes: [macro]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.bls.gov/bls/linksite.htm, public_raw_storage: allowed}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.bls.gov/publicAPI/v2/timeseries/data/{series_id}', required_parameters: [series_id], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.bls.gov/developers/api_signature_v2.htm}
+
+  - provider_id: cboe
+    name: Cboe Global Markets
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [openbb]
+    homepage_url: https://www.cboe.com/
+    documentation_url: https://www.cboe.com/us/equities/market_statistics/
+    categories: [market, derivatives, volatility]
+    metrics: [valuation, volatility, options_activity]
+    geographies: [US, global]
+    asset_classes: [equity, derivatives]
+    access: {transports: [file, browser], auth: none, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: cftc
+    name: US Commodity Futures Trading Commission
+    provider_type: government_portal
+    source_tier: regulatory
+    discovered_via: [openbb]
+    homepage_url: https://www.cftc.gov/
+    documentation_url: https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm
+    categories: [regulatory, positioning, commodity]
+    metrics: [positioning, market_sentiment]
+    geographies: [US, global]
+    asset_classes: [commodity, derivatives]
+    access: {transports: [file, json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://publicreporting.cftc.gov/resource/jun7-fc8e.json?$limit={limit}', required_parameters: [limit], last_verified_at: '2026-08-26T08:30:00Z', verification_url: 'https://publicreporting.cftc.gov/resource/jun7-fc8e.json?$limit=1', verification_method: live_payload}
+
+  - provider_id: congress_gov
+    name: Congress.gov
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://www.congress.gov/
+    documentation_url: https://api.congress.gov/
+    categories: [policy, legislation]
+    metrics: [policy_event]
+    geographies: [US]
+    asset_classes: [macro, equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: free_registration}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.congress.gov/v3/bill?fromDateTime={from_date}&toDateTime={to_date}&api_key={api_key}', required_parameters: [from_date, to_date, api_key], credential_env: CONGRESS_GOV_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://api.congress.gov/}
+
+  - provider_id: deribit
+    name: Deribit
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://www.deribit.com/
+    documentation_url: https://docs.deribit.com/
+    categories: [market, derivatives, crypto]
+    metrics: [valuation, volatility, options_activity]
+    geographies: [global]
+    asset_classes: [crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency={currency}&kind={kind}', required_parameters: [currency, kind], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://docs.deribit.com/}
+
+  - provider_id: ecb
+    name: European Central Bank Data Portal
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://data.ecb.europa.eu/
+    documentation_url: https://data.ecb.europa.eu/help/api/overview
+    categories: [macro, rates, fx]
+    metrics: [market_size_or_demand, interest_rate, price_or_spread]
+    geographies: [EU, global]
+    asset_classes: [macro, fixed_income, fx]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://data-api.ecb.europa.eu/service/data/{flow_ref}/{series_key}?startPeriod={start_period}&format=csvdata', required_parameters: [flow_ref, series_key, start_period], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://data.ecb.europa.eu/help/api/overview, verification_method: live_payload}
+
+  - provider_id: econdb
+    name: EconDB
+    source_tier: aggregator
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://www.econdb.com/
+    documentation_url: https://www.econdb.com/api/
+    categories: [macro]
+    metrics: [market_size_or_demand, price_or_spread, end_market_demand]
+    geographies: [global]
+    asset_classes: [macro]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://www.econdb.com/api/series/{series_id}/?format=json', required_parameters: [series_id], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.econdb.com/api/}
+
+  - provider_id: eia
+    name: US Energy Information Administration
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb, public_apis, awesome_realtime]
+    homepage_url: https://www.eia.gov/
+    documentation_url: https://www.eia.gov/opendata/
+    categories: [energy, commodity, industry]
+    requirement_ids: [industry.price_capacity_cycle, industry.cement_unit_economics, industry.petrochemical_spread_cycle]
+    metrics: [energy_cost, feedstock_cost, product_price, product_spread, capacity_or_utilization, price_or_spread]
+    geographies: [US, global]
+    asset_classes: [commodity, macro]
+    access: {transports: [json_api, file], auth: api_key, cost_tier: free_registration}
+    rights: {terms_url: https://www.eia.gov/about/copyrights_reuse.php, public_raw_storage: allowed}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.eia.gov/v2/{route}/data/?api_key={api_key}', required_parameters: [route, api_key], credential_env: EIA_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.eia.gov/opendata/documentation.php}
+
+  - provider_id: famafrench
+    name: Kenneth French Data Library
+    source_tier: direct_primary
+    discovered_via: [openbb]
+    homepage_url: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
+    documentation_url: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
+    categories: [factors, benchmark]
+    metrics: [valuation, benchmark_return]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [file], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: provider_specific, endpoint_template: 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_CSV.zip', required_parameters: [], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html, verification_method: live_payload}
+
+  - provider_id: federal_reserve
+    name: Federal Reserve Board
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://www.federalreserve.gov/
+    documentation_url: https://www.federalreserve.gov/data.htm
+    categories: [macro, rates, policy, news]
+    metrics: [interest_rate, policy_event, market_size_or_demand]
+    geographies: [US, global]
+    asset_classes: [macro, fixed_income]
+    access: {transports: [file, rss, browser], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.federalreserve.gov/disclaimer.htm, public_raw_storage: allowed}
+    integration: {status: verified_public, callable: true, adapter: generic_rss, endpoint_template: 'https://www.federalreserve.gov/feeds/press_all.xml', required_parameters: [], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://www.federalreserve.gov/feeds/feeds.htm, verification_method: live_payload}
+
+  - provider_id: finra
+    name: FINRA
+    provider_type: government_portal
+    source_tier: regulatory
+    discovered_via: [openbb]
+    homepage_url: https://www.finra.org/
+    documentation_url: https://developer.finra.org/
+    categories: [regulatory, short_interest, otc]
+    metrics: [ownership, market_sentiment]
+    geographies: [US]
+    asset_classes: [equity, fixed_income]
+    access: {transports: [json_api], auth: oauth, cost_tier: free_registration}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: finviz
+    name: Finviz
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://finviz.com/
+    documentation_url: https://finviz.com/
+    categories: [market, screener, news]
+    metrics: [valuation, gross_margin, operating_margin, revenue_growth, news_sentiment]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [browser], auth: none, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: fmp
+    name: Financial Modeling Prep
+    source_tier: aggregator
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://financialmodelingprep.com/
+    documentation_url: https://site.financialmodelingprep.com/developer/docs
+    categories: [fundamentals, market, news]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.capital_allocation]
+    metrics: [products_or_services, customers_or_regions, segment_revenue, revenue_growth, gross_margin, operating_margin, roic, valuation, capex, debt, dividend_or_buyback, m_and_a]
+    geographies: [global]
+    asset_classes: [equity, fx, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://financialmodelingprep.com/stable/{route}?symbol={symbol}&apikey={api_key}', required_parameters: [route, symbol, api_key], credential_env: FMP_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://site.financialmodelingprep.com/developer/docs}
+
+  - provider_id: fred
+    name: FRED
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb, public_apis, awesome_realtime]
+    homepage_url: https://fred.stlouisfed.org/
+    documentation_url: https://fred.stlouisfed.org/docs/api/fred/
+    categories: [macro, commodity, industry]
+    metrics: [market_size_or_demand, price_or_spread, end_market_demand, energy_cost, feedstock_cost, iron_ore_price, coking_coal_price, steel_price]
+    geographies: [US, global]
+    asset_classes: [macro, commodity, fixed_income]
+    access: {transports: [json_api], auth: api_key, cost_tier: free_registration}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={api_key}&file_type=json', required_parameters: [series_id, api_key], credential_env: FRED_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://fred.stlouisfed.org/docs/api/fred/}
+
+  - provider_id: government_us
+    name: US Government Data Router
+    provider_type: directory
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://www.data.gov/
+    documentation_url: https://data.gov/developers/apis
+    categories: [government, directory]
+    geographies: [US]
+    asset_classes: [macro, equity, commodity]
+    access: {transports: [json_api, browser], auth: unknown, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Directory only; route to the publishing agency for independence.}
+
+  - provider_id: imf
+    name: International Monetary Fund Data
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://www.imf.org/en/Data
+    documentation_url: https://datahelp.imf.org/knowledgebase/articles/667681-using-json-restful-web-service
+    categories: [macro, trade, fx]
+    metrics: [market_size_or_demand, end_market_demand, price_or_spread]
+    geographies: [global, Asia, TW]
+    asset_classes: [macro, fx]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://www.imf.org/external/datamapper/api/v1/{indicator}/{country}', required_parameters: [indicator, country], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://www.imf.org/external/datamapper/api/help, verification_method: live_payload}
+
+  - provider_id: intrinio
+    name: Intrinio
+    source_tier: aggregator
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://intrinio.com/
+    documentation_url: https://docs.intrinio.com/
+    categories: [fundamentals, market]
+    metrics: [segment_revenue, revenue_growth, gross_margin, operating_margin, roic, valuation, ownership]
+    geographies: [global]
+    asset_classes: [equity, options]
+    access: {transports: [json_api], auth: api_key, cost_tier: paid}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: multpl
+    name: Multpl
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://www.multpl.com/
+    documentation_url: https://www.multpl.com/
+    categories: [valuation, macro]
+    metrics: [valuation]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [browser], auth: none, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: nasdaq
+    name: Nasdaq Data Link and Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [openbb]
+    homepage_url: https://www.nasdaq.com/
+    documentation_url: https://docs.data.nasdaq.com/
+    categories: [market, fundamentals, alternative_data]
+    metrics: [valuation, price_or_spread, market_size_or_demand]
+    geographies: [global]
+    asset_classes: [equity, commodity, fixed_income]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://data.nasdaq.com/api/v3/datasets/{dataset_code}.json?api_key={api_key}', required_parameters: [dataset_code, api_key], credential_env: NASDAQ_DATA_LINK_API_KEY, auth_injection: query_parameter, auth_field: api_key, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://docs.data.nasdaq.com/docs/in-depth-usage-1, verification_method: official_documentation}
+
+  - provider_id: oecd
+    name: OECD Data Explorer
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [openbb]
+    homepage_url: https://data-explorer.oecd.org/
+    documentation_url: https://www.oecd.org/en/data/insights/data-explainers/2024/09/api.html
+    categories: [macro, industry, steel_capacity, trade]
+    requirement_ids: [industry.market_demand, industry.price_capacity_cycle]
+    metrics: [market_size_or_demand, end_market_demand, capacity_or_utilization, price_or_spread]
+    geographies: [global, Asia, TW]
+    asset_classes: [macro, commodity]
+    access: {transports: [json_api, file], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.oecd.org/en/about/terms-conditions.html, public_raw_storage: restricted}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: sec_edgar
+    name: SEC EDGAR
+    provider_type: government_portal
+    source_tier: regulatory
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://www.sec.gov/edgar
+    documentation_url: https://www.sec.gov/search-filings/edgar-application-programming-interfaces
+    categories: [filings, fundamentals, ownership, events]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.board_and_ownership, governance.capital_allocation]
+    metrics: [products_or_services, customers_or_regions, segment_revenue, revenue_growth, gross_margin, operating_margin, capex, debt, dividend_or_buyback, m_and_a, ownership]
+    geographies: [US, global]
+    asset_classes: [equity, fixed_income]
+    access: {transports: [json_api, file], auth: contact_identity, cost_tier: free}
+    rights: {terms_url: https://www.sec.gov/about/privacy-information, public_raw_storage: allowed}
+    integration: {status: verified_requires_key, callable: true, adapter: provider_specific, endpoint_template: 'https://data.sec.gov/submissions/CIK{cik}.json', required_parameters: [cik], credential_env: SEC_USER_AGENT, auth_injection: header, auth_field: User-Agent, last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://www.sec.gov/search-filings/edgar-application-programming-interfaces, verification_method: live_payload, notes: Requires a compliant contact User-Agent and SEC rate policy.}
+
+  - provider_id: seeking_alpha
+    name: Seeking Alpha
+    source_tier: direct_secondary
+    discovered_via: [openbb]
+    homepage_url: https://seekingalpha.com/
+    documentation_url: https://seekingalpha.com/
+    categories: [news, analysis, transcripts]
+    metrics: [news_sentiment, analyst_rating, earnings_event]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [browser], auth: unknown, cost_tier: freemium}
+    integration: {status: blocked, callable: false, adapter: none, notes: Terms and access boundary require separate review.}
+
+  - provider_id: stockgrid
+    name: Stockgrid
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://www.stockgrid.io/
+    documentation_url: https://www.stockgrid.io/
+    categories: [dark_pool, market]
+    metrics: [market_sentiment, ownership]
+    geographies: [US]
+    asset_classes: [equity]
+
+  - provider_id: tiingo
+    name: Tiingo
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://www.tiingo.com/
+    documentation_url: https://www.tiingo.com/documentation/general/overview
+    categories: [market, fundamentals, news]
+    metrics: [valuation, revenue_growth, news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, fx, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.tiingo.com/tiingo/daily/{symbol}/prices?startDate={start_date}&token={api_key}', required_parameters: [symbol, start_date, api_key], credential_env: TIINGO_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.tiingo.com/documentation/general/overview}
+
+  - provider_id: tmx
+    name: TMX Group
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [openbb]
+    homepage_url: https://www.tmx.com/
+    documentation_url: https://www.tmx.com/
+    categories: [market, filings]
+    metrics: [valuation, ownership]
+    geographies: [CA]
+    asset_classes: [equity, derivatives]
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: tradier
+    name: Tradier
+    source_tier: direct_primary
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://tradier.com/
+    documentation_url: https://documentation.tradier.com/
+    categories: [market, derivatives]
+    metrics: [valuation, volatility, options_activity]
+    geographies: [US]
+    asset_classes: [equity, derivatives]
+    access: {transports: [json_api], auth: oauth, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: tradingeconomics
+    name: Trading Economics
+    source_tier: aggregator
+    discovered_via: [openbb]
+    homepage_url: https://tradingeconomics.com/
+    documentation_url: https://docs.tradingeconomics.com/
+    categories: [macro, commodity, industry]
+    metrics: [market_size_or_demand, price_or_spread, end_market_demand, capacity_or_utilization]
+    geographies: [global, Asia, TW]
+    asset_classes: [macro, commodity]
+    access: {transports: [json_api], auth: api_key, cost_tier: paid}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: wsj
+    name: Wall Street Journal
+    source_tier: direct_secondary
+    discovered_via: [openbb]
+    homepage_url: https://www.wsj.com/
+    documentation_url: https://www.wsj.com/
+    categories: [news, market]
+    metrics: [news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity]
+    access: {transports: [browser, rss], auth: unknown, cost_tier: paid}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: yfinance
+    name: yfinance Yahoo Finance adapter
+    provider_type: library
+    source_tier: aggregator
+    discovered_via: [openbb, public_apis]
+    homepage_url: https://github.com/ranaroussi/yfinance
+    documentation_url: https://ranaroussi.github.io/yfinance/
+    categories: [market, fundamentals, news]
+    requirement_ids: [peer.comparison]
+    metrics: [valuation, revenue_growth, gross_margin, operating_margin, roic, capex, debt, dividend_or_buyback, news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, fx, crypto]
+    access: {transports: [python_library], auth: none, cost_tier: free}
+    rights: {terms_url: https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html, public_raw_storage: restricted}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Unofficial adapter; Yahoo data terms and endpoint stability require a dedicated gate.}
+
+  # Taiwan-first research providers and open-source Taiwan adapters.
+  - provider_id: finmind
+    name: FinMind
+    source_tier: aggregator
+    discovered_via: [finmind]
+    homepage_url: https://finmindtrade.com/
+    documentation_url: https://finmind.github.io/
+    categories: [market, fundamentals, ownership, news, macro]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.board_and_ownership, governance.capital_allocation]
+    metrics:
+      - {metric_id: revenue_growth, support_level: derived, notes: Derived from normalized statement periods.}
+      - {metric_id: gross_margin, support_level: derived, notes: Derived from financial statement line items after taxonomy alignment.}
+      - {metric_id: operating_margin, support_level: derived, notes: Derived from financial statement line items after taxonomy alignment.}
+      - {metric_id: roic, support_level: derived, notes: Requires a project-defined NOPAT and invested-capital formula.}
+      - valuation
+      - {metric_id: margin_or_cost_comparison, support_level: derived, notes: Requires a common-period peer calculation.}
+      - capex
+      - debt
+      - dividend_or_buyback
+      - ownership
+      - {metric_id: inventory_days, support_level: derived, notes: Requires inventory and cost-of-sales alignment.}
+      - {metric_id: peer_set, support_level: derived, notes: Industry categories seed peers; research review is still required.}
+      - news_sentiment
+    geographies: [TW, Asia, global]
+    asset_classes: [equity, derivatives, macro, commodity]
+    languages: [zh-TW, en]
+    access: {transports: [json_api, python_library], auth: none, cost_tier: freemium}
+    rights: {terms_url: https://finmind.github.io/, public_raw_storage: restricted}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.finmindtrade.com/api/v4/data?dataset={dataset}&data_id={data_id}&start_date={start_date}', required_parameters: [dataset, data_id, start_date], last_verified_at: '2026-08-26T08:20:00Z', verification_url: https://github.com/FinMind/FinMind.github.io/blob/master/openapi.yaml, verification_method: live_payload, notes: Anonymous requests were live-verified; registered tokens increase quota but are not required for the tested dataset.}
+
+  - provider_id: akshare
+    name: AKShare
+    provider_type: library
+    source_tier: aggregator
+    discovered_via: [akshare]
+    homepage_url: https://akshare.akfamily.xyz/
+    documentation_url: https://akshare.akfamily.xyz/data/index.html
+    categories: [market, fundamentals, macro, commodity, industry]
+    metrics: [market_size_or_demand, price_or_spread, product_price, feedstock_cost, steel_price, iron_ore_price, coking_coal_price, valuation, revenue_growth]
+    geographies: [CN, Asia, global]
+    asset_classes: [equity, fixed_income, commodity, fx, crypto, derivatives]
+    languages: [zh-CN]
+    access: {transports: [python_library], auth: none, cost_tier: free}
+    rights: {terms_url: https://akshare.akfamily.xyz/introduction.html, public_raw_storage: restricted}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Upstream public websites change frequently; each origin needs its own rights and health gate.}
+
+  - provider_id: finance_database
+    name: FinanceDatabase
+    provider_type: directory
+    source_tier: direct_secondary
+    discovered_via: [finance_database]
+    homepage_url: https://github.com/JerBouma/FinanceDatabase
+    documentation_url: https://github.com/JerBouma/FinanceDatabase
+    categories: [identifiers, universe, symbology]
+    metrics: [peer_set, market_share_or_position]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, etf, fund, index, fx, crypto, money_market]
+    access: {transports: [python_library, file], auth: none, cost_tier: free}
+    rights: {terms_url: https://github.com/JerBouma/FinanceDatabase/blob/main/LICENSE, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: twse_openapi
+    name: TWSE OpenAPI
+    provider_type: government_portal
+    source_tier: regulatory
+    discovered_via: [public_apis, finmind]
+    homepage_url: https://openapi.twse.com.tw/
+    documentation_url: https://openapi.twse.com.tw/
+    categories: [market, filings, governance, esg, events]
+    requirement_ids: [company.business_model, peer.comparison, governance.board_and_ownership, governance.capital_allocation, esg.materiality_kpi]
+    metrics: [products_or_services, revenue_growth, gross_margin, operating_margin, capex, debt, dividend_or_buyback, board, independent_directors, ownership, committee, material_topic, baseline_kpi, target, progress, financial_transmission]
+    geographies: [TW]
+    asset_classes: [equity]
+    languages: [zh-TW]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.twse.com.tw/zh/terms.html, public_raw_storage: allowed}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://openapi.twse.com.tw/v1/opendata/{dataset}', required_parameters: [dataset], last_verified_at: '2026-08-26T08:10:00Z', verification_url: https://openapi.twse.com.tw/, verification_method: live_payload}
+
+  - provider_id: mops_xbrl
+    name: MOPS XBRL and filing downloads
+    provider_type: government_portal
+    source_tier: regulatory
+    discovered_via: [public_apis, finmind]
+    homepage_url: https://mops.twse.com.tw/
+    documentation_url: https://mops.twse.com.tw/mops/#/web/t100sb02_1
+    categories: [filings, fundamentals, segments, governance, esg]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.board_and_ownership, governance.capital_allocation, esg.materiality_kpi]
+    metrics: [products_or_services, customers_or_regions, segment_revenue, revenue_growth, gross_margin, operating_margin, roic, capex, debt, dividend_or_buyback, m_and_a, board, independent_directors, ownership, committee, material_topic, baseline_kpi, target, progress, financial_transmission]
+    geographies: [TW]
+    asset_classes: [equity, fixed_income]
+    languages: [zh-TW, en]
+    access: {transports: [file, browser], auth: none, cost_tier: free}
+    rights: {terms_url: https://mops.twse.com.tw/mops/#/web/index, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Needs filing resolver and XBRL/PDF table parser; do not treat search pages as evidence.}
+
+  - provider_id: moea_industrial_statistics
+    name: MOEA Industrial Production Statistics
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis, finmind]
+    homepage_url: https://service.moea.gov.tw/EE520/
+    documentation_url: https://service.moea.gov.tw/EE520/investigate/InvestigateDA.aspx
+    categories: [industry, production, sales]
+    requirement_ids: [industry.market_demand, industry.price_capacity_cycle, industry.cement_unit_economics, industry.steel_spread_cycle, industry.petrochemical_spread_cycle, industry.component_inventory_cycle, industry.pc_odm_demand_mix]
+    metrics:
+      - market_size_or_demand
+      - sales_volume
+      - {metric_id: asp, support_level: derived, notes: Production or sales value divided by quantity after unit checks.}
+      - {metric_id: product_price, support_level: derived, notes: Sales value divided by sales volume after unit checks.}
+      - {metric_id: capacity_or_utilization, support_level: derived, notes: Requires company or association capacity denominator; production alone is not utilization.}
+      - end_market_demand
+      - {metric_id: channel_inventory, support_level: proxy, notes: Manufacturer inventory is not channel inventory.}
+      - {metric_id: pc_or_ai_server_demand, support_level: derived, notes: Product-level production and sales for notebooks and servers.}
+    geographies: [TW]
+    asset_classes: [macro, equity, commodity]
+    languages: [zh-TW]
+    access: {transports: [browser, file], auth: none, cost_tier: free}
+    rights: {terms_url: 'https://www.moea.gov.tw/Mns/populace/content/ContentLink.aspx?menu_id=7488', public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: taiwan_customs_trade
+    name: Taiwan Customs Trade Statistics
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis, finmind]
+    homepage_url: https://publicinfo.trade.gov.tw/cuswebo/
+    documentation_url: https://publicinfo.trade.gov.tw/cuswebo/
+    categories: [trade, industry, demand]
+    requirement_ids: [industry.market_demand, industry.competitive_position]
+    metrics: [market_size_or_demand, end_market_demand, sales_volume, market_share_or_position, customers_or_regions]
+    geographies: [TW, Asia, global]
+    asset_classes: [macro, commodity, equity]
+    languages: [zh-TW, en]
+    access: {transports: [browser, file], auth: none, cost_tier: free}
+    rights: {terms_url: https://publicinfo.trade.gov.tw/cuswebo/, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: data_gov_tw
+    name: Taiwan Government Open Data
+    provider_type: directory
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://data.gov.tw/
+    documentation_url: https://data.gov.tw/
+    categories: [government, industry, esg, macro]
+    metrics: [market_size_or_demand, end_market_demand, material_topic, baseline_kpi, progress]
+    geographies: [TW]
+    asset_classes: [macro, equity, commodity]
+    languages: [zh-TW]
+    access: {transports: [json_api, file], auth: none, cost_tier: free}
+    rights: {terms_url: https://data.gov.tw/license, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Dataset directory; each dataset publisher remains the independence group.}
+
+  # Global official/open-data and industry sources.
+  - provider_id: world_bank
+    name: World Bank Open Data
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://data.worldbank.org/
+    documentation_url: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392
+    categories: [macro, development, demand]
+    metrics: [market_size_or_demand, end_market_demand, price_or_spread]
+    geographies: [global, Asia]
+    asset_classes: [macro]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.worldbank.org/en/about/legal/terms-of-use-for-datasets, public_raw_storage: allowed}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.worldbank.org/v2/country/{country}/indicator/{indicator}?format=json&date={date_range}', required_parameters: [country, indicator, date_range], last_verified_at: '2026-08-26T08:10:00Z', verification_url: https://datahelpdesk.worldbank.org/knowledgebase/articles/889392, verification_method: live_payload, notes: API response structure verified; Taiwan is not represented as a direct country code in the tested request.}
+
+  - provider_id: world_bank_pink_sheet
+    name: World Bank Commodity Price Data Pink Sheet
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [awesome_realtime, openbb]
+    homepage_url: https://www.worldbank.org/en/research/commodity-markets
+    documentation_url: https://www.worldbank.org/en/research/commodity-markets
+    categories: [commodity, price_index]
+    metrics: [price_or_spread, energy_cost, feedstock_cost, iron_ore_price, coking_coal_price]
+    geographies: [global, Asia]
+    asset_classes: [commodity, macro]
+    access: {transports: [file], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.worldbank.org/en/about/legal/terms-of-use-for-datasets, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: un_comtrade
+    name: UN Comtrade
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://comtradeplus.un.org/
+    documentation_url: https://comtradedeveloper.un.org/
+    categories: [trade, industry, demand]
+    metrics: [market_size_or_demand, end_market_demand, sales_volume, market_share_or_position, customers_or_regions]
+    geographies: [global, Asia, TW]
+    asset_classes: [macro, commodity]
+    access: {transports: [json_api, file], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://comtradeapi.un.org/public/v1/preview/C/A/HS?period={period}&reporterCode={reporter}&cmdCode={hs_code}&partnerCode={partner}', required_parameters: [period, reporter, hs_code, partner], credential_env: UN_COMTRADE_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://comtradedeveloper.un.org/}
+
+  - provider_id: eurostat
+    name: Eurostat
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://ec.europa.eu/eurostat/
+    documentation_url: https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-introduction
+    categories: [macro, industry, trade, esg]
+    metrics: [market_size_or_demand, end_market_demand, capacity_or_utilization, energy_cost, carbon_cost]
+    geographies: [EU, global]
+    asset_classes: [macro, commodity]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/{dataset}?geo={geo}&na_item={item}&unit={unit}', required_parameters: [dataset, geo, item, unit], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-introduction, verification_method: live_payload}
+
+  - provider_id: usgs
+    name: US Geological Survey Mineral Commodity Data
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.usgs.gov/centers/national-minerals-information-center
+    documentation_url: https://www.usgs.gov/centers/national-minerals-information-center/mineral-commodity-summaries
+    categories: [commodity, industry, capacity]
+    requirement_ids: [industry.cement_unit_economics, industry.steel_spread_cycle]
+    metrics: [market_size_or_demand, sales_volume, capacity_or_utilization, product_price, iron_ore_price]
+    geographies: [US, global]
+    asset_classes: [commodity, macro]
+    access: {transports: [file, browser], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits, public_raw_storage: allowed}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: worldsteel
+    name: World Steel Association
+    provider_type: industry_association
+    source_tier: direct_primary
+    discovered_via: [public_apis, openbb]
+    homepage_url: https://worldsteel.org/
+    documentation_url: https://worldsteel.org/data/
+    categories: [steel, production, capacity, trade]
+    requirement_ids: [industry.market_demand, industry.price_capacity_cycle, industry.steel_spread_cycle]
+    metrics: [market_size_or_demand, sales_volume, capacity_or_utilization, steel_price, market_share_or_position]
+    geographies: [global, Asia, TW]
+    asset_classes: [commodity, macro, equity]
+    access: {transports: [file, browser], auth: none, cost_tier: freemium}
+    rights: {terms_url: https://worldsteel.org/legal/, public_raw_storage: restricted}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Public annual tables and paid monthly datasets must remain distinct.}
+
+  - provider_id: wsts
+    name: World Semiconductor Trade Statistics
+    provider_type: industry_association
+    source_tier: direct_primary
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.wsts.org/
+    documentation_url: https://www.wsts.org/76/Recent-News-Release
+    categories: [semiconductor, demand, market_size]
+    requirement_ids: [industry.market_demand, industry.component_inventory_cycle, industry.pc_odm_demand_mix]
+    metrics: [market_size_or_demand, end_market_demand, pc_or_ai_server_demand, product_mix]
+    geographies: [global, Asia]
+    asset_classes: [equity, macro]
+    access: {transports: [file, browser], auth: none, cost_tier: freemium}
+    rights: {terms_url: https://www.wsts.org/, public_raw_storage: restricted}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: gdelt
+    name: GDELT Project
+    source_tier: aggregator
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.gdeltproject.org/
+    documentation_url: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
+    categories: [news, events, sentiment]
+    metrics: [news_sentiment, policy_event, market_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, commodity, crypto]
+    languages: [multilingual]
+    access: {transports: [json_api, file], auth: none, cost_tier: free}
+    rights: {terms_url: https://www.gdeltproject.org/about.html, public_raw_storage: allowed}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.gdeltproject.org/api/v2/doc/doc?query={query}&mode=artlist&format=json&maxrecords={limit}', required_parameters: [query, limit], last_verified_at: '2026-08-26T08:25:00Z', verification_url: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/, verification_method: live_payload}
+
+  - provider_id: federal_register
+    name: US Federal Register
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://www.federalregister.gov/
+    documentation_url: https://www.federalregister.gov/developers/documentation/api/v1
+    categories: [policy, regulation, events]
+    metrics: [policy_event, material_topic]
+    geographies: [US, global]
+    asset_classes: [macro, equity, commodity]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://www.federalregister.gov/api/v1/documents.json?per_page={limit}&conditions%5Bterm%5D={query}', required_parameters: [limit, query], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.federalregister.gov/developers/documentation/api/v1}
+
+  - provider_id: epa
+    name: US Environmental Protection Agency Data
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://www.epa.gov/data
+    documentation_url: https://www.epa.gov/developers/data-data-products
+    categories: [esg, environment, regulation]
+    requirement_ids: [esg.materiality_kpi]
+    metrics: [material_topic, baseline_kpi, target, progress, financial_transmission, carbon_cost]
+    geographies: [US, global]
+    asset_classes: [macro, equity]
+    access: {transports: [json_api, file], auth: none, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: census
+    name: US Census Bureau API
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://www.census.gov/data/developers.html
+    documentation_url: https://www.census.gov/data/developers/guidance/api-user-guide.html
+    categories: [macro, business, demand]
+    metrics: [market_size_or_demand, end_market_demand, customers_or_regions]
+    geographies: [US]
+    asset_classes: [macro]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: fed_treasury
+    name: US Treasury Fiscal Data
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://fiscaldata.treasury.gov/
+    documentation_url: https://fiscaldata.treasury.gov/api-documentation/
+    categories: [macro, fiscal, rates]
+    metrics: [market_size_or_demand, interest_rate, policy_event]
+    geographies: [US, global]
+    asset_classes: [macro, fixed_income]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/rates_of_exchange?page%5Bsize%5D={page_size}', required_parameters: [page_size], last_verified_at: '2026-08-26T08:35:00Z', verification_url: https://fiscaldata.treasury.gov/api-documentation/, verification_method: live_payload}
+
+  - provider_id: bea
+    name: US Bureau of Economic Analysis
+    provider_type: government_portal
+    source_tier: official
+    discovered_via: [public_apis]
+    homepage_url: https://www.bea.gov/
+    documentation_url: https://apps.bea.gov/api/signup/
+    categories: [macro, industry, trade]
+    metrics: [market_size_or_demand, end_market_demand, price_or_spread]
+    geographies: [US, global]
+    asset_classes: [macro]
+    access: {transports: [json_api], auth: api_key, cost_tier: free_registration}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://apps.bea.gov/api/data/?UserID={api_key}&method=GetData&datasetname={dataset}&TableName={table}&Year={year}&ResultFormat=json', required_parameters: [api_key, dataset, table, year], credential_env: BEA_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://apps.bea.gov/api/}
+
+  # Market, fundamentals and identifier candidates from public-apis.
+  - provider_id: marketstack
+    name: Marketstack
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://marketstack.com/
+    documentation_url: https://marketstack.com/documentation
+    categories: [market]
+    metrics: [valuation]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.marketstack.com/v2/eod?access_key={api_key}&symbols={symbol}&date_from={start_date}', required_parameters: [api_key, symbol, start_date], credential_env: MARKETSTACK_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://marketstack.com/documentation}
+
+  - provider_id: aletheia
+    name: Aletheia API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://aletheiaapi.com/
+    documentation_url: https://aletheiaapi.com/docs/
+    categories: [filings, fundamentals, insider, transcripts]
+    metrics: [segment_revenue, revenue_growth, gross_margin, operating_margin, ownership, earnings_event]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: alpaca
+    name: Alpaca Market Data
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://alpaca.markets/
+    documentation_url: https://docs.alpaca.markets/docs/market-data
+    categories: [market, news]
+    metrics: [valuation, news_sentiment]
+    geographies: [US]
+    asset_classes: [equity, crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: api_key, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: finnhub
+    name: Finnhub
+    source_tier: aggregator
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://finnhub.io/
+    documentation_url: https://finnhub.io/docs/api
+    categories: [market, fundamentals, news, esg]
+    metrics: [valuation, revenue_growth, gross_margin, operating_margin, ownership, news_sentiment, baseline_kpi]
+    geographies: [global]
+    asset_classes: [equity, fx, crypto]
+    access: {transports: [json_api, websocket], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://finnhub.io/api/v1/{route}?symbol={symbol}&token={api_key}', required_parameters: [route, symbol, api_key], credential_env: FINNHUB_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://finnhub.io/docs/api}
+
+  - provider_id: openfigi
+    name: OpenFIGI
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://www.openfigi.com/
+    documentation_url: https://www.openfigi.com/api/documentation
+    categories: [identifiers, symbology]
+    metrics: [peer_set]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, fixed_income, derivatives, index]
+    access: {transports: [json_api], auth: api_key, cost_tier: free_registration}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: massive_polygon
+    name: Massive formerly Polygon.io
+    source_tier: aggregator
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://massive.com/
+    documentation_url: https://massive.com/docs
+    categories: [market, fundamentals, news]
+    metrics: [valuation, revenue_growth, news_sentiment]
+    geographies: [US, global]
+    asset_classes: [equity, fx, crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.massive.com/v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{from_date}/{to_date}?apiKey={api_key}', required_parameters: [ticker, multiplier, timespan, from_date, to_date, api_key], credential_env: MASSIVE_API_KEY, auth_injection: query_parameter, auth_field: apiKey, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://massive.com/docs/rest, verification_method: official_documentation}
+
+  - provider_id: twelve_data
+    name: Twelve Data
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://twelvedata.com/
+    documentation_url: https://twelvedata.com/docs
+    categories: [market, fundamentals]
+    metrics: [valuation, revenue_growth]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, fx, crypto, etf]
+    access: {transports: [json_api, websocket], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&apikey={api_key}', required_parameters: [symbol, interval, api_key], credential_env: TWELVE_DATA_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://twelvedata.com/docs}
+
+  - provider_id: stockdata_org
+    name: StockData.org
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://www.stockdata.org/
+    documentation_url: https://www.stockdata.org/documentation
+    categories: [market, news, sentiment]
+    metrics: [valuation, news_sentiment, market_sentiment]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.stockdata.org/v1/data/quote?symbols={symbols}&api_token={api_key}', required_parameters: [symbols, api_key], credential_env: STOCKDATA_ORG_API_TOKEN, auth_injection: query_parameter, auth_field: api_token, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://www.stockdata.org/documentation, verification_method: official_documentation}
+
+  - provider_id: stockfit
+    name: StockFit
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://stockfit.io/
+    documentation_url: https://api.stockfit.io/docs
+    categories: [filings, fundamentals, ownership]
+    metrics: [segment_revenue, revenue_growth, gross_margin, operating_margin, valuation, ownership]
+    geographies: [US]
+    asset_classes: [equity, etf]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: catalogued_unverified, callable: false, adapter: none}
+
+  - provider_id: congressinvests
+    name: CongressInvests
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://congressinvests.com/
+    documentation_url: https://congressinvests.com/
+    categories: [ownership, insider, policy]
+    metrics: [ownership, policy_event]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: iex_cloud
+    name: IEX Cloud
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://iexcloud.io/
+    documentation_url: https://iexcloud.io/docs/api/
+    categories: [market, fundamentals]
+    metrics: [valuation, revenue_growth]
+    geographies: [US]
+    asset_classes: [equity]
+    integration: {status: deprecated, callable: false, adapter: none, notes: Service shutdown; retained to prevent accidental route reuse.}
+
+  - provider_id: brieftape
+    name: BriefTape
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://brieftape.com/
+    documentation_url: https://brieftape.com/
+    categories: [filings, policy, news, events]
+    requirement_ids: [company.business_model, governance.capital_allocation]
+    metrics: [policy_event, earnings_event, news_sentiment, m_and_a]
+    geographies: [US]
+    asset_classes: [equity, macro]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: dino_markets
+    name: Dino Markets
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://dino.markets/
+    documentation_url: https://dino.markets/docs
+    categories: [prediction_market, sentiment]
+    metrics: [market_sentiment, policy_event]
+    geographies: [global, US]
+    asset_classes: [derivatives, macro, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: econpulse
+    name: EconPulse
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://econpulse.io/
+    documentation_url: https://econpulse.io/
+    categories: [macro, energy, rates, crypto]
+    metrics: [price_or_spread, energy_cost, market_size_or_demand, market_sentiment]
+    geographies: [US, global]
+    asset_classes: [macro, commodity, crypto, fixed_income]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: edgrapi
+    name: Edgrapi
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://edgrapi.com/
+    documentation_url: https://edgrapi.com/
+    categories: [filings, fundamentals, ownership]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.capital_allocation]
+    metrics: [products_or_services, customers_or_regions, segment_revenue, revenue_growth, gross_margin, operating_margin, roic, valuation, capex, debt, dividend_or_buyback, m_and_a, ownership]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: filingrail
+    name: Filingrail
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://rapidapi.com/hudson-enterprises-llc-hudson-enterprises-llc-default/api/filingrail
+    documentation_url: https://rapidapi.com/hudson-enterprises-llc-hudson-enterprises-llc-default/api/filingrail
+    categories: [filings, fundamentals, ownership]
+    requirement_ids: [company.business_model, segment.disclosure, peer.comparison, governance.capital_allocation]
+    metrics: [segment_revenue, revenue_growth, gross_margin, operating_margin, valuation, ownership, m_and_a]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: finage
+    name: Finage
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://finage.co.uk/
+    documentation_url: https://finage.co.uk/docs
+    categories: [market]
+    metrics: [valuation]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, etf, index, fx, crypto]
+    access: {transports: [json_api, websocket], auth: api_key, cost_tier: freemium}
+
+  - provider_id: goldprice_dev
+    name: Goldprice.dev
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://goldprice.dev/
+    documentation_url: https://goldprice.dev/docs
+    categories: [commodity, market]
+    metrics: [price_or_spread, product_price]
+    geographies: [global]
+    asset_classes: [commodity, derivatives]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+
+  - provider_id: helium_market_news
+    name: Helium Market News
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://heliumtrades.com/
+    documentation_url: https://heliumtrades.com/mcp-page/
+    categories: [news, sentiment, derivatives]
+    metrics: [news_sentiment, market_sentiment, volatility]
+    geographies: [global]
+    asset_classes: [equity, derivatives, macro]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+
+  - provider_id: hotstoks
+    name: Hotstoks
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://hotstoks.com/
+    documentation_url: https://hotstoks.com/
+    categories: [market, fundamentals]
+    metrics: [valuation, revenue_growth]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: north7_agent
+    name: NORTH7 Agent API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://north7.ai/
+    documentation_url: https://north7.ai/v1/docs
+    categories: [market, signals, geopolitical]
+    metrics: [market_sentiment, policy_event, news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: portfolio_optimizer
+    name: Portfolio Optimizer
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://portfoliooptimizer.io/
+    documentation_url: https://portfoliooptimizer.io/
+    categories: [portfolio, risk, optimization]
+    metrics: [benchmark_return, volatility]
+    geographies: [global]
+    asset_classes: [equity, fixed_income, commodity, crypto]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific, notes: Derived analytics engine; outputs are not independent raw evidence.}
+
+  - provider_id: styvio
+    name: Styvio
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://www.styvio.com/
+    documentation_url: https://www.styvio.com/
+    categories: [market, sentiment]
+    metrics: [valuation, market_sentiment]
+    geographies: [global]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: sugra
+    name: Sugra
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://sugra.ai/
+    documentation_url: https://sugra.ai/
+    categories: [market, macro, commodity, climate, news]
+    metrics: [valuation, market_size_or_demand, price_or_spread, material_topic, news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: wallstreetbets_api
+    name: WallStreetBets Sentiment API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://dashboard.nbshare.io/apps/reddit/api/
+    documentation_url: https://dashboard.nbshare.io/apps/reddit/api/
+    categories: [community, sentiment]
+    metrics: [market_sentiment, news_sentiment]
+    geographies: [US, global]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: none, cost_tier: unknown}
+    rights: {terms_url: https://redditinc.com/policies/data-api-terms, public_raw_storage: restricted}
+    integration: {status: catalogued_unverified, callable: false, adapter: none, notes: Aggregated Reddit-derived data; requires provenance and Reddit terms review.}
+
+  - provider_id: zelothorn
+    name: Zelothorn
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://zelothorn.com/
+    documentation_url: https://zelothorn.com/developers
+    categories: [filings, company_explanations]
+    metrics: [products_or_services, customers_or_regions, revenue_growth]
+    geographies: [US]
+    asset_classes: [equity]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+    integration: {status: catalogued_unverified, callable: false, adapter: none, notes: Derived explanations must preserve underlying SEC citations and cannot replace filings.}
+
+  # News and community APIs from public-apis.
+  - provider_id: marketaux
+    name: MarketAux
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://www.marketaux.com/
+    documentation_url: https://www.marketaux.com/documentation
+    categories: [news, sentiment]
+    metrics: [news_sentiment, market_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, crypto, fx]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.marketaux.com/v1/news/all?symbols={symbol}&api_token={api_key}&limit={limit}', required_parameters: [symbol, api_key, limit], credential_env: MARKETAUX_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.marketaux.com/documentation}
+
+  - provider_id: newsapi
+    name: NewsAPI
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://newsapi.org/
+    documentation_url: https://newsapi.org/docs
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, commodity, crypto]
+    languages: [multilingual]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    rights: {terms_url: https://newsapi.org/terms, public_raw_storage: restricted}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://newsapi.org/v2/everything?q={query}&from={from_date}&apiKey={api_key}', required_parameters: [query, from_date, api_key], credential_env: NEWSAPI_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://newsapi.org/docs}
+
+  - provider_id: newsdata
+    name: NewsData.io
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://newsdata.io/
+    documentation_url: https://newsdata.io/documentation
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, commodity, crypto]
+    languages: [multilingual]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://newsdata.io/api/1/latest?apikey={api_key}&q={query}&country={country}&language={language}', required_parameters: [api_key, query, country, language], credential_env: NEWSDATA_API_KEY, auth_injection: query_parameter, auth_field: apikey, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://newsdata.io/documentation, verification_method: official_documentation}
+
+  - provider_id: gnews
+    name: GNews API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://gnews.io/
+    documentation_url: https://gnews.io/docs/v4
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, commodity, crypto]
+    languages: [multilingual]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://gnews.io/api/v4/search?q={query}&lang={language}&country={country}&max={limit}&apikey={api_key}', required_parameters: [query, language, country, limit, api_key], credential_env: GNEWS_API_KEY, auth_injection: query_parameter, auth_field: apikey, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://gnews.io/docs/v4, verification_method: official_documentation}
+
+  - provider_id: guardian_open_platform
+    name: The Guardian Open Platform
+    source_tier: direct_secondary
+    discovered_via: [public_apis]
+    homepage_url: https://open-platform.theguardian.com/
+    documentation_url: https://open-platform.theguardian.com/documentation/
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, EU]
+    asset_classes: [equity, macro, commodity]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    rights: {terms_url: https://www.theguardian.com/open-platform/terms-and-conditions, public_raw_storage: restricted}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://content.guardianapis.com/search?q={query}&from-date={from_date}&api-key={api_key}', required_parameters: [query, from_date, api_key], credential_env: GUARDIAN_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://open-platform.theguardian.com/documentation/}
+
+  - provider_id: nyt_api
+    name: New York Times Developer API
+    source_tier: direct_secondary
+    discovered_via: [public_apis]
+    homepage_url: https://developer.nytimes.com/
+    documentation_url: https://developer.nytimes.com/docs/articlesearch-product/1/overview
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [US, global]
+    asset_classes: [equity, macro, commodity]
+    access: {transports: [json_api], auth: api_key, cost_tier: free_registration}
+    rights: {terms_url: https://developer.nytimes.com/terms, public_raw_storage: restricted}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.nytimes.com/svc/search/v2/articlesearch.json?q={query}&api-key={api_key}', required_parameters: [query, api_key], credential_env: NYT_API_KEY, last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://developer.nytimes.com/docs/articlesearch-product/1/overview}
+
+  - provider_id: mediastack
+    name: Mediastack
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://mediastack.com/
+    documentation_url: https://mediastack.com/documentation
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, commodity, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.mediastack.com/v1/news?access_key={api_key}&keywords={query}&countries={country}&languages={language}', required_parameters: [api_key, query, country, language], credential_env: MEDIASTACK_API_KEY, auth_injection: query_parameter, auth_field: access_key, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://mediastack.com/documentation, verification_method: official_documentation}
+
+  - provider_id: associated_press
+    name: Associated Press Developer API
+    source_tier: direct_secondary
+    discovered_via: [public_apis]
+    homepage_url: https://developer.ap.org/
+    documentation_url: https://developer.ap.org/
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity]
+    access: {transports: [json_api], auth: api_key, cost_tier: paid}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: currents_api
+    name: Currents API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://currentsapi.services/
+    documentation_url: https://currentsapi.services/en/docs/
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, Asia]
+    asset_classes: [equity, macro, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: thenewsapi
+    name: TheNewsAPI
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://www.thenewsapi.com/
+    documentation_url: https://www.thenewsapi.com/documentation
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global, TW, Asia]
+    asset_classes: [equity, macro, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: noozra
+    name: Noozra
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://noozra.com/
+    documentation_url: https://noozra.com/api
+    categories: [news]
+    metrics: [news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, crypto]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+
+  - provider_id: newsflash
+    name: Newsflash
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://newsflash.sh/
+    documentation_url: https://newsflash.sh/docs
+    categories: [news, events, corroboration]
+    metrics: [news_sentiment, market_sentiment, policy_event]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  - provider_id: newsx
+    name: NewsX
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://rapidapi.com/machaao-inc-machaao-inc-default/api/newsx/
+    documentation_url: https://rapidapi.com/machaao-inc-machaao-inc-default/api/newsx/
+    categories: [news, summaries]
+    metrics: [news_sentiment]
+    geographies: [global]
+    asset_classes: [equity, macro, commodity, crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+
+  # Crypto market and on-chain sources from public-apis and real-time lists.
+  - provider_id: coingecko
+    name: CoinGecko API
+    source_tier: aggregator
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.coingecko.com/
+    documentation_url: https://docs.coingecko.com/
+    categories: [crypto, market, fundamentals]
+    metrics: [valuation, market_size_or_demand, market_sentiment]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+    rights: {terms_url: https://www.coingecko.com/en/terms, public_raw_storage: restricted}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency={currency}&days={days}', required_parameters: [coin_id, currency, days], last_verified_at: '2026-08-26T08:25:00Z', verification_url: https://docs.coingecko.com/reference/introduction, verification_method: live_payload}
+
+  - provider_id: coinmarketcap
+    name: CoinMarketCap API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://coinmarketcap.com/
+    documentation_url: https://coinmarketcap.com/api/documentation/v1/
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand, market_sentiment]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://pro-api.coinmarketcap.com/v3/cryptocurrency/quotes/latest?id={asset_ids}&convert={currency}', required_parameters: [asset_ids, currency], credential_env: COINMARKETCAP_API_KEY, auth_injection: header, auth_field: X-CMC_PRO_API_KEY, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://coinmarketcap.com/api/documentation/pro-api-reference/cryptocurrency, verification_method: official_documentation}
+
+  - provider_id: coincap
+    name: CoinCap
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://coincap.io/
+    documentation_url: https://docs.coincap.io/
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://rest.coincap.io/v3/assets/{asset_id}', required_parameters: [asset_id], credential_env: COINCAP_API_KEY, auth_injection: bearer_header, auth_field: Authorization, last_verified_at: '2026-08-26T08:35:00Z', verification_url: https://coincapapi.mintlify.app/quickstart, verification_method: official_documentation}
+
+  - provider_id: coinpaprika
+    name: Coinpaprika
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://coinpaprika.com/
+    documentation_url: https://api.coinpaprika.com/
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.coinpaprika.com/v1/tickers/{coin_id}?quotes={currency}', required_parameters: [coin_id, currency], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://api.coinpaprika.com/}
+
+  - provider_id: cryptocompare
+    name: CryptoCompare
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://www.cryptocompare.com/
+    documentation_url: https://min-api.cryptocompare.com/documentation
+    categories: [crypto, market, news]
+    metrics: [valuation, market_size_or_demand, news_sentiment]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://min-api.cryptocompare.com/data/v2/histoday?fsym={symbol}&tsym={currency}&limit={limit}&api_key={api_key}', required_parameters: [symbol, currency, limit, api_key], credential_env: CRYPTOCOMPARE_API_KEY, auth_injection: query_parameter, auth_field: api_key, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://min-api.cryptocompare.com/documentation, verification_method: official_documentation}
+
+  - provider_id: binance
+    name: Binance Public Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.binance.com/
+    documentation_url: https://github.com/binance/binance-spot-api-docs
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand, market_sentiment]
+    geographies: [global, Asia]
+    asset_classes: [crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}', required_parameters: [symbol, interval, limit], last_verified_at: '2026-08-26T08:25:00Z', verification_url: https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md, verification_method: live_payload}
+
+  - provider_id: coinbase
+    name: Coinbase Exchange Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.coinbase.com/
+    documentation_url: https://docs.cdp.coinbase.com/exchange/docs/welcome
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.exchange.coinbase.com/products/{product_id}/candles?granularity={granularity}', required_parameters: [product_id, granularity], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://docs.cdp.coinbase.com/exchange/reference/exchangerestapi_getproductcandles}
+
+  - provider_id: kraken
+    name: Kraken Public Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://www.kraken.com/
+    documentation_url: https://docs.kraken.com/api/
+    categories: [crypto, market]
+    metrics: [valuation, market_size_or_demand]
+    geographies: [global]
+    asset_classes: [crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.kraken.com/0/public/OHLC?pair={pair}&interval={interval}', required_parameters: [pair, interval], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://docs.kraken.com/api/docs/rest-api/get-ohlc-data}
+
+  - provider_id: bybit
+    name: Bybit Public Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://www.bybit.com/
+    documentation_url: https://bybit-exchange.github.io/docs/v5/intro
+    categories: [crypto, market, derivatives]
+    metrics: [valuation, market_size_or_demand, market_sentiment]
+    geographies: [global, Asia]
+    asset_classes: [crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.bybit.com/v5/market/kline?category={category}&symbol={symbol}&interval={interval}', required_parameters: [category, symbol, interval], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://bybit-exchange.github.io/docs/v5/market/kline}
+
+  - provider_id: okx
+    name: OKX Public Market Data
+    provider_type: exchange
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://www.okx.com/
+    documentation_url: https://www.okx.com/docs-v5/en/
+    categories: [crypto, market, derivatives]
+    metrics: [valuation, market_size_or_demand, market_sentiment]
+    geographies: [global, Asia]
+    asset_classes: [crypto, derivatives]
+    access: {transports: [json_api, websocket], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://www.okx.com/api/v5/market/candles?instId={instrument_id}&bar={bar}', required_parameters: [instrument_id, bar], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://www.okx.com/docs-v5/en/#order-book-trading-market-data-get-candlesticks}
+
+  - provider_id: mempool_space
+    name: mempool.space
+    source_tier: direct_primary
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://mempool.space/
+    documentation_url: https://mempool.space/docs/api/rest
+    categories: [crypto, onchain]
+    metrics: [market_sentiment, network_activity]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: none, cost_tier: free}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://mempool.space/api/v1/fees/recommended', required_parameters: [], last_verified_at: '2026-08-26T00:00:00Z', verification_url: https://mempool.space/docs/api/rest}
+
+  - provider_id: messari
+    name: Messari API
+    source_tier: aggregator
+    discovered_via: [public_apis]
+    homepage_url: https://messari.io/
+    documentation_url: https://docs.messari.io/
+    categories: [crypto, fundamentals, news]
+    metrics: [valuation, market_size_or_demand, news_sentiment]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: api_key, cost_tier: freemium}
+    integration: {status: verified_requires_key, callable: true, adapter: generic_json, endpoint_template: 'https://api.messari.io/metrics/v1/assets/{asset_identifier}', required_parameters: [asset_identifier], credential_env: MESSARI_API_KEY, auth_injection: header, auth_field: X-Messari-API-Key, last_verified_at: '2026-08-26T08:50:00Z', verification_url: https://docs.messari.io/api-reference/endpoints/metrics/v1/get-v1-assets-assetIdentifier, verification_method: official_documentation}
+
+  - provider_id: defillama
+    name: DefiLlama
+    source_tier: aggregator
+    discovered_via: [public_apis, awesome_realtime]
+    homepage_url: https://defillama.com/
+    documentation_url: https://defillama.com/docs/api
+    categories: [crypto, defi, fundamentals]
+    metrics: [valuation, market_size_or_demand, product_mix]
+    geographies: [global]
+    asset_classes: [crypto]
+    access: {transports: [json_api], auth: none, cost_tier: freemium}
+    integration: {status: verified_public, callable: true, adapter: generic_json, endpoint_template: 'https://api.llama.fi/protocol/{slug}', required_parameters: [slug], last_verified_at: '2026-08-26T08:30:00Z', verification_url: https://defillama.com/docs/api, verification_method: live_payload}
+
+  # Industry-specific public and commercial candidates retained for routing/procurement decisions.
+  - provider_id: trendforce
+    name: TrendForce
+    source_tier: direct_secondary
+    discovered_via: [public_apis, openbb]
+    homepage_url: https://www.trendforce.com/
+    documentation_url: https://www.trendforce.com/research
+    categories: [semiconductor, pc, server, components, industry]
+    requirement_ids: [industry.market_demand, industry.component_inventory_cycle, industry.pc_odm_demand_mix]
+    metrics: [market_size_or_demand, end_market_demand, inventory_days, asp_or_product_mix, capacity_or_utilization, product_mix, channel_inventory, pc_or_ai_server_demand, capacity_or_supply_constraint, market_share_or_position]
+    geographies: [TW, Asia, global]
+    asset_classes: [equity, macro]
+    access: {transports: [browser], auth: unknown, cost_tier: paid}
+    rights: {terms_url: https://www.trendforce.com/terms, public_raw_storage: restricted}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: gartner
+    name: Gartner Market Research
+    source_tier: direct_secondary
+    discovered_via: [public_apis]
+    homepage_url: https://www.gartner.com/
+    documentation_url: https://www.gartner.com/en/newsroom
+    categories: [pc, server, technology, industry]
+    requirement_ids: [industry.market_demand, industry.pc_odm_demand_mix]
+    metrics: [market_size_or_demand, end_market_demand, product_mix, channel_inventory, pc_or_ai_server_demand, market_share_or_position]
+    geographies: [global, Asia]
+    asset_classes: [equity, macro]
+    access: {transports: [browser], auth: unknown, cost_tier: paid}
+    rights: {terms_url: https://www.gartner.com/en/about/policies/terms-of-use, public_raw_storage: restricted}
+    integration: {status: commercial_only, callable: false, adapter: none}
+
+  - provider_id: taiwan_cement_association
+    name: Taiwan Cement Manufacturers Association
+    provider_type: industry_association
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://tcmaorg.tw/
+    documentation_url: https://tcmaorg.tw/
+    categories: [cement, production, sales]
+    requirement_ids: [industry.market_demand, industry.cement_unit_economics]
+    metrics: [sales_volume, market_size_or_demand, market_share_or_position, capacity_or_utilization]
+    geographies: [TW]
+    asset_classes: [commodity, equity]
+    languages: [zh-TW]
+    access: {transports: [file, browser], auth: none, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}
+
+  - provider_id: taiwan_steel_association
+    name: Taiwan Steel and Iron Industries Association
+    provider_type: industry_association
+    source_tier: direct_primary
+    discovered_via: [public_apis]
+    homepage_url: https://www.tsiia.org.tw/
+    documentation_url: https://www.tsiia.org.tw/
+    categories: [steel, production, trade]
+    requirement_ids: [industry.market_demand, industry.steel_spread_cycle]
+    metrics: [sales_volume, market_size_or_demand, steel_price, capacity_or_utilization, market_share_or_position]
+    geographies: [TW, Asia]
+    asset_classes: [commodity, equity]
+    languages: [zh-TW]
+    access: {transports: [file, browser], auth: none, cost_tier: free}
+    integration: {status: adapter_required, callable: false, adapter: provider_specific}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "registry_id": "investment_research_provider_activation_v1",
+  "catalog_id": "investment_research_providers_v1",
+  "checked_at": "2026-08-26T07:54:44.194710Z",
+  "summary": {
+    "total": 1,
+    "survival_verified": 1,
+    "data_payload_verified": 0,
+    "outcomes": {
+      "transport_error": 1
+    }
+  },
+  "results": [
+    {
+      "provider_id": "census",
+      "probe_scope": "data_payload",
+      "execution_policy": "probe_only",
+      "attempt_count": 3,
+      "survival_verified": true,
+      "data_payload_verified": false,
+      "outcome": "transport_error",
+      "status_code": null,
+      "final_url": "https://api.census.gov/data/2023/cbp?get=NAME,EMP&for=us:*",
+      "content_type": null,
+      "sample_bytes": 0,
+      "response_sha256": null,
+      "error": "ConnectTimeout: ",
+      "survival_fallback": {
+        "outcome": "reachable",
+        "status_code": 200,
+        "url": "https://www.census.gov/data/developers/guidance/api-user-guide.html",
+        "attempt_count": 1
+      }
+    }
+  ]
+}

@@ -278,6 +278,19 @@ jobs:
             'PyYAML>=6.0,<7' \
             'jsonschema[format]>=4.23,<5'
 
+      - name: Verify deployed provider registry is reproducible
+        if: >-
+          !inputs.verify_alert_delivery &&
+          !inputs.verify_freshness_watchdog &&
+          !inputs.verify_soak_boundary &&
+          !inputs.verify_research_reports
+        run: |
+          set -euo pipefail
+          python scripts/probe_provider_activation.py --skip-probe
+          git diff --exit-code -- \
+            data/provider-activation-registry.json \
+            ingest-worker/src/generated/provider-registry.json
+
       - name: Request OIDC admission and persisted checkpoints
         if: >-
           !inputs.verify_alert_delivery &&

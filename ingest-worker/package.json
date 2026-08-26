@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "wrangler types worker-configuration.d.ts && tsc --noEmit",
     "types": "wrangler types worker-configuration.d.ts",
     "types:check": "wrangler types --check worker-configuration.d.ts",
     "deploy:dry": "wrangler deploy --dry-run"

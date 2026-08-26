@@ -1,0 +1,1637 @@
+{
+  "schema_version": 1,
+  "registry_id": "investment_research_provider_activation_v1",
+  "generated_at": "2026-08-26T08:00:00Z",
+  "catalog_id": "investment_research_providers_v1",
+  "connections": [
+    {
+      "provider_id": "akshare",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "python_library"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://akshare.akfamily.xyz/data/index.html",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "aletheia",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "ALETHEIA_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://aletheiaapi.com/docs/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "alpaca",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api",
+        "websocket"
+      ],
+      "required_configuration": [
+        "ALPACA_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://docs.alpaca.markets/docs/market-data",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "associated_press",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "ASSOCIATED_PRESS_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://developer.ap.org/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "benzinga",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "BENZINGA_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://docs.benzinga.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "biztoc",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://biztoc.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "brieftape",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "BRIEFTAPE_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://brieftape.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "cboe",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.cboe.com/us/equities/market_statistics/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "census",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "payload_probe_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://api.census.gov/data/2023/cbp?get=NAME,EMP&for=us:*",
+        "scope": "data_payload",
+        "expected_content": "json",
+        "survival_url": "https://www.census.gov/data/developers/guidance/api-user-guide.html",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Run the bounded live payload probe, then add semantic parser and canonical-evidence tests."
+    },
+    {
+      "provider_id": "congressinvests",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "CONGRESSINVESTS_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://congressinvests.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "currents_api",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "CURRENTS_API_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://currentsapi.services/en/docs/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "data_gov_tw",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "hybrid",
+      "transports": [
+        "json_api",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://data.gov.tw/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "dino_markets",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "DINO_MARKETS_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://dino.markets/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "econpulse",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "ECONPULSE_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://econpulse.io/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "edgrapi",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "EDGRAPI_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://edgrapi.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "epa",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "hybrid",
+      "transports": [
+        "json_api",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.epa.gov/developers/data-data-products",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "filingrail",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "FILINGRAIL_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://rapidapi.com/hudson-enterprises-llc-hudson-enterprises-llc-default/api/filingrail",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "finage",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api",
+        "websocket"
+      ],
+      "required_configuration": [
+        "FINAGE_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://finage.co.uk/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "finance_database",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "python_library",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://github.com/JerBouma/FinanceDatabase",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "finra",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "FINRA_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://developer.finra.org/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "finviz",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://finviz.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "gartner",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.gartner.com/en/newsroom",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "goldprice_dev",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://goldprice.dev/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "government_us",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "hybrid",
+      "transports": [
+        "json_api",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://data.gov/developers/apis",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "helium_market_news",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://heliumtrades.com/mcp-page/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "hotstoks",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "HOTSTOKS_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://hotstoks.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "iex_cloud",
+      "catalog_status": "deprecated",
+      "execution_policy": "not_executable",
+      "data_plane_state": "retired",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://iexcloud.io/docs/api/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Keep disabled and map every dependent requirement to a supported replacement provider."
+    },
+    {
+      "provider_id": "intrinio",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "INTRINIO_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://docs.intrinio.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "moea_industrial_statistics",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "browser",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://service.moea.gov.tw/EE520/investigate/InvestigateDA.aspx",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "mops_xbrl",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://mops.twse.com.tw/mops/#/web/t100sb02_1",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "multpl",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.multpl.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "newsflash",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "NEWSFLASH_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://newsflash.sh/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "newsx",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "NEWSX_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://rapidapi.com/machaao-inc-machaao-inc-default/api/newsx/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "noozra",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://noozra.com/api",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "north7_agent",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "NORTH7_AGENT_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://north7.ai/v1/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "oecd",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "hybrid",
+      "transports": [
+        "json_api",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.oecd.org/en/data/insights/data-explainers/2024/09/api.html",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "openbb",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "hybrid",
+      "transports": [
+        "python_library",
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://docs.openbb.co/platform",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "openfigi",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "OPENFIGI_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.openfigi.com/api/documentation",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "portfolio_optimizer",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://portfoliooptimizer.io/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "seeking_alpha",
+      "catalog_status": "blocked",
+      "execution_policy": "not_executable",
+      "data_plane_state": "policy_review_required",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://seekingalpha.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Complete terms, robots and redistribution review; keep execution disabled meanwhile."
+    },
+    {
+      "provider_id": "stockfit",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "STOCKFIT_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://api.stockfit.io/docs",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "stockgrid",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.stockgrid.io/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "styvio",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "STYVIO_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.styvio.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "sugra",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "SUGRA_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://sugra.ai/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "taiwan_cement_association",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://tcmaorg.tw/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "taiwan_customs_trade",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "browser",
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://publicinfo.trade.gov.tw/cuswebo/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "taiwan_steel_association",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.tsiia.org.tw/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "thenewsapi",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "THENEWSAPI_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.thenewsapi.com/documentation",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "tmx",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.tmx.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "tradier",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "TRADIER_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://documentation.tradier.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "tradingeconomics",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [
+        "TRADINGECONOMICS_AUTH_CONFIGURATION"
+      ],
+      "probe": {
+        "method": "GET",
+        "url": "https://docs.tradingeconomics.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "trendforce",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_browser",
+      "runtime": "github_actions",
+      "transports": [
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.trendforce.com/research",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "usgs",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.usgs.gov/centers/national-minerals-information-center/mineral-commodity-summaries",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "wallstreetbets_api",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://dashboard.nbshare.io/apps/reddit/api/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    },
+    {
+      "provider_id": "world_bank_pink_sheet",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.worldbank.org/en/research/commodity-markets",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "worldsteel",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://worldsteel.org/data/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "wsj",
+      "catalog_status": "commercial_only",
+      "execution_policy": "not_executable",
+      "data_plane_state": "commercial_onboarding_required",
+      "adapter": "generic_rss",
+      "runtime": "hybrid",
+      "transports": [
+        "browser",
+        "rss"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.wsj.com/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Obtain a commercial data contract and scoped credential before enabling any request."
+    },
+    {
+      "provider_id": "wsts",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "file",
+        "browser"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://www.wsts.org/76/Recent-News-Release",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "yfinance",
+      "catalog_status": "adapter_required",
+      "execution_policy": "probe_only",
+      "data_plane_state": "adapter_contract_ready",
+      "adapter": "provider_specific",
+      "runtime": "github_actions",
+      "transports": [
+        "python_library"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://ranaroussi.github.io/yfinance/",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Resolve one stable data endpoint, run a bounded payload probe, then implement its parser."
+    },
+    {
+      "provider_id": "zelothorn",
+      "catalog_status": "catalogued_unverified",
+      "execution_policy": "probe_only",
+      "data_plane_state": "survival_probe_ready",
+      "adapter": "generic_json",
+      "runtime": "cloudflare_worker",
+      "transports": [
+        "json_api"
+      ],
+      "required_configuration": [],
+      "probe": {
+        "method": "GET",
+        "url": "https://zelothorn.com/developers",
+        "scope": "control_plane",
+        "expected_content": "any",
+        "expected_statuses": [
+          200,
+          401,
+          403
+        ],
+        "max_attempts": 3,
+        "timeout_seconds": 15
+      },
+      "next_action": "Verify service survival and official documentation before defining a data endpoint."
+    }
+  ]
+}

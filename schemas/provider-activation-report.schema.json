@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/provider-activation-report.schema.json",
+  "title": "Provider activation probe report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "catalog_id", "checked_at", "summary", "results"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "registry_id": {"type": "string", "minLength": 3},
+    "catalog_id": {"type": "string", "minLength": 3},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "survival_verified", "data_payload_verified", "outcomes"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "survival_verified": {"type": "integer", "minimum": 0},
+        "data_payload_verified": {"type": "integer", "minimum": 0},
+        "outcomes": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider_id", "probe_scope", "execution_policy", "attempt_count", "survival_verified", "data_payload_verified", "outcome", "status_code", "final_url", "content_type", "sample_bytes", "response_sha256", "error"],
+        "properties": {
+          "provider_id": {"type": "string", "minLength": 2},
+          "probe_scope": {"enum": ["control_plane", "data_payload"]},
+          "execution_policy": {"enum": ["probe_only", "not_executable"]},
+          "attempt_count": {"type": "integer", "minimum": 1, "maximum": 3},
+          "survival_verified": {"type": "boolean"},
+          "data_payload_verified": {"type": "boolean"},
+          "outcome": {"enum": ["reachable", "auth_required", "content_mismatch", "not_found", "rate_limited", "server_error", "unexpected_status", "transport_error"]},
+          "status_code": {"type": ["integer", "null"], "minimum": 100, "maximum": 599},
+          "final_url": {"type": "string", "format": "uri"},
+          "content_type": {"type": ["string", "null"]},
+          "sample_bytes": {"type": "integer", "minimum": 0, "maximum": 65536},
+          "response_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+          "error": {"type": ["string", "null"], "maxLength": 500}
+          ,"survival_fallback": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["outcome", "status_code", "url", "attempt_count"],
+            "properties": {
+              "outcome": {"enum": ["reachable", "auth_required", "not_found", "rate_limited", "server_error", "unexpected_status", "transport_error"]},
+              "status_code": {"type": ["integer", "null"], "minimum": 100, "maximum": 599},
+              "url": {"type": "string", "format": "uri"},
+              "attempt_count": {"type": "integer", "minimum": 1, "maximum": 3}
+            }
+          }
+        }
+      }
+    }
+  }
+}

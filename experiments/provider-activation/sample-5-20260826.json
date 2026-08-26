@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "registry_id": "investment_research_provider_activation_v1",
+  "catalog_id": "investment_research_providers_v1",
+  "checked_at": "2026-08-26T07:36:07.745019Z",
+  "summary": {
+    "total": 5,
+    "survival_verified": 4,
+    "data_payload_verified": 2,
+    "outcomes": {
+      "reachable": 4,
+      "transport_error": 1
+    }
+  },
+  "results": [
+    {
+      "provider_id": "benzinga",
+      "probe_scope": "control_plane",
+      "execution_policy": "not_executable",
+      "attempt_count": 1,
+      "survival_verified": true,
+      "data_payload_verified": false,
+      "outcome": "reachable",
+      "status_code": 200,
+      "final_url": "https://docs.benzinga.com/introduction/welcome",
+      "content_type": "text/html",
+      "sample_bytes": 65536,
+      "response_sha256": "98ed351e4d63829f5a6e3e880ec3679d423921011200798242dde65e8adebb3d",
+      "error": null
+    },
+    {
+      "provider_id": "census",
+      "probe_scope": "data_payload",
+      "execution_policy": "probe_only",
+      "attempt_count": 3,
+      "survival_verified": false,
+      "data_payload_verified": false,
+      "outcome": "transport_error",
+      "status_code": null,
+      "final_url": "https://api.census.gov/data/2023/cbp?get=NAME,EMP&for=us:*",
+      "content_type": null,
+      "sample_bytes": 0,
+      "response_sha256": null,
+      "error": "ConnectTimeout: "
+    },
+    {
+      "provider_id": "federal_reserve",
+      "probe_scope": "data_payload",
+      "execution_policy": "probe_only",
+      "attempt_count": 1,
+      "survival_verified": true,
+      "data_payload_verified": true,
+      "outcome": "reachable",
+      "status_code": 200,
+      "final_url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "content_type": "text/xml",
+      "sample_bytes": 14304,
+      "response_sha256": "d38aafab5590a3608f23f1698d90e1657115ef016a3fbfb33b81bcba2152b920",
+      "error": null
+    },
+    {
+      "provider_id": "sec_edgar",
+      "probe_scope": "data_payload",
+      "execution_policy": "probe_only",
+      "attempt_count": 1,
+      "survival_verified": true,
+      "data_payload_verified": true,
+      "outcome": "reachable",
+      "status_code": 200,
+      "final_url": "https://data.sec.gov/submissions/CIK0001046179.json",
+      "content_type": "application/json",
+      "sample_bytes": 65536,
+      "response_sha256": "72af265e8c611ffad8a5fb539fcf793294628fd4c59e7d0f802ef789e6d96dea",
+      "error": null
+    },
+    {
+      "provider_id": "yfinance",
+      "probe_scope": "control_plane",
+      "execution_policy": "probe_only",
+      "attempt_count": 1,
+      "survival_verified": true,
+      "data_payload_verified": false,
+      "outcome": "reachable",
+      "status_code": 200,
+      "final_url": "https://ranaroussi.github.io/yfinance/",
+      "content_type": "text/html",
+      "sample_bytes": 19155,
+      "response_sha256": "7fd290a8dc757f01c04eff8e6bfb11c87b5d63a6ebe9f1f19a54a1615ebf771f",
+      "error": null
+    }
+  ]
+}

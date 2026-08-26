@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/provider-catalog.schema.json",
+  "title": "Investment research provider catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalog_id", "generated_at", "scope", "discovery_sources", "providers"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "catalog_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "scope": {"type": "string", "minLength": 10},
+    "discovery_sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/discovery"}
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/provider"}
+    }
+  },
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{1,127}$"},
+    "httpUrl": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovery_id", "repository_url", "branch", "commit_sha", "repository_path", "retrieved_at", "license"],
+      "properties": {
+        "discovery_id": {"$ref": "#/$defs/identifier"},
+        "repository_url": {"$ref": "#/$defs/httpUrl"},
+        "branch": {"type": "string", "minLength": 1},
+        "commit_sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "repository_path": {"type": "string", "minLength": 1},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "license": {"type": "string", "minLength": 1}
+      }
+    },
+    "metricSupport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "support_level"],
+      "properties": {
+        "metric_id": {"$ref": "#/$defs/identifier"},
+        "support_level": {"enum": ["exact", "derived", "proxy"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transports", "auth", "cost_tier"],
+      "properties": {
+        "transports": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["json_api", "rss", "browser", "file", "websocket", "python_library"]}
+        },
+        "auth": {"enum": ["none", "api_key", "oauth", "contact_identity", "unknown"]},
+        "cost_tier": {"enum": ["free", "free_registration", "freemium", "paid", "unknown"]}
+      }
+    },
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["terms_url", "public_raw_storage"],
+      "properties": {
+        "terms_url": {"$ref": "#/$defs/httpUrl"},
+        "public_raw_storage": {"enum": ["allowed", "restricted", "unknown"]}
+      }
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "callable", "adapter"],
+      "properties": {
+        "status": {
+          "enum": ["verified_public", "verified_requires_key", "catalogued_unverified", "adapter_required", "commercial_only", "blocked", "deprecated"]
+        },
+        "callable": {"type": "boolean"},
+        "adapter": {"enum": ["generic_json", "generic_rss", "generic_browser", "provider_specific", "none"]},
+        "endpoint_template": {"type": "string", "pattern": "^https://[^\\s]+$"},
+        "required_parameters": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "optional_parameters": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        },
+        "credential_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,127}$"},
+        "auth_injection": {"enum": ["query_parameter", "header", "bearer_header", "provider_specific"]},
+        "auth_field": {"type": "string", "minLength": 1, "maxLength": 128},
+        "last_verified_at": {"type": "string", "format": "date-time"},
+        "verification_url": {"$ref": "#/$defs/httpUrl"},
+        "verification_method": {"enum": ["official_documentation", "live_payload"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "name", "provider_type", "publisher_id", "independence_group", "source_tier", "discovered_via", "homepage_url", "documentation_url", "categories", "requirement_ids", "metric_support", "geographies", "asset_classes", "languages", "access", "rights", "integration"],
+      "properties": {
+        "provider_id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "provider_type": {"enum": ["publisher", "aggregator", "exchange", "government_portal", "industry_association", "library", "directory"]},
+        "publisher_id": {"$ref": "#/$defs/identifier"},
+        "independence_group": {"$ref": "#/$defs/identifier"},
+        "source_tier": {"enum": ["official", "regulatory", "direct_primary", "direct_secondary", "aggregator", "unknown"]},
+        "discovered_via": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "homepage_url": {"$ref": "#/$defs/httpUrl"},
+        "documentation_url": {"$ref": "#/$defs/httpUrl"},
+        "categories": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "requirement_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_.]{2,127}$"}},
+        "metric_support": {"type": "array", "items": {"$ref": "#/$defs/metricSupport"}},
+        "geographies": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 2}},
+        "asset_classes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "languages": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 2}},
+        "access": {"$ref": "#/$defs/access"},
+        "rights": {"$ref": "#/$defs/rights"},
+        "integration": {"$ref": "#/$defs/integration"}
+      }
+    }
+  }
+}
