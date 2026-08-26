@@ -82,6 +82,7 @@ def test_divergence_requires_both_news_and_social_evidence() -> None:
     assert snapshot["topics"][0]["divergence"] == {
         "direction": "insufficient_data",
         "magnitude": None,
+        "basis": "news_social_item_count_balance",
     }
     assert snapshot["partial"] is True
 
@@ -213,3 +214,28 @@ def test_target_scope_uses_news_headline_not_multi_story_feed_summary() -> None:
         question="What are the recent drivers and risks?",
     )
     assert snapshot["target_scope"]["relevant_item_count"] == 0
+
+
+def test_equity_scope_does_not_treat_generic_stock_words_as_target_evidence() -> None:
+    items = [
+        raw_item(source_id="generic_stock", layer="news", title="Tesla stock jumps after earnings"),
+        raw_item(source_id="tsmc_news", layer="news", title="TSMC raises advanced-node capacity outlook"),
+    ]
+    snapshot = build_topic_snapshot(
+        items,
+        run_id="run_20260810t020500z",
+        snapshot_id="radar_20260810t020500z",
+        as_of="2026-08-10T02:05:00Z",
+        failed_sources=[],
+        target={
+            "kind": "equity",
+            "symbol": "2330.TW",
+            "name": "Taiwan Semiconductor Manufacturing Company Limited",
+            "aliases": ["TSMC", "2330"],
+        },
+        question="台積電股價",
+    )
+
+    assert snapshot["target_scope"]["relevant_item_count"] == 1
+    assert snapshot["target_scope"]["identity_match_item_count"] == 1
+    assert snapshot["input_item_ids"] == [items[1]["item_id"]]

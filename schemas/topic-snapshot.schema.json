@@ -91,6 +91,9 @@
                 { "type": "number", "minimum": 0, "maximum": 1 },
                 { "type": "null" }
               ]
+            },
+            "basis": {
+              "const": "news_social_item_count_balance"
             }
           }
         }
