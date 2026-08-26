@@ -1043,10 +1043,27 @@ async function planForRun(
   planId?: string,
 ): Promise<PlanRow | null> {
   if (planId) {
-    return await db.prepare(
+    const exact = await db.prepare(
       `SELECT plan_id, alignment_id, object_key
        FROM tradingagents_plans WHERE run_id = ? AND plan_id = ?`,
     ).bind(run.run_id, planId).first<PlanRow>();
+    if (exact !== null) return exact;
+
+    // A GitHub Actions re-run keeps its workflow run id but receives a fresh
+    // collector run id.  The ingest layer preserves the old plan row and
+    // stores the new payload as plan_<run_id>; resolve that documented alias
+    // only when the requested id is known to collide with another run.  An
+    // arbitrary/missing plan id still fails closed below.
+    const conflicting = await db.prepare(
+      `SELECT run_id FROM tradingagents_plans WHERE plan_id = ?`,
+    ).bind(planId).first<{ run_id: string }>();
+    if (conflicting !== null && conflicting.run_id !== run.run_id) {
+      return await db.prepare(
+        `SELECT plan_id, alignment_id, object_key
+         FROM tradingagents_plans WHERE run_id = ? ORDER BY created_at DESC LIMIT 1`,
+      ).bind(run.run_id).first<PlanRow>();
+    }
+    return null;
   }
   return await db.prepare(
     `SELECT plan_id, alignment_id, object_key

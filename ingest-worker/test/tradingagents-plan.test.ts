@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createHandler } from "../src/handler";
-import { ingestItems, ingestMarketAlignment, publishSnapshot } from "../src/storage";
+import { ingestItems, ingestMarketAlignment, ingestTradingAgentsPlan, publishSnapshot } from "../src/storage";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -228,5 +228,52 @@ describe("TradingAgents plan ingest", () => {
     ), env);
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ error: "alignment_not_found" });
+  });
+
+  it("clones a colliding workflow plan id for a fresh collector run", async () => {
+    await arrange();
+    await ingestTradingAgentsPlan(env, planEnvelope(), new Date("2026-08-20T04:00:00Z"));
+
+    const secondRunId = "run_20260820t041000z";
+    const secondSnapshotId = "radar_20260820t041000z";
+    const secondAlignmentId = "align_20260820t041100z";
+    const secondIngest = envelope();
+    secondIngest.run_id = secondRunId;
+    secondIngest.snapshot_id = secondSnapshotId;
+    secondIngest.workflow_run_id = "32330093878";
+    secondIngest.collected_at = "2026-08-20T04:10:00Z";
+    secondIngest.source_manifest_hash = "e".repeat(64);
+    const secondTopic = topicSnapshot();
+    secondTopic.run_id = secondRunId;
+    secondTopic.snapshot_id = secondSnapshotId;
+    secondTopic.as_of = "2026-08-20T04:10:00Z";
+    const secondAlignment = alignmentEnvelope();
+    secondAlignment.run_id = secondRunId;
+    secondAlignment.workflow_run_id = "32330093878";
+    secondAlignment.market_snapshot.snapshot_id = "market_20260820t041100z";
+    secondAlignment.market_snapshot.as_of = "2026-08-20T04:11:00Z";
+    secondAlignment.alignment.alignment_id = secondAlignmentId;
+    secondAlignment.alignment.topic_snapshot_id = secondSnapshotId;
+    secondAlignment.alignment.market_snapshot_id = "market_20260820t041100z";
+    secondAlignment.alignment.generated_at = "2026-08-20T04:11:00Z";
+    const secondPlan = planEnvelope();
+    secondPlan.run_id = secondRunId;
+    secondPlan.workflow_run_id = "32330093878";
+    secondPlan.plan.topic_snapshot_id = secondSnapshotId;
+    secondPlan.plan.alignment_id = secondAlignmentId;
+    secondPlan.plan.created_at = "2026-08-20T04:12:00Z";
+
+    await ingestItems(env, secondIngest, new Date("2026-08-20T04:10:05Z"));
+    await publishSnapshot(env, secondTopic, new Date("2026-08-20T04:10:10Z"));
+    await ingestMarketAlignment(env, secondAlignment, new Date("2026-08-20T04:11:05Z"));
+    const result = await ingestTradingAgentsPlan(env, secondPlan, new Date("2026-08-20T04:12:00Z"));
+
+    expect(result).toMatchObject({
+      run_id: secondRunId,
+      plan_id: `plan_${secondRunId}`,
+      replayed: false,
+    });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM tradingagents_plans").first()).toEqual({ count: 2 });
+    expect(await env.RAW_OBJECTS.get(`plans/plan_${secondRunId}.json`)).not.toBeNull();
   });
 });

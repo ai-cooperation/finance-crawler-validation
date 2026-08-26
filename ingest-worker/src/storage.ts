@@ -412,8 +412,9 @@ export async function ingestTradingAgentsPlan(
   if (!alignment) throw new HttpError(409, "alignment_not_found");
   await assertPlanEvidenceBelongsToRun(env.DB, envelope);
 
-  const serialized = canonicalJson(envelope.plan);
-  const contentHash = await sha256Hex(serialized);
+  let persistedPlan = envelope.plan;
+  let serialized = canonicalJson(persistedPlan);
+  let contentHash = await sha256Hex(serialized);
   const existing = await env.DB.prepare(
     `SELECT run_id, alignment_id, content_sha256, decision, topic_count
      FROM tradingagents_plans WHERE plan_id = ?`,
@@ -425,25 +426,59 @@ export async function ingestTradingAgentsPlan(
     topic_count: number;
   }>();
   if (existing !== null) {
-    if (
-      existing.run_id !== envelope.run_id ||
-      existing.alignment_id !== alignmentId ||
-      existing.content_sha256 !== contentHash
-    ) {
-      throw new HttpError(409, "plan_payload_conflict");
+    if (existing.run_id === envelope.run_id &&
+        existing.alignment_id === alignmentId &&
+        existing.content_sha256 === contentHash) {
+      return {
+        run_id: envelope.run_id,
+        plan_id: envelope.plan.plan_id,
+        alignment_id: alignmentId,
+        topic_count: Number(existing.topic_count),
+        decision: existing.decision,
+        status: "published",
+        replayed: true,
+      };
     }
-    return {
-      run_id: envelope.run_id,
-      plan_id: envelope.plan.plan_id,
-      alignment_id: alignmentId,
-      topic_count: Number(existing.topic_count),
-      decision: existing.decision,
-      status: "published",
-      replayed: true,
-    };
+
+    // GitHub re-runs preserve GITHUB_RUN_ID, while this workflow's collector
+    // intentionally creates a fresh run_id.  A plan keyed only by the former
+    // therefore collides with the previous attempt.  Preserve the historical
+    // row and materialize an attempt-scoped copy; completion resolves it by
+    // the current run/alignment (see planForRun) instead of overwriting audit
+    // history.  This is the only supported cross-run conflict recovery path.
+    const attemptPlanId = `plan_${envelope.run_id}`;
+    const attemptExisting = await env.DB.prepare(
+      `SELECT run_id, alignment_id, content_sha256, decision, topic_count
+       FROM tradingagents_plans WHERE plan_id = ?`,
+    ).bind(attemptPlanId).first<{
+      run_id: string;
+      alignment_id: string;
+      content_sha256: string;
+      decision: "eligible" | "skipped";
+      topic_count: number;
+    }>();
+    persistedPlan = { ...envelope.plan, plan_id: attemptPlanId };
+    serialized = canonicalJson(persistedPlan);
+    contentHash = await sha256Hex(serialized);
+    if (attemptExisting !== null) {
+      if (attemptExisting.run_id !== envelope.run_id ||
+          attemptExisting.alignment_id !== alignmentId ||
+          attemptExisting.content_sha256 !== contentHash) {
+        throw new HttpError(409, "plan_payload_conflict");
+      }
+      return {
+        run_id: envelope.run_id,
+        plan_id: attemptPlanId,
+        alignment_id: alignmentId,
+        topic_count: Number(attemptExisting.topic_count),
+        decision: attemptExisting.decision,
+        status: "published",
+        replayed: true,
+      };
+    }
   }
 
-  const objectKey = `plans/${envelope.plan.plan_id}.json`;
+  const objectKey = `plans/${persistedPlan.plan_id}.json`;
   try {
     await env.RAW_OBJECTS.put(objectKey, serialized, {
       httpMetadata: { contentType: "application/json" },
@@ -470,15 +505,15 @@ export async function ingestTradingAgentsPlan(
           topic_count, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
-        envelope.plan.plan_id,
+        persistedPlan.plan_id,
         envelope.run_id,
-        envelope.plan.topic_snapshot_id,
+        persistedPlan.topic_snapshot_id,
         alignmentId,
-        envelope.plan.decision,
-        envelope.plan.skip_reason,
+        persistedPlan.decision,
+        persistedPlan.skip_reason,
         objectKey,
         contentHash,
-        envelope.plan.topics.length,
+        persistedPlan.topics.length,
         happenedAt,
       ),
       audit,
@@ -489,10 +524,10 @@ export async function ingestTradingAgentsPlan(
   }
   return {
     run_id: envelope.run_id,
-    plan_id: envelope.plan.plan_id,
+    plan_id: persistedPlan.plan_id,
     alignment_id: alignmentId,
-    topic_count: envelope.plan.topics.length,
-    decision: envelope.plan.decision,
+    topic_count: persistedPlan.topics.length,
+    decision: persistedPlan.decision,
     status: "published",
     replayed: false,
   };
