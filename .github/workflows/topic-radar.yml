@@ -276,7 +276,8 @@ jobs:
           python -m pip install --disable-pip-version-check --no-deps -e .
           python -m pip install --disable-pip-version-check \
             'PyYAML>=6.0,<7' \
-            'jsonschema[format]>=4.23,<5'
+            'jsonschema[format]>=4.23,<5' \
+            'httpx[http2]>=0.27.2,<1'
 
       - name: Verify deployed provider registry is reproducible
         if: >-

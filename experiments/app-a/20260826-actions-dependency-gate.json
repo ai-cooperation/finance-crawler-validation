@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-actions-dependency-gate",
+  "observed_at": "2026-08-26T13:11:20Z",
+  "workflow_run_id": "32972694137",
+  "head_sha": "594133b1987efbc2e7ec7bc7ace6973fa717eb54",
+  "job_id": "research_20260826131057_e2c5c845",
+  "terminal": {
+    "status": "failed",
+    "error_code": "actions_workflow_failed",
+    "stage": "failed",
+    "run_id": null,
+    "pack_id": null
+  },
+  "failure_step": {
+    "name": "Verify deployed provider registry is reproducible",
+    "error": "ModuleNotFoundError: No module named 'httpx'",
+    "cause": "The admission-only install used --no-deps and omitted the module imported by provider_activation.py."
+  },
+  "preceding_gate": {
+    "target_topic_gate_fix_active": true,
+    "head_sha_included_target_topic_fix": true
+  },
+  "repair": {
+    "workflow_file": ".github/workflows/topic-radar.yml",
+    "added_requirement": "httpx[http2]>=0.27.2,<1",
+    "local_yaml_parse": true,
+    "local_provider_registry_reproducible": true
+  },
+  "quota_policy": {
+    "actions_runs_used_today": 2,
+    "additional_retry_triggered": false
+  }
+}

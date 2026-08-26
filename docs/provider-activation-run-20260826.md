@@ -101,3 +101,9 @@ production Big Pickle 實測：`job_id=research_20260826124243_c12870d9`，一�
 為取得新鮮 BTC snapshot 只觸發一輪 Actions：workflow run `32971031774` 的 15 個來源全部成功、15 個來源都有內容、共 38 筆 item、0 個 failed source，但舊 collector 仍因固定要求 3 個 topic 回 `accepted=false`，因此沒有發布任何 artifact。這是 gate 邏輯錯誤，不是來源失敗。
 
 已將 gate 改為依 scope 判定：未指定 target 的全域 radar 仍要求 3 個 topic；指定 target 的研究 refresh 至少要求 1 個 target-relevant topic，0 個 topic 仍 fail closed。相同 15 個公開來源在本機允許網路環境重跑得到 15/15 成功、43 筆 item、1 個 topic、`accepted=true`；回歸測試與完整 Python 測試集均通過。此次不再重跑 Actions，待修正提交至 `main` 後才使用下一輪配額驗證遠端 publish。
+
+### 5.4 Admission client 依賴修正
+
+修正提交至 `main` 後的第二輪 Actions run `32972694137` 已確認 target-topic gate 不再阻擋，但在 collection 前的 `Verify deployed provider registry is reproducible` 步驟失敗：workflow 以 `pip install --no-deps -e .` 加上 PyYAML／jsonschema，`provider_activation.py` 卻在 import 階段需要 `httpx`，回 `ModuleNotFoundError: No module named 'httpx'`。這是 workflow 最小依賴宣告缺口，不是 provider payload 或 Actions 網路失敗。
+
+已在 admission-only install 加入 `httpx[http2]>=0.27.2,<1`，YAML parse、provider registry reproducibility 與 Python 全量測試均已在本機通過。今日已使用兩輪 Actions（`32971031774`、`32972694137`），不再觸發第三輪；下一輪應只驗證這個依賴修正後是否能進入 full-catalog，並保留相同 job 的 callback／artifact gate。
