@@ -1,6 +1,6 @@
 # Provider Activation 執行紀錄（2026-08-26）
 
-文件狀態：來源註冊表已於 2026-08-26 部署到指定的 GitHub／Cloudflare 驗證帳號；Production REST 與 OpenCode MCP transport 已查回。Big Pickle／OpenCode 免費模型服務仍回 upstream server error，因此本文件不把「模型驅動的 MCP tool call」誤報為已通過。
+文件狀態：來源註冊表已於 2026-08-26 部署到指定的 GitHub／Cloudflare 驗證帳號；Production REST 與 OpenCode MCP transport 已查回。原先 OpenCode 1.15.12 的 agent turn 失敗已定位為本機 SQLite schema／程式回歸；官方 v1.18.23 隔離驗證已完成 Big Pickle → MCP tool call。
 
 ## 1. 目標與完成語義
 
@@ -70,6 +70,7 @@
 - Cloudflare：Wrangler OAuth 已查回 `o970117818@gmail.com`／account `ca985c195ab218488fc0744692dbde21`；production version ID 為 `5f2e9c27-fe44-4c50-b7e0-62f27819831c`。
 - Production REST（2026-08-26 17:34 台北時間）：`GET /health`、`GET /v1/providers?limit=1`、`GET /v1/providers/sec_edgar` 均為 HTTP 200；health summary 為 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。
 - Production secrets：Wrangler 僅以名稱查回 `ALERT_WEBHOOK_URL`、`GITHUB_DISPATCH_TOKEN`、`MCP_API_TOKEN`，部署未覆蓋其值。
-- MCP transport：`opencode mcp list` 對 production `/mcp` 查回 `finance-research connected`。Big Pickle 與 `hy3-free` 的實際 agent turn 均在模型服務層回 `Unexpected server error`，未得到 MCP tool result；這不改寫為 Worker route failure，也不算模型驅動端到端驗收完成。
+- MCP transport：舊版 `opencode mcp list` 對 production `/mcp` 查回 `finance-research connected`，但 agent turn 在建立第一筆 session message 時被本機 `NOT NULL constraint failed: session_message.seq` 阻斷，token input/output 均為 0。以官方 v1.18.23、隔離 XDG data 目錄及相同 MCP 設定重跑後，Big Pickle 成功呼叫 `finance-research_list_data_providers {"limit":1}`，回傳 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`，first provider `akshare`。
+- 根因交叉驗證：本機 OpenCode 1.15.12 的 `--pure`（停用 MCP／外掛）控制組仍重現同一 SQLite 錯誤；官方 OpenCode issue [#31412](https://github.com/anomalyco/opencode/issues/31412) 與修復 PR [#31419](https://github.com/anomalyco/opencode/pull/31419) 描述相同 `session_message.seq` 回歸。故不能把原錯誤歸因於 Big Pickle、模型供應商或 finance-research Worker。
 
-本輪已完成正確帳號 deploy、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP transport connected 與 GitHub commit 可追溯。尚未解除的單一驗收缺口是：待 OpenCode 模型服務恢復後，由實際 agent 取得一次 `list_data_providers` tool result；在此之前只宣稱「來源 registry production 可查」，不宣稱 OpenCode／Big Pickle 端到端完成。
+本輪已完成正確帳號 deploy、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP transport connected，以及官方 v1.18.23 隔離環境的 Big Pickle `list_data_providers` tool result。尚未完成的是把全域 `/opt/homebrew/bin/opencode` 從 1.15.12 替換為已驗證的新版本；在替換前，直接執行舊版 CLI 仍會失敗。
