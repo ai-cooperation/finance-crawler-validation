@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-btc-target-topic-gate-local",
+  "observed_at": "2026-08-26T13:02:10Z",
+  "execution": {
+    "runtime": "local Python collector",
+    "collection_scope": "radar-sources.yaml (15-source vertical slice)",
+    "actions_triggered": false,
+    "network_mode": "permitted local network",
+    "target": { "kind": "crypto", "symbol": "BTC", "name": "Bitcoin", "market": "global" }
+  },
+  "result": {
+    "accepted": true,
+    "run_id": "run_20260826t130210z",
+    "snapshot_id": "radar_20260826t130210z",
+    "total_sources": 15,
+    "successful_sources": 15,
+    "content_sources": 15,
+    "failed_sources": [],
+    "items": 43,
+    "topics": 1,
+    "minimum_topics": 1,
+    "snapshot_partial": false,
+    "by_transport": {
+      "rss": { "successful": 6, "total": 6 },
+      "json_api": { "successful": 7, "total": 7 },
+      "browser": { "successful": 2, "total": 2 }
+    }
+  },
+  "acceptance": {
+    "target_scoped_one_topic_is_valid": true,
+    "zero_topic_still_fails_closed": true,
+    "full_global_radar_three_topic_contract_preserved": true
+  }
+}
