@@ -58,7 +58,7 @@ Provider 的「存在、網站活著、資料 payload 可取、已能形成 cano
 
 ### 2026-08-26 production baseline
 
-- GitHub source of truth：`ai-cooperation/finance-crawler-validation` 的 `main`，目前驗證提交 `d33ce4c387a84b5c77b1dc04cf19a6d5cf45bc5b`；未合併到 `main` 的工作樹不可作為 production 證據。
+- GitHub source of truth：`ai-cooperation/finance-crawler-validation` 的 `main`，目前驗證提交 `8562f310fed801b27dbb27a25fb60b378ad3ddb7`；未合併到 `main` 的工作樹不可作為 production 證據。
 - Cloudflare account：`ca985c195ab218488fc0744692dbde21`；Worker version `5f2e9c27-fe44-4c50-b7e0-62f27819831c`。
 - `GET /health` 必須回報 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。
 - `GET /v1/providers` 與 `GET /v1/providers/:provider_id` 已在 production 取得 HTTP 200；OpenCode 已查回 MCP transport connected。
