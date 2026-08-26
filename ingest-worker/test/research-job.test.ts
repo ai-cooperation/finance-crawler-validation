@@ -589,6 +589,65 @@ describe("research report generator job contract", () => {
     expect(completed.report_count).toBe(1);
   });
 
+  it("re-arms a previously failed actions job before a later completion callback", async () => {
+    await arrange();
+    const request = researchRequest("actions-rerun-after-failure-20260820");
+    request.requirements.source_strategy = "actions";
+    const submitted = await submitResearchJob(env, request, auth, new Date("2026-08-20T04:10:00Z"));
+    const dispatchEnv = Object.create(env) as Env & { GITHUB_DISPATCH_TOKEN?: string };
+    dispatchEnv.GITHUB_DISPATCH_TOKEN = "dispatch-test-token";
+    await dispatchActionsResearchJob(
+      dispatchEnv,
+      submitted.job_id,
+      new Date("2026-08-20T04:10:30Z"),
+      { dispatchFetch: async () => new Response(null, { status: 204 }) },
+    );
+    await failResearchJob(
+      env,
+      {
+        schema_version: 1,
+        operation: "fail_research_job",
+        job_id: submitted.job_id,
+        research_target: request.target,
+        research_requirement_id: submitted.planner!.requirement.requirement_id,
+        error_code: "actions_workflow_failed",
+        workflow_run_id: "32330093877",
+        commit_sha: COMMIT_SHA,
+      },
+      { workflowRunId: "32330093877", commitSha: COMMIT_SHA },
+      new Date("2026-08-20T04:13:00Z"),
+    );
+
+    const completed = await completeResearchJob(
+      env,
+      {
+        schema_version: 1,
+        operation: "complete_research_job",
+        job_id: submitted.job_id,
+        run_id: RUN_ID,
+        plan_id: PLAN_ID,
+        alignment_id: ALIGNMENT_ID,
+        research_target: request.target,
+        research_requirement_id: submitted.planner!.requirement.requirement_id,
+        research_source_ids: submitted.planner!.source_bundle.source_ids,
+        workflow_run_id: "32330093877",
+        commit_sha: COMMIT_SHA,
+      },
+      { workflowRunId: "32330093877", commitSha: COMMIT_SHA },
+      new Date("2026-08-20T04:14:00Z"),
+      {
+        runAi: async () => ({ response: JSON.stringify({
+          bull_case: [{ text: "positive", confidence: 0.7, evidence_ids: [ITEM_ID] }],
+          bear_case: [{ text: "negative", confidence: 0.6, evidence_ids: [ITEM_ID] }],
+          risk_view: [{ text: "risk", confidence: 0.8, evidence_ids: [ITEM_ID] }],
+        }) }),
+      },
+    );
+
+    expect(completed.status).toBe("partial");
+    expect(completed.report_count).toBe(1);
+  });
+
   it("rejects a callback for a different planner requirement", async () => {
     await arrange();
     const request = researchRequest("actions-callback-mismatch-20260820");

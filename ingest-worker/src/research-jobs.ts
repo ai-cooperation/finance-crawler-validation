@@ -579,6 +579,20 @@ export async function completeResearchJob(
   }
   const alignment = await alignmentForRun(env.DB, run, plan, completion.alignment_id);
   if (alignment === null) throw new HttpError(409, "research_alignment_identity_conflict");
+
+  // A GitHub Actions re-run deliberately reuses the submitted job_id, while
+  // the previous attempt's failure callback leaves that durable job in
+  // `failed`/`blocked`.  Re-arm only after every new callback identity,
+  // target, planner and run check above has passed; this prevents an
+  // unauthorised caller from turning an arbitrary historical failure back
+  // into executable work.  The subsequent executeResearchJob transition is
+  // still responsible for moving queued -> running and is idempotent for a
+  // completion callback that arrives while another execution is running.
+  await env.DB.prepare(
+    `UPDATE research_jobs
+     SET status = 'queued', error_code = NULL, completed_at = NULL, updated_at = ?
+     WHERE job_id = ? AND status IN ('failed', 'blocked')`,
+  ).bind(now.toISOString(), completion.job_id).run();
   return await executeResearchJob(env, completion.job_id, dependencies, now, {
     runId: completion.run_id,
     planId: completion.plan_id,
