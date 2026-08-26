@@ -74,3 +74,30 @@
 - 根因交叉驗證：本機 OpenCode 1.15.12 的 `--pure`（停用 MCP／外掛）控制組仍重現同一 SQLite 錯誤；官方 OpenCode issue [#31412](https://github.com/anomalyco/opencode/issues/31412) 與修復 PR [#31419](https://github.com/anomalyco/opencode/pull/31419) 描述相同 `session_message.seq` 回歸。故不能把原錯誤歸因於 Big Pickle、模型供應商或 finance-research Worker。
 
 本輪已完成正確帳號 deploy、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP transport connected，以及全域 OpenCode 1.18.20 的 Big Pickle `list_data_providers` tool result。另完成一次端到端台積電工作：`research_20260826121116_0380e48e` 最終 `partial`，Research Pack／研究報告／Evidence Appendix 均可讀回；初次被 planner 以 `TWSE market not supported` 阻擋，retry 後使用最近已發布但標記 stale 的 `run_20260822t003800z`，因此這是鏈路通過、資料新鮮度與台灣市場 coverage 尚未達專業級的明確結果。
+
+## 5. OpenCode 修正後的真實驗證（2026-08-26）
+
+### 5.1 Big Pickle 完整鏈（BTC，修正前基準）
+
+使用全域 OpenCode `1.18.20`、`opencode/big-pickle` 與 production MCP，並指定 `source_strategy=latest_published`、`collection_scope=full_catalog`，完成：
+
+`plan_research_sources → submit_research_job → get_job_status（2 次輪詢）→ get_research_pack → get_research_report → get_evidence_appendix`
+
+- `job_id=research_20260826123216_9bb743d3`、`pack_id=pack_20260826123216_9bb743d3`
+- terminal=`partial`，`report_count=1`；三個 artifact read-back tool calls 均成功。
+- 快照 `run_20260822t003800z`；`coverage_ratio=0.9259`、`partial=true`、`stale=true`。
+- 135 source groups／181 endpoints、149 normalized items、73 target-relevant items、78 appendix items；10 個來源失敗。
+
+這次實測同時確認資料品質仍未達 professional-ready：快照已過期、fundamentals unavailable、evidence appendix 沒有 freshness／relevance／verification 欄位；因此 `partial` 不得被解讀為品質通過。
+
+### 5.2 Freshness gate（修正後）
+
+`latest_published` 現在會以需求 SLA 檢查 run 的 `collected_at`：含市場資料超過 6 小時、其餘需求超過 24 小時即 fail closed，回 `blocked / research_snapshot_refresh_required / next_action=request_refresh`，不建立 Research Pack。只有明確 `source_strategy=actions` 才可進入刷新路徑。
+
+production Big Pickle 實測：`job_id=research_20260826124243_c12870d9`，一輪 `get_job_status` 後即回 `blocked`，`pack_id=null`、`report_count=0`；未 retry、未觸發 Actions。這修正了先前 stale run 被誤產成 partial 報告的邏輯錯誤。
+
+### 5.3 Target-scoped topic gate 修正
+
+為取得新鮮 BTC snapshot 只觸發一輪 Actions：workflow run `32971031774` 的 15 個來源全部成功、15 個來源都有內容、共 38 筆 item、0 個 failed source，但舊 collector 仍因固定要求 3 個 topic 回 `accepted=false`，因此沒有發布任何 artifact。這是 gate 邏輯錯誤，不是來源失敗。
+
+已將 gate 改為依 scope 判定：未指定 target 的全域 radar 仍要求 3 個 topic；指定 target 的研究 refresh 至少要求 1 個 target-relevant topic，0 個 topic 仍 fail closed。相同 15 個公開來源在本機允許網路環境重跑得到 15/15 成功、43 筆 item、1 個 topic、`accepted=true`；回歸測試與完整 Python 測試集均通過。此次不再重跑 Actions，待修正提交至 `main` 後才使用下一輪配額驗證遠端 publish。

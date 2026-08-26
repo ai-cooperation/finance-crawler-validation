@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "experiment": "app-a-opencode-big-pickle-mcp-repair",
+  "observed_at": "2026-08-26T12:41:00Z",
+  "endpoint": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/mcp",
+  "client": {
+    "application": "OpenCode",
+    "version_before": "1.15.12",
+    "version_after": "1.18.20",
+    "model": "opencode/big-pickle",
+    "mcp_server": "finance-research"
+  },
+  "failure_control": {
+    "old_version_error": "NOT NULL constraint failed: session_message.seq",
+    "old_version_tokens": { "input": 0, "output": 0, "reasoning": 0 },
+    "control": "opencode run --pure",
+    "interpretation": "The same local SQLite error reproduced with MCP disabled; this is a client database regression, not a model or Worker response."
+  },
+  "fixed_tool_call": {
+    "tool": "finance-research_list_data_providers",
+    "arguments": { "limit": 1 },
+    "result": {
+      "total": 110,
+      "route_integrated": 50,
+      "activation_backlog": 60,
+      "technically_connectable_backlog": 51,
+      "not_executable": 9,
+      "first_provider": "akshare"
+    },
+    "transport": "production MCP Streamable HTTP",
+    "model_error": null
+  },
+  "acceptance": {
+    "mcp_transport_connected": true,
+    "big_pickle_tool_call_completed": true,
+    "root_cause_is_local_opencode_regression": true,
+    "worker_or_model_service_fault": false,
+    "evidence_log_paths": [
+      "/Users/user/.local/share/opencode/log/2026-08-26T093521.log",
+      "/Users/user/.local/share/opencode/log/2026-08-26T093554.log",
+      "/Users/user/.local/share/opencode/log/2026-08-26T094311.log"
+    ]
+  }
+}

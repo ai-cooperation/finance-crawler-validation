@@ -8,6 +8,8 @@ App A 的研究報告產生器 MCP endpoint 是 `POST /mcp`。它支援 `initial
 
 `requirements.include_market_data` 是明確的按需旗標。`false` 時 planner 排除 market source，Actions 傳遞 `research_include_market_data=false`，workflow 以 `--skip-market-data` 產生 `provider=not_requested` 的空 market snapshot；這不是 provider 失敗，也不會用不相干的 CoinGecko 資料補洞。`true` 時才執行 target/provider 支援檢查。
 
+`source_strategy=latest_published` 也有 freshness gate：含市場資料的 job 使用 6 小時 SLA，其餘 job 使用 24 小時 SLA。若目前 published run 超過 SLA 或 `collected_at` 無法解析，job 會回 `blocked / research_snapshot_refresh_required / next_action=request_refresh`，不會拿 stale snapshot 產出 Research Pack；只有明確 `source_strategy=actions` 才會進入刷新路徑。
+
 本機驗證：
 
 ```bash

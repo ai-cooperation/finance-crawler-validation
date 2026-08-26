@@ -1,6 +1,6 @@
 # 兩個目標應用對齊 SPEC：研究報告產生器＋決策討論助手
 
-更新日期：2026-08-21
+更新日期：2026-08-26
 文件狀態：應用層規格修正版（Normative Amendment）
 適用範圍：`complete-investment-research-assistant-plan.md` 的 Stage 7–9；資料收集、D1／R2、GitHub Actions 與來源驗收仍以既有平台規格為準。
 
@@ -28,6 +28,8 @@ MCP 是共用的授權、工作提交、artifact 讀取與稽核邊界；它不�
 ```
 
 Agent 不直接猜 URL、繞過權限或同步等待爬蟲完成；它只提交結構化需求並讀取已授權 artifact。Worker 依來源 manifest、權利、quota、freshness 與 budget 選擇最小必要執行路徑。既有資料足夠時可直接使用 `latest_published`；不足時才建立 `actions` 或其他允許的 refresh job。
+
+`latest_published` 是唯讀重用契約，不是「拿最近一次資料就一定產報告」的捷徑。Executor 在載入 frozen run 前必須通過新鮮度閘：含市場資料的 request 以 6 小時為 SLA，其他 request 以 24 小時為 SLA；`collected_at` 缺失或無法解析也視為過期。閘門失敗時只回 `blocked`、`error_code=research_snapshot_refresh_required`、`next_action=request_refresh`，不得建立 Research Pack、report 或 appendix。只有明確帶入已核准 `run_id` 的 refresh／Actions 執行，才可進入資料收集；refresh 仍須遵守 admission、rights、quota、budget 與 callback policy。
 
 目前 App A 的可執行市場 provider 垂直切片是 CoinGecko crypto；含市場資料的 equity／ETF／company／industry／topic request 若沒有對應 provider，Planner 會明確回 `blocked/market_target_not_supported`，不會用不相干的市場資料產生報告。新增 provider 後才能解除這個 gate。
 
@@ -233,7 +235,7 @@ Research Pack 不得含沒有來源的模型敘事；報告可以有 inference�
 - 已實作 `/mcp`、最小 token scope、`submit_research_job`、`get_job_status`、`retry_research_job`、`get_research_pack`、`get_research_report`、`get_evidence_appendix` 與非同步 job state。
 - 已將目前已發布的 OpenBB／議題／raw evidence 組成 Research Pack，寫入 private R2、D1 index 與 audit event；detailed report／evidence appendix 可讀回。
 - Actions OIDC success／failure callback endpoint、`research_job_id` dispatch bridge 與 target-scoped workflow input 已部署到驗證帳號；真實 run 32432108862 已完成 success callback，D1 job `research_20260821001750_5ad37adc` 讀回 `partial`、published run、private pack/report/appendix。failure callback 的 OIDC／target／requirement binding 仍由本機測試覆核；本次 workflow 後續告警步驟因 webhook 未配置而失敗，已建立 issue #52。
-- repository 已加入不含 secret 的 `opencode.json` remote MCP 設定與 env header，並固定 `model=opencode/big-pickle`；Worker 也有 GET endpoint-event 相容層。OpenCode CLI 1.15.12 的 resolved config 已確認模型與 MCP URL 生效；對本機 Wrangler Worker 的 Streamable HTTP 實測當時已連線並讀到 7 個 tools，後續新增 `retry_research_job` 後 catalog 為 8 個 tools。Big Pickle 已完成 bounded 唯讀 planner 與 `submit → status` tool-call，前者正確回傳 12-source `refresh_required`，後者在缺少 dispatch credential 時正確回傳 `blocked`／`configure_actions_dispatch_and_retry`，且沒有產生投資建議；`finance-app-a-remote` 已以有效 token 對部署後 Worker 完成 redacted `initialize → tools/list → plan → submit → poll → artifact read-back`，證據見 [`experiments/app-a/20260821-remote-gate-a.json`](../experiments/app-a/20260821-remote-gate-a.json)。callback binding／retry／duplicate-dispatch suppression 的本機證據見 [`experiments/app-a/20260820-local-callback-retry-smoke.json`](../experiments/app-a/20260820-local-callback-retry-smoke.json)，Big Pickle 證據見 [`experiments/app-a/20260820-big-pickle-planner-smoke.json`](../experiments/app-a/20260820-big-pickle-planner-smoke.json) 與 [`experiments/app-a/20260820-big-pickle-submit-status-smoke.json`](../experiments/app-a/20260820-big-pickle-submit-status-smoke.json)。handler `waitUntil` 的 submit→status→pack→report→appendix 本機端到端證據見 [`experiments/app-a/20260820-local-handler-e2e.json`](../experiments/app-a/20260820-local-handler-e2e.json)。尚缺 OpenCode Desktop 實際 tool-call、quick card profile，以及 public／private payload 的更細粒度去識別閘門。
+- repository 已加入不含 secret 的 `opencode.json` remote MCP 設定與 env header，並固定 `model=opencode/big-pickle`；Worker 也有 GET endpoint-event 相容層。歷史上的 OpenCode CLI 1.15.12 曾確認 resolved config 生效，但 agent turn 被本機 `session_message.seq` SQLite 回歸阻斷；已升級至 1.18.20，並以相同 production MCP 實際完成 Big Pickle 唯讀 tool call，證據見 [`experiments/app-a/20260826-opencode-big-pickle-mcp-repair.json`](../experiments/app-a/20260826-opencode-big-pickle-mcp-repair.json)。先前的 planner／submit／artifact read-back 與 callback binding／retry／duplicate-dispatch 證據仍分別見 [`experiments/app-a/20260821-remote-gate-a.json`](../experiments/app-a/20260821-remote-gate-a.json)、[`experiments/app-a/20260820-local-callback-retry-smoke.json`](../experiments/app-a/20260820-local-callback-retry-smoke.json)、[`experiments/app-a/20260820-big-pickle-planner-smoke.json`](../experiments/app-a/20260820-big-pickle-planner-smoke.json)、[`experiments/app-a/20260820-big-pickle-submit-status-smoke.json`](../experiments/app-a/20260820-big-pickle-submit-status-smoke.json)。handler `waitUntil` 的 submit→status→pack→report→appendix 本機端到端證據見 [`experiments/app-a/20260820-local-handler-e2e.json`](../experiments/app-a/20260820-local-handler-e2e.json)。OpenCode Desktop 實際 tool-call 已驗證；quick card profile，以及 public／private payload 的更細粒度去識別閘門仍缺。
 
 ### A1.1：Research Requirement Planner／Data Broker
 
@@ -339,7 +341,7 @@ Gate A 的遠端執行步驟與停止條件見 [`app-a-remote-gate-runbook.md`](
 | APP-A-10 | report profile 能產出 quick／full／appendix 三種交付物 | integration | frozen Research Pack replay |
 | APP-A-11 | report claim 可回溯到 URL、item ID、hash、as-of | invariant | citation graph traversal；CI＋遠端 read-back |
 | APP-A-12 | model／tool／prompt／budget／audit 都能讀回 | integration | D1/R2 index、audit hash、usage receipt |
-| APP-A-13 | planner 先判斷資料是否足夠，再決定 reuse 或 refresh | fixture truth-table | existing snapshot／missing field／stale cases；CI＋遠端 bounded run |
+| APP-A-13 | planner／executor 先判斷資料是否足夠與是否新鮮，再決定 reuse 或 refresh；過期 latest-published 必須 fail closed | fixture truth-table | existing snapshot／missing field／stale／invalid-collected-at cases；CI＋遠端 bounded run |
 | APP-A-14 | target-specific Actions job 能以 OIDC callback 完成研究 job | integration | workflow dispatch、callback、D1/R2 read-back；遠端真實 run |
 | APP-A-15 | blocked／failed job 可安全重試且不重複派送 | integration＋invariant | `retry_research_job`、dispatch idempotency、background resume；CI＋遠端 bounded run |
 | APP-A-16 | callback 只能發布 Planner 核准的 target／source bundle | security＋invariant | target／requirement／source ID set binding、run source allowlist；CI＋遠端 bounded run |

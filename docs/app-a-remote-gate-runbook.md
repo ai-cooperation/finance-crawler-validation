@@ -97,7 +97,7 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 
 以限 repo、僅 `Actions: Read and write`、`Metadata: Read-only` 的 fine-grained token 取代原先 dispatch secret 後，GitHub Actions run [`32448634111`](https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/32448634111) 的 `verify_alert_delivery=true` 控制平面驗證完成：外部告警步驟成功、fallback issue 步驟成功，D1 已寫入 `github_action_failure:32448634111`。該 run 刻意在 checkout 前失敗，未啟動爬蟲，避免消耗資料收集額度。
 
-這證明「新 token 可觸發 workflow」及「部署 Worker 可送達 Telegram」；仍不等於完整 App A Gate A，因為 OpenCode Desktop／Big Pickle 的部署後實際 tool-call 與七日連續 soak 仍是獨立驗收項目。
+這證明「新 token 可觸發 workflow」及「部署 Worker 可送達 Telegram」；仍不等於完整 App A Gate A，因為 OpenCode Desktop／Big Pickle 的部署後完整研究鏈與七日連續 soak 仍是獨立驗收項目。
 
 ## 4.3 OpenCode／Big Pickle MCP smoke（2026-08-21）
 
@@ -124,6 +124,14 @@ jq '{gate_a_status,remote_status,checks,blocking_reasons,job_id,request_id,pack,
 讀回結果：`job_id=research_20260821080829_3c4c2121`、`run_id=run_20260821t081239z`、`pack_id=pack_20260821080829_3c4c2121`，終態 `partial/published`，3 份 reports、4 筆 evidence，四個 Big Pickle readback tool calls 全部成功；R2／D1 索引可交叉驗證。這證明部署後的 MCP client／Big Pickle 實際鏈已通，不再只是本機或舊設定 smoke。
 
 品質仍是 `partial`：12 個計畫來源中 `bogleheads_investing_browser` 失敗，`coverage_ratio=0.25`；本次 `include_market_data=false` 是明確需求，因此報告只能標示 `research_only`，不能解讀為 BTC 投資決策。驗證完成後已把 Worker admission 恢復為 `RUN_DAILY_LIMIT=2`、`RUN_MIN_INTERVAL_SECONDS=21600`。
+
+## 4.6 OpenCode agent-turn 回歸修正（2026-08-26）
+
+上一輪 OpenCode 1.15.12 的 agent turn 在第一筆 session message 寫入前即回 `NOT NULL constraint failed: session_message.seq`；`--pure`（停用 MCP／外掛）的控制組也重現同一錯誤，且 token usage 為 0，因此不是 Big Pickle、模型服務或 Worker 的 MCP response。官方 OpenCode issue／修復 PR 所述的同一 SQLite 回歸已透過升級處理。
+
+目前全域 OpenCode 為 `1.18.20`。以相同 production MCP 與 Big Pickle 實際呼叫 `finance-research_list_data_providers({"limit":1})` 已成功，回傳 provider registry `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。可重現證據見 [`experiments/app-a/20260826-opencode-big-pickle-mcp-repair.json`](../experiments/app-a/20260826-opencode-big-pickle-mcp-repair.json)。
+
+這只解除 client／MCP tool-call 的阻塞，不代表資料品質或市場 provider 已完成；`latest_published` 過期快照現在會 fail closed，含市場資料的台股 request 仍須先完成對應的 TWSE／FinMind（或等價官方）provider。
 
 ## 4.5 品質缺口修正（2026-08-21）
 

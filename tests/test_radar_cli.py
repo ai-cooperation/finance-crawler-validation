@@ -134,3 +134,53 @@ def test_artifact_report_separates_transport_success_from_empty_windows() -> Non
     assert report["successful_sources"] == 15
     assert report["content_sources"] == 14
     assert report["empty_sources"] == [manifest.sources[0].source_id]
+
+
+def test_target_scoped_collection_accepts_one_relevant_topic() -> None:
+    manifest = load_radar_manifest(ROOT / "radar-sources.yaml")
+    items = tuple(
+        item(source_id, "Bitcoin rallies as crypto demand strengthens", "news")
+        for source_id in ("btc_news_a", "btc_news_b", "btc_news_c")
+    )
+    checkpoints = tuple(
+        {
+            "source_id": source.source_id,
+            "status": "success",
+            "last_successful_crawl": "2026-08-10T02:05:00Z",
+            "last_article_date": None,
+            "cursor": None,
+        }
+        for source in manifest.sources
+    )
+    results = tuple(
+        {
+            "source_id": source.source_id,
+            "transport": source.transport,
+            "status": "success",
+            "status_code": 200,
+            "route": "synthetic_test",
+            "item_count": 1,
+            "content_status": "items",
+            "request_url": source.canonical_url,
+            "catchup_strategy": source.catchup_strategy,
+            "published_since": None,
+            "error": "",
+        }
+        for source in manifest.sources
+    )
+
+    _, snapshot, report = build_radar_artifacts(
+        manifest,
+        RadarCollection(items=items, checkpoints=checkpoints, source_results=results),
+        workflow_run_id="31309377786",
+        commit_sha="d" * 40,
+        now=datetime(2026, 8, 10, 2, 5, tzinfo=timezone.utc),
+        manifest_sha256="a" * 64,
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+        question="What are the current drivers and risks for BTC?",
+    )
+
+    assert report["accepted"] is True
+    assert report["topics"] == 1
+    assert report["minimum_topics"] == 1
+    assert snapshot["partial"] is False

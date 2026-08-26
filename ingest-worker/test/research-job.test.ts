@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createHandler } from "../src/handler";
 import {
@@ -518,6 +518,32 @@ describe("research report generator job contract", () => {
     expect(reports).toHaveLength(1);
     const appendix = await readEvidenceAppendix(env, submitted.job_id);
     expect(appendix).toMatchObject({ evidence: [{ evidence_id: ITEM_ID, source_id: "coingecko_markets_api" }] });
+  });
+
+  it("fails closed instead of generating a latest-published report from a stale run", async () => {
+    await arrange();
+    const submitted = await submitResearchJob(
+      env,
+      researchRequest("latest-stale-run-20260820"),
+      auth,
+      new Date("2026-08-20T04:10:00Z"),
+    );
+
+    const result = await executeResearchJob(
+      env,
+      submitted.job_id,
+      { runAi: async () => ({ response: "{}" }) },
+      new Date("2026-08-21T12:00:00Z"),
+    );
+
+    expect(result).toMatchObject({
+      status: "blocked",
+      error_code: "research_snapshot_refresh_required",
+      stage: "blocked",
+      next_action: "request_refresh",
+    });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM research_packs WHERE job_id = ?")
+      .bind(submitted.job_id).first<{ count: number }>()).toEqual({ count: 0 });
   });
 
   it("keeps actions-backed jobs queued until a matching GitHub OIDC completion callback", async () => {
@@ -1064,6 +1090,11 @@ describe("research report generator job contract", () => {
   });
 
   it("runs the latest-published job through handler waitUntil and reads all App A outputs via MCP", async () => {
+    // Keep this success-path fixture inside the market-data freshness SLA;
+    // stale latest-published runs are covered by the fail-closed regression
+    // above and must not be allowed to publish a report.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-20T04:12:00Z"));
     await arrange();
     const waits: Promise<unknown>[] = [];
     const handler = createHandler({
@@ -1129,6 +1160,7 @@ describe("research report generator job contract", () => {
     expect(await appendix.json()).toMatchObject({
       result: { structuredContent: { job_id: jobId, evidence: [{ evidence_id: ITEM_ID }] } },
     });
+    vi.useRealTimers();
   });
 
   it("uses the retry MCP tool to dispatch a previously blocked actions job", async () => {

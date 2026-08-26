@@ -77,12 +77,17 @@ def build_topic_snapshot(
     ranked.sort(key=lambda topic: (-topic["score"], topic["topic_id"]))
     topics = ranked[:3]
     failures = sorted(set(failed_sources))
+    minimum_topics = 1 if target is not None else 3
     return {
         "schema_version": 1,
         "snapshot_id": snapshot_id,
         "run_id": run_id,
         "as_of": as_of,
-        "partial": bool(failures or len(topics) < 3),
+        # The global radar contract needs three ranked topics. A target-scoped
+        # research refresh has a narrower question and is complete when at
+        # least one relevant topic is evidenced; zero topics still fails
+        # closed. The collector/report gate records the same floor.
+        "partial": bool(failures or len(topics) < minimum_topics),
         "failed_sources": failures,
         "input_item_ids": list(dict.fromkeys(str(item["item_id"]) for item in item_list)),
         "topics": topics,
@@ -152,8 +157,12 @@ def _engagement_weight(raw: object) -> float:
 
 
 def _divergence(news_count: int, social_count: int) -> dict[str, object]:
+    # This is a volume-balance screen only.  It must not be presented as
+    # opposing sentiment or an information-quality judgment: no stance
+    # classifier is run at the topic-radar stage.
+    basis = "news_social_item_count_balance"
     if news_count == 0 or social_count == 0:
-        return {"direction": "insufficient_data", "magnitude": None}
+        return {"direction": "insufficient_data", "magnitude": None, "basis": basis}
     magnitude = abs(news_count - social_count) / (news_count + social_count)
     if magnitude <= 0.2:
         direction = "aligned"
@@ -161,4 +170,4 @@ def _divergence(news_count: int, social_count: int) -> dict[str, object]:
         direction = "news_leads"
     else:
         direction = "social_leads"
-    return {"direction": direction, "magnitude": round(magnitude, 4)}
+    return {"direction": direction, "magnitude": round(magnitude, 4), "basis": basis}

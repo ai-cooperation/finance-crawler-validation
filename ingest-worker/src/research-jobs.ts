@@ -33,10 +33,13 @@ import {
 } from "./research-planner";
 import { dispatchResearchWorkflow } from "./github-dispatch";
 import { buildInvestmentHarnessArtifacts } from "./investment-harness";
+import { matchesTargetEvidence } from "./target-evidence";
 
 
 const PIPELINE_VERSION = "research-report-generator-v1";
 const MAX_JOB_IDEMPOTENCY_KEY = 128;
+const LATEST_PUBLISHED_DEFAULT_FRESHNESS_MS = 24 * 60 * 60 * 1000;
+const LATEST_PUBLISHED_MARKET_FRESHNESS_MS = 6 * 60 * 60 * 1000;
 // A status read is also a recovery boundary.  If a Worker invocation dies
 // after claiming a job, MCP clients must not poll `running` forever; they can
 // safely retry the failed job and the stale executor is prevented from
@@ -396,6 +399,18 @@ export async function executeResearchJob(
       ? await runById(env.DB, options.runId)
       : await latestPublishedRun(env.DB);
     if (run === null) throw new HttpError(409, "research_inputs_unavailable");
+    // `latest_published` is a read-only freshness contract.  It may reuse a
+    // last-good run only while that run is inside the requirement SLA; it must
+    // never silently turn stale data into a completed/partial report.  An
+    // explicit Actions request (`source_strategy=actions`) is the only path
+    // allowed to execute against a refresh run.
+    if (
+      request.requirements.source_strategy === "latest_published"
+      && !options.runId
+      && isRunStaleForLatestPublished(request, run, now)
+    ) {
+      return await updateJob(env, row, "blocked", now, "research_snapshot_refresh_required");
+    }
     console.log(JSON.stringify({ event: "research_job_stage", job_id: row.job_id, stage: "load_plan" }));
     const plan = await planForRun(env.DB, run, options.planId);
     if (plan === null) throw new HttpError(409, "research_plan_unavailable");
@@ -918,15 +933,8 @@ export function buildEvidenceGraph(reports: ResearchReport[]): ResearchEvidenceG
   return { schema_version: 1, claims };
 }
 
-function targetMatchesEvidence(item: RawItemRow, target: ResearchJobRequest["target"]): boolean {
-  const text = `${item.title} ${item.summary}`.toLowerCase();
-  const terms = [target.symbol, target.name, target.market].filter(
-    (value): value is string => typeof value === "string" && value.trim().length > 0,
-  ).map((value) => value.toLowerCase());
-  if (target.kind === "crypto") terms.push("bitcoin", "btc", "crypto", "cryptocurrency", "digital asset");
-  if (target.kind === "equity") terms.push("stock", "equity", "shares", "earnings");
-  if (target.kind === "etf") terms.push("etf", "exchange traded fund");
-  return terms.some((term) => term.includes(" ") ? text.includes(term) : new RegExp(`(^|[^a-z0-9])${escapeRegExp(term)}([^a-z0-9]|$)`).test(text));
+export function targetMatchesEvidence(item: RawItemRow, target: ResearchJobRequest["target"]): boolean {
+  return matchesTargetEvidence(item, target);
 }
 
 function enrichFinancialDepth(
@@ -1182,7 +1190,21 @@ function blockedNextAction(errorCode: string | null): ResearchJobNextAction {
   if (errorCode === "research_inputs_unavailable" || errorCode === "research_plan_unavailable" || errorCode === "research_alignment_unavailable") {
     return "retry_research_job";
   }
+  if (errorCode === "research_snapshot_refresh_required") return "request_refresh";
   return "review_error";
+}
+
+function isRunStaleForLatestPublished(
+  request: ResearchJobRequest,
+  run: RunRow,
+  now: Date,
+): boolean {
+  const collectedAt = Date.parse(run.collected_at);
+  if (!Number.isFinite(collectedAt)) return true;
+  const freshnessMs = request.requirements.include_market_data
+    ? LATEST_PUBLISHED_MARKET_FRESHNESS_MS
+    : LATEST_PUBLISHED_DEFAULT_FRESHNESS_MS;
+  return now.getTime() - collectedAt > freshnessMs;
 }
 
 function requestFromRow(row: JobRow): ResearchJobRequest {

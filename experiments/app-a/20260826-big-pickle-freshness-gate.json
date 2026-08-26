@@ -1,0 +1,51 @@
+{
+  "experiment": "app-a-big-pickle-freshness-gate",
+  "date": "2026-08-26",
+  "account_boundary": {
+    "github_owner": "ai-cooperation",
+    "cloudflare_account_id": "ca985c195ab218488fc0744692dbde21",
+    "worker": "finance-crawler-validation-ingest"
+  },
+  "client": {
+    "runtime": "OpenCode",
+    "version": "1.18.20",
+    "model": "opencode/big-pickle",
+    "mcp_server": "finance-research"
+  },
+  "request": {
+    "target": { "kind": "crypto", "symbol": "BTC", "market": "global" },
+    "source_strategy": "latest_published",
+    "collection_scope": "full_catalog",
+    "include_market_data": true,
+    "max_sources": 120
+  },
+  "observed": {
+    "job_id": "research_20260826124243_c12870d9",
+    "request_id": "4448811b-ed43-4136-8141-7d06f682c9b2",
+    "status": "blocked",
+    "error_code": "research_snapshot_refresh_required",
+    "stage": "blocked",
+    "retryable": true,
+    "next_action": "request_refresh",
+    "run_id": null,
+    "pack_id": null,
+    "report_count": 0,
+    "actions_triggered": false,
+    "readback": [
+      "plan_research_sources",
+      "submit_research_job",
+      "get_job_status"
+    ]
+  },
+  "snapshot_context": {
+    "snapshot_id": "radar_20260822t003800z",
+    "published_at": "2026-08-22T00:42:38.028Z",
+    "partial": true,
+    "sufficiency": "refresh_required"
+  },
+  "acceptance": {
+    "stale_latest_published_is_not_published": true,
+    "actions_quota_preserved": true,
+    "verified_after_worker_version": "00359ec9-e401-4209-9ee0-fb52c8f98141"
+  }
+}

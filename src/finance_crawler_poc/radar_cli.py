@@ -65,10 +65,11 @@ def build_radar_artifacts(
     }
     validate_contract("ingest-envelope", envelope)
     validate_contract("topic-snapshot", snapshot)
+    minimum_topics = 1 if target is not None else 3
     accepted = (
         collection.successful_source_count >= manifest.minimum_successful_sources
         and collection.content_source_count >= MIN_CONTENT_SOURCES
-        and len(snapshot["topics"]) == 3
+        and len(snapshot["topics"]) >= minimum_topics
     )
     report = {
         "schema_version": 1,
@@ -78,6 +79,7 @@ def build_radar_artifacts(
         "accepted": accepted,
         "minimum_successful_sources": manifest.minimum_successful_sources,
         "minimum_content_sources": MIN_CONTENT_SOURCES,
+        "minimum_topics": minimum_topics,
         "total_sources": len(manifest.sources),
         "successful_sources": collection.successful_source_count,
         "content_sources": collection.content_source_count,
@@ -134,12 +136,14 @@ async def run_radar(
         catchup_windows=catchup_windows,
     )
     if not collection.items:
+        minimum_topics = 1 if target is not None else 3
         report = {
             "schema_version": 1,
             "accepted": False,
             "as_of": collected_at,
             "minimum_successful_sources": manifest.minimum_successful_sources,
             "minimum_content_sources": MIN_CONTENT_SOURCES,
+            "minimum_topics": minimum_topics,
             "total_sources": len(manifest.sources),
             "successful_sources": collection.successful_source_count,
             "content_sources": collection.content_source_count,
