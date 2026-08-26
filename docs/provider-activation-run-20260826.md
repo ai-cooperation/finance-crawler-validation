@@ -1,6 +1,6 @@
 # Provider Activation 執行紀錄（2026-08-26）
 
-文件狀態：本機實作與外部存活探測已完成；Cloudflare／GitHub 發布尚待正確帳號憑證，因此不得把本文件解讀為已部署驗收。
+文件狀態：來源註冊表已於 2026-08-26 部署到指定的 GitHub／Cloudflare 驗證帳號；Production REST 與 OpenCode MCP transport 已查回。Big Pickle／OpenCode 免費模型服務仍回 upstream server error，因此本文件不把「模型驅動的 MCP tool call」誤報為已通過。
 
 ## 1. 目標與完成語義
 
@@ -64,10 +64,12 @@
 ## 4. 驗證與部署狀態
 
 - Python：完整工作樹 519 tests 全數通過、總 coverage 81.26%；另由 Git index 匯出待發布 snapshot，297 tests 全數通過，避免未提交模組掩蓋依賴缺口。
-- Worker pure lane：完整工作樹 9 tests、待發布 snapshot 6 tests，均全數通過；新增 `provider-registry.ts` coverage 為 statements 98.7%、branches 97.14%、functions 100%、lines 100%。需要 workerd／AI binding 的遠端 integration lane 仍須以正確 Cloudflare account 執行。
-- Worker staged snapshot typecheck／dry deploy：已通過；bundle 565.69 KiB、gzip 85.60 KiB。
-- 現行 production `/health`（2026-08-26 16:34 台北時間）：HTTP 200，但只回既有 `{ok, service}`，尚未包含本輪 `provider_registry` summary，因此可證實新版本尚未部署。
-- Cloudflare 阻擋：本機 Wrangler OAuth 目前是 `alan.chen75@gmail.com`／account `cb8f37b75da7355292c6c23a17adf6c6`，目標資源屬驗證 account `ca985c195ab218488fc0744692dbde21`。為避免跨帳號誤部署，本輪不以錯誤 OAuth 發布。
-- GitHub 阻擋：本機 `gh` 的 `ai-cooperation` 與 Alan token 均失效；SSH 已驗證為 `AlanChen75`，可讀 repository refs，但 push `ai-cooperation/finance-crawler-validation` 被 GitHub 明確拒絕。限定變更已建立本機 commit `e2f3ec9`，尚未出現在遠端，不能取得新的 Actions run 證據。
+- Worker clean snapshot：9 個 test files、146 tests 全數通過；新增 `provider-registry.ts` coverage 為 statements 98.7%、branches 97.14%、functions 100%、lines 100%。
+- Worker clean snapshot typecheck／dry deploy：已通過；bundle 565.69 KiB、gzip 85.60 KiB。
+- GitHub：`gh api user` 查回 active identity 為 `ai-cooperation`；遠端 `deploy/radar-quality-fix` 已查回 commit `21db62e5819941075d9e3a1298858174f59b5e5d`。
+- Cloudflare：Wrangler OAuth 已查回 `o970117818@gmail.com`／account `ca985c195ab218488fc0744692dbde21`；production version ID 為 `5f2e9c27-fe44-4c50-b7e0-62f27819831c`。
+- Production REST（2026-08-26 17:34 台北時間）：`GET /health`、`GET /v1/providers?limit=1`、`GET /v1/providers/sec_edgar` 均為 HTTP 200；health summary 為 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。
+- Production secrets：Wrangler 僅以名稱查回 `ALERT_WEBHOOK_URL`、`GITHUB_DISPATCH_TOKEN`、`MCP_API_TOKEN`，部署未覆蓋其值。
+- MCP transport：`opencode mcp list` 對 production `/mcp` 查回 `finance-research connected`。Big Pickle 與 `hy3-free` 的實際 agent turn 均在模型服務層回 `Unexpected server error`，未得到 MCP tool result；這不改寫為 Worker route failure，也不算模型驅動端到端驗收完成。
 
-正式發布完成的驗收條件是：正確帳號 deploy 成功、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP tools/list 與一次有權限讀回成功，且 GitHub commit／workflow run 可追溯。執行 deploy 指令本身不算完成。
+本輪已完成正確帳號 deploy、production `/health.provider_registry.route_integrated=50`、兩個 REST route 讀回一致、MCP transport connected 與 GitHub commit 可追溯。尚未解除的單一驗收缺口是：待 OpenCode 模型服務恢復後，由實際 agent 取得一次 `list_data_providers` tool result；在此之前只宣稱「來源 registry production 可查」，不宣稱 OpenCode／Big Pickle 端到端完成。

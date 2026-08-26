@@ -56,6 +56,14 @@ Provider 的「存在、網站活著、資料 payload 可取、已能形成 cano
 
 完整探測證據：`experiments/provider-activation/full-79-20260826.json` 與 `experiments/provider-activation/remaining-60-20260826.json`。Worker 內嵌的 secret-free runtime registry 由 `scripts/probe_provider_activation.py --skip-probe` 生成，部署前必須重建。
 
+### 2026-08-26 production baseline
+
+- GitHub source of truth：`ai-cooperation/finance-crawler-validation` 的 `deploy/radar-quality-fix`，部署來源 commit `21db62e5819941075d9e3a1298858174f59b5e5d`。
+- Cloudflare account：`ca985c195ab218488fc0744692dbde21`；Worker version `5f2e9c27-fe44-4c50-b7e0-62f27819831c`。
+- `GET /health` 必須回報 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。
+- `GET /v1/providers` 與 `GET /v1/providers/:provider_id` 已在 production 取得 HTTP 200；OpenCode 已查回 MCP transport connected。
+- 模型服務是否可用與 registry／MCP transport 是否可用是兩個獨立 gate。模型 upstream error 不得改寫為 provider route failure；未取得實際 tool result 時，也不得只憑 transport connected 宣稱 agent 端到端完成。
+
 ## 執行狀態與安全 invariant
 
 | status | 意義 | 可生成路徑 |
