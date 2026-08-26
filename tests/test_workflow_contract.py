@@ -128,6 +128,11 @@ def test_topic_radar_workflow_has_a_narrow_oidc_ingest_boundary() -> None:
     assert "steps.admission.outputs.admitted == 'true'" in workflow
     assert "Install admission client only" in workflow
     assert "--no-deps -e ." in workflow
+    # The admission probe imports provider_activation, whose bounded HTTP
+    # health checks require httpx even though the full collector is not yet
+    # installed. Keep this dependency explicit so the pre-crawl gate cannot
+    # fail before it has a chance to admit the run.
+    assert "httpx[http2]>=0.27.2,<1" in workflow
     assert "Install full collector" in workflow
     assert "Record schedule-only soak observation" in workflow
     assert "github.event_name == 'schedule'" in workflow

@@ -66,7 +66,7 @@
 - Python：完整工作樹 519 tests 全數通過、總 coverage 81.26%；另由 Git index 匯出待發布 snapshot，297 tests 全數通過，避免未提交模組掩蓋依賴缺口。
 - Worker clean snapshot：9 個 test files、146 tests 全數通過；新增 `provider-registry.ts` coverage 為 statements 98.7%、branches 97.14%、functions 100%、lines 100%。
 - Worker clean snapshot typecheck／dry deploy：已通過；bundle 565.69 KiB、gzip 85.60 KiB。
-- GitHub：`gh api user` 查回 active identity 為 `ai-cooperation`；遠端 `deploy/radar-quality-fix` 已查回 commit `21db62e5819941075d9e3a1298858174f59b5e5d`。
+- GitHub：`gh api user` 查回 active identity 為 `ai-cooperation`；目前 production source of truth 為 `main`，遠端 commit `d33ce4c387a84b5c77b1dc04cf19a6d5cf45bc5b`（包含 target-topic gate 與 admission `httpx` 修正）。
 - Cloudflare：Wrangler OAuth 已查回 `o970117818@gmail.com`／account `ca985c195ab218488fc0744692dbde21`；production version ID 為 `5f2e9c27-fe44-4c50-b7e0-62f27819831c`。
 - Production REST（2026-08-26 17:34 台北時間）：`GET /health`、`GET /v1/providers?limit=1`、`GET /v1/providers/sec_edgar` 均為 HTTP 200；health summary 為 `total=110`、`route_integrated=50`、`activation_backlog=60`、`technically_connectable_backlog=51`、`not_executable=9`。
 - Production secrets：Wrangler 僅以名稱查回 `ALERT_WEBHOOK_URL`、`GITHUB_DISPATCH_TOKEN`、`MCP_API_TOKEN`，部署未覆蓋其值。
