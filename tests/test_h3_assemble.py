@@ -15,7 +15,7 @@ def _item(item_id: str, source_id: str, title: str) -> dict[str, object]:
         "title": title,
         "summary": title,
         "content": title,
-        "published_at": None,
+        "published_at": "2026-08-21T00:00:00Z",
         "collected_at": "2026-08-21T01:00:00Z",
         "transport": "rss",
         "kind": "news",
@@ -33,7 +33,10 @@ def test_assemble_merges_news_and_radar_without_dropping_full_catalog_metadata(t
         "run_id": "run_20260821t010000z",
         "snapshot_id": "radar_20260821t010000z",
         "source_manifest_hash": "b" * 64,
-        "items": [_item("1" * 64, "bloomberg", "Bitcoin market update")],
+        "items": [
+            _item("1" * 64, "bloomberg", "Bitcoin market update"),
+            _item("3" * 64, "bloomberg", "Oil market update"),
+        ],
         "checkpoints": [{"source_id": "bloomberg", "status": "success", "last_successful_crawl": "2026-08-21T01:00:00Z", "last_article_date": None, "cursor": None}],
         "endpoint_attempt_count": 166,
         "collection_source_group_count": 120,
@@ -51,7 +54,12 @@ def test_assemble_merges_news_and_radar_without_dropping_full_catalog_metadata(t
     }), encoding="utf-8")
     (radar_dir / "topic-snapshot.json").write_text(json.dumps({"failed_sources": []}), encoding="utf-8")
 
-    result = assemble_h3_artifacts(news, radar_dir, tmp_path / "out", target={"kind": "crypto", "symbol": "BTC"})
+    result = assemble_h3_artifacts(
+        news,
+        radar_dir,
+        tmp_path / "out",
+        target={"kind": "crypto", "symbol": "BTC", "name": "Bitcoin"},
+    )
 
     assert result["collection_scope"] == "full_catalog"
     assert result["collection_source_group_count"] == 2
@@ -60,10 +68,12 @@ def test_assemble_merges_news_and_radar_without_dropping_full_catalog_metadata(t
     assert result["partial_source_group_count"] == 0
     assert result["failed_source_group_count"] == 0
     assert result["endpoint_attempt_count"] == 169
-    assert result["normalized_item_count"] == 2
-    assert len(result["items"]) == 2
+    assert result["normalized_item_count"] == 3
+    assert len(result["items"]) == 3
     assert result["checkpoints"][-1]["source_id"] == "coingecko_markets_api"
     persisted_envelope = json.loads((tmp_path / "out" / "ingest-envelope.json").read_text(encoding="utf-8"))
+    assert len(persisted_envelope["items"]) == 2
+    assert all(item["item_id"] != "3" * 64 for item in persisted_envelope["items"])
     assert "collection_scope" not in persisted_envelope
     assert set(persisted_envelope) == {
         "schema_version", "operation", "run_id", "workflow_run_id", "commit_sha",

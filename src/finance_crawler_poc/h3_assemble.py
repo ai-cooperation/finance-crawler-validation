@@ -76,7 +76,16 @@ def assemble_h3_artifacts(
         "target_scope": target_scope,
         "failed_sources": failed_sources,
     }
-    ingest_envelope = {key: result[key] for key in (
+    # Full-catalog collection remains complete in ``raw-items.json`` and the
+    # public source artifacts, but the private Worker ingest is target-scoped.
+    # Sending every normalized editorial item in one request makes the
+    # sequential R2 writes exceed the Worker request window (the observed
+    # failure was a connection reset during /v1/ingest/items).  Checkpoints
+    # still cover every source group, so the completion callback can audit the
+    # entire catalogue while Research Pack construction only sees requested
+    # target evidence.
+    ingest_payload = {**result, "items": target_items if target is not None else items}
+    ingest_envelope = {key: ingest_payload[key] for key in (
         "schema_version", "operation", "run_id", "workflow_run_id", "commit_sha", "snapshot_id",
         "source_manifest_hash", "collected_at", "items", "checkpoints",
     )}
