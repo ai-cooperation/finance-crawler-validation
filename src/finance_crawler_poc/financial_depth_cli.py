@@ -187,14 +187,14 @@ def _compact_depth_for_ingest(depth: dict[str, Any]) -> dict[str, Any]:
         if key in evidence_pack
     }
     # Keep the depth contract free of the canonical-evidence `$ref`: the
-    # Worker validator intentionally does not load that large schema for the
-    # compact boundary. The complete canonical rows remain available through
-    # raw R2 and are re-linked when the Research Pack is assembled.
+    # deployed Worker validator does not register that large schema. The
+    # complete canonical rows remain available through raw R2 and are
+    # re-linked when the Research Pack is assembled; the summary is retained
+    # in the local full-depth artifact for audit, not duplicated in this
+    # compact compatibility envelope.
+    _ = compact_pack
     _ = evidence_pack
-    return {
-        **{key: value for key, value in depth.items() if key != "evidence_pack"},
-        "evidence_pack_summary": compact_pack,
-    }
+    return {key: value for key, value in depth.items() if key != "evidence_pack"}
 
 
 def build_parser() -> argparse.ArgumentParser:
