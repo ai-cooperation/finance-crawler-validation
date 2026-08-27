@@ -20,6 +20,14 @@
     "news_brands": 120,
     "successful_news_brands": 114,
     "failed_news_brands": 6,
+    "failed_news_brand_ids": [
+      "risk_net",
+      "private_banker_international",
+      "financial_advisor_magazine",
+      "the_trade",
+      "etf_stream",
+      "financial_express"
+    ],
     "brand_success_rate": 0.95,
     "news_endpoint_attempts": 171,
     "source_groups": 135,
