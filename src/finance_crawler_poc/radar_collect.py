@@ -151,11 +151,12 @@ async def collect_radar_sources(
                 checkpoints.append(
                     {
                         "source_id": source.source_id,
-                        # `partial` means the transport was healthy but the
-                        # incremental window contained no new evidence.  It
-                        # must trigger planner refresh without pretending the
-                        # endpoint itself failed.
-                        "status": "success" if source_items else "partial",
+                        # Checkpoint status is transport health, not content
+                        # volume.  A valid 200 response whose incremental
+                        # window contains no new records is still a successful
+                        # crawl; ``content_status`` below carries the empty
+                        # observation without poisoning failure accounting.
+                        "status": "success",
                         "last_successful_crawl": collected_at,
                         "last_article_date": max(published) if published else None,
                         "cursor": None,

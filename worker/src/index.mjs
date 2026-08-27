@@ -44,6 +44,26 @@ export const TARGETS = Object.freeze({
   private_banker_international_rss: Object.freeze({
     url: "https://www.privatebankerinternational.com/news/feed/",
   }),
+  // Fallback route IDs are intentionally separate from the primary IDs.  The
+  // crawler keeps them in the same publisher/independence group, while this
+  // allowlist lets the edge relay execute the second route instead of
+  // returning route_not_found before reaching the origin.
+  private_banker_international_feed_alt: Object.freeze({
+    url: "https://www.privatebankerinternational.com/feed/",
+  }),
+  financial_advisor_magazine_feed_alt: Object.freeze({
+    url: "https://www.fa-mag.com/feed/",
+  }),
+  the_trade_wp_api_alt: Object.freeze({
+    url: "https://www.thetradenews.com/wp-json/wp/v2/posts?per_page=10",
+    accept: "application/json, application/problem+json;q=0.9, */*;q=0.1",
+  }),
+  etf_stream_feed_alt: Object.freeze({
+    url: "https://www.etfstream.com/feed/",
+  }),
+  financial_express_feed_alt: Object.freeze({
+    url: "https://www.financialexpress.com/feed/",
+  }),
 });
 
 const PUBLIC_RESPONSE_HEADERS = Object.freeze([

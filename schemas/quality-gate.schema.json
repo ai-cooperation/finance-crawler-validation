@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/quality-gate.schema.json",
+  "title": "Shared research quality gate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "gate_id", "target_kind", "status", "checks", "blocking_reasons", "metrics"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "gate_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" },
+    "target_kind": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["professional_ready", "professional_partial", "research_only", "blocked"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check_id", "status", "required"],
+        "properties": {
+          "check_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{2,127}$" },
+          "status": { "enum": ["pass", "fail", "not_applicable", "unresolved"] },
+          "required": { "type": "boolean" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "blocking_reasons": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "metrics": { "type": "object", "additionalProperties": true }
+  }
+}

@@ -9,11 +9,15 @@
     "schema_version": { "const": 1 },
     "status": { "enum": ["professional_ready", "professional_partial", "research_only", "blocked"] },
     "time_series": { "$ref": "#/$defs/time_series" },
+    "benchmark_time_series": { "anyOf": [{ "$ref": "#/$defs/time_series" }, { "type": "null" }] },
     "fundamentals": { "$ref": "#/$defs/data_status" },
     "valuation": { "$ref": "#/$defs/data_status" },
     "scenarios": { "type": "object", "additionalProperties": true },
     "source_conflicts": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
-    "market_drivers": { "type": "object", "additionalProperties": true }
+    "market_drivers": { "type": "object", "additionalProperties": true },
+    "event_alignment": { "type": "object", "additionalProperties": true },
+    "evidence_pack": { "$ref": "https://finance-crawler.example/schemas/canonical-evidence.schema.json" },
+    "quality_gate": { "$ref": "https://finance-crawler.example/schemas/quality-gate.schema.json" }
   },
   "$defs": {
     "time_series": {

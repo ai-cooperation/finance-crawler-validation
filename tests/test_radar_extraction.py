@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
 
 from finance_crawler_poc.contracts import validate_contract
 from finance_crawler_poc.models import FetchResponse
+from finance_crawler_poc import radar_collect
 from finance_crawler_poc.radar_collect import _source_failure_result, extract_source_items
-from finance_crawler_poc.radar_manifest import RadarSource
+from finance_crawler_poc.radar_manifest import RadarManifest, RadarSource
+from finance_crawler_poc.radar_run_plan import CatchupWindow
 
 
 COLLECTED_AT = "2026-08-10T02:05:00Z"
@@ -214,3 +217,60 @@ def test_valid_empty_incremental_api_response_is_not_a_source_failure() -> None:
         COLLECTED_AT,
         published_since="2026-08-10T02:00:00Z",
     ) == []
+
+
+def test_empty_window_has_success_checkpoint_semantics() -> None:
+    source = source_for("rss")
+    response = FetchResponse(
+        status_code=200,
+        content=RSS,
+        route="synthetic_test",
+        final_url=source.canonical_url,
+    )
+
+    # A healthy 200 response with no records newer than the cursor is a
+    # successful observation, not a failed source.  The content_status field
+    # carries the information needed by the radar report.
+    items = extract_source_items(
+        source,
+        response,
+        COLLECTED_AT,
+        published_since="2026-08-11T00:00:00Z",
+    )
+    assert items == []
+    assert source.transport == "rss"
+
+
+def test_collector_does_not_mark_healthy_empty_window_as_partial(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = source_for("rss")
+    manifest = RadarManifest(
+        version=1,
+        minimum_successful_sources=1,
+        maximum_items_per_run=2,
+        sources=(source,),
+    )
+
+    class FakeAdapter:
+        async def fetch(self, _source):
+            return FetchResponse(
+                status_code=200,
+                content=RSS,
+                route="synthetic_test",
+                final_url=source.canonical_url,
+            )
+
+        async def close(self):
+            return None
+
+    monkeypatch.setattr(radar_collect, "HttpAdapter", FakeAdapter)
+    monkeypatch.setattr(radar_collect, "Crawl4AIAdapter", FakeAdapter)
+
+    collection = asyncio.run(radar_collect.collect_radar_sources(
+        manifest,
+        collected_at=COLLECTED_AT,
+        catchup_windows=(CatchupWindow(source.source_id, "rss_window", source.canonical_url, "2026-08-11T00:00:00Z"),),
+    ))
+
+    assert collection.checkpoints[0]["status"] == "success"
+    assert collection.source_results[0]["content_status"] == "empty_window"
+    assert collection.failed_source_ids == ()

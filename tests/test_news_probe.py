@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 
 from finance_crawler_poc.models import DeliveryAttempt, Outcome, ProbeResult
 from pathlib import Path
@@ -178,6 +179,47 @@ def test_brand_probe_exhaustive_mode_records_successful_and_failed_fallbacks() -
     assert result.successful_endpoint_id == "finance_rss"
     assert result.final_outcome == "success"
     assert len(result.endpoint_attempts) == 2
+
+
+def test_brand_probe_tries_declared_alternative_after_all_primary_routes_fail() -> None:
+    primary = endpoint("finance_rss", "rss", "http", "rss")
+    alternative = endpoint("finance_feed_alt", "rss", "http", "rss")
+    alternative = replace(alternative, fallback_rank=2)
+    brand = NewsBrand(
+        id="finance_brand",
+        name="Finance Brand",
+        canonical_domain="finance.example",
+        brand_class="finance_specialist",
+        region="global",
+        languages=("en",),
+        endpoints=(primary,),
+        alternative_endpoints=(alternative,),
+    )
+    executor = Executor(
+        id="github_actions_crawl4ai",
+        platform="github_actions",
+        capabilities=frozenset({"http", "rss", "javascript", "chromium", "python", "crawl4ai"}),
+        max_duration_seconds=1200,
+        max_response_bytes=20_000_000,
+        cost_rank=3,
+    )
+    states = {executor.id: ExecutorState(available=True, credential_available=True, remaining_jobs=10)}
+    outcomes = iter((Outcome.BLOCKED, Outcome.SUCCESS))
+
+    async def fake_probe(source, adapter, *, run_index):
+        return result_for(source, next(outcomes))
+
+    result = asyncio.run(probe_news_brand(
+        brand,
+        executors=(executor,),
+        states=states,
+        adapters={"rss": FakeAdapter()},
+        probe=fake_probe,
+    ))
+
+    assert result.success is True
+    assert result.successful_endpoint_id == "finance_feed_alt"
+    assert [attempt.endpoint_id for attempt in result.endpoint_attempts] == ["finance_rss", "finance_feed_alt"]
 
 
 def test_brand_probe_records_routing_failure_instead_of_dropping_brand() -> None:

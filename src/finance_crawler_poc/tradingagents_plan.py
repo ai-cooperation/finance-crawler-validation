@@ -81,6 +81,22 @@ def build_tradingagents_run_plan(
             budget,
             [_topic_entry(topic, None, "skip", "not_requested") for topic in topics],
         )
+    if target is not None:
+        target_scope = topic_snapshot.get("target_scope")
+        relevant_count = int(target_scope.get("relevant_item_count") or 0) if isinstance(target_scope, Mapping) else 0
+        target_kind = str(target.get("kind") or "").casefold()
+        identity_count = int(target_scope.get("identity_match_item_count") or 0) if isinstance(target_scope, Mapping) else relevant_count
+        if relevant_count < 1 or (target_kind in {"equity", "company"} and identity_count < 1):
+            return _build_plan(
+                topic_snapshot,
+                alignment,
+                plan_id,
+                created_at,
+                "skipped",
+                "target_evidence_insufficient",
+                budget,
+                [],
+            )
     if max_topics == 0 or max_tokens == 0:
         return _build_plan(
             topic_snapshot,

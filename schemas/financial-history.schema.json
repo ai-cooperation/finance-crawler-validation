@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/financial-history.schema.json",
+  "title": "Period-aligned equity financial history",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "target", "currency", "as_of", "annual_periods", "quarterly_periods", "monthly_revenue", "source_refs", "validation", "missing_reasons"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["available", "insufficient_data", "unavailable"]},
+    "target": {"type": "object", "additionalProperties": true, "required": ["symbol"]},
+    "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    "as_of": {"type": "string", "format": "date-time"},
+    "annual_periods": {"type": "array", "items": {"$ref": "#/$defs/period"}},
+    "quarterly_periods": {"type": "array", "items": {"$ref": "#/$defs/period"}},
+    "monthly_revenue": {"type": "array", "items": {"type": "object", "additionalProperties": true, "required": ["period", "revenue"]}},
+    "shares_outstanding": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "source_refs": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": true, "required": ["url", "response_sha256"]}},
+    "validation": {"type": "object", "additionalProperties": true, "required": ["period_completeness", "balance_sheet_identity"]},
+    "missing_reasons": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "period": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["period", "revenue", "gross_profit", "operating_income", "net_income", "eps", "operating_cash_flow", "capital_expenditure", "free_cash_flow"]
+    }
+  }
+}

@@ -14,10 +14,13 @@ from referencing import Registry, Resource
 CONTRACT_NAMES = frozenset(
     {
         "audit-event",
+        "canonical-evidence",
         "ingest-envelope",
         "market-alignment-envelope",
         "market-snapshot",
         "financial-depth",
+        "financial-history",
+        "forecast-model",
         "time-series-snapshot",
         "market-topic-alignment",
         "raw-item",
@@ -29,6 +32,7 @@ CONTRACT_NAMES = frozenset(
         "research-job-status",
         "source-bundle-manifest",
         "source-record",
+        "source-registry",
         "provider-catalog",
         "provider-activation-registry",
         "provider-activation-report",
@@ -38,6 +42,19 @@ CONTRACT_NAMES = frozenset(
         "topic-snapshot",
         "tradingagents-plan-envelope",
         "tradingagents-run-plan",
+        "quality-gate",
+        "valuation-model",
+        "professional-equity-report",
+        "qualitative-context-model",
+        "qualitative-context-result",
+        "research-context-requirement",
+        "research-context-coverage",
+        "research-context-gap",
+        "research-plan",
+        "research-gap-plan",
+        "research-iteration-history",
+        "context-pack",
+        "reward-hacking-audit",
     }
 )
 SCHEMA_DIRECTORY = Path(__file__).resolve().parents[2] / "schemas"

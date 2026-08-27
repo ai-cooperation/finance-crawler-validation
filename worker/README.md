@@ -1,6 +1,6 @@
 # Fixed feed relay
 
-This Worker is an egress fallback for ten explicit RSS/Atom endpoints. It is intentionally not a general proxy. Three finance-news routes are included only because the same official feeds returned `403` from GitHub Actions; they remain fixed route-to-origin mappings.
+This Worker is an egress fallback for a fixed allowlist of explicit RSS/Atom/JSON endpoints. It is intentionally not a general proxy. The five `*_alt` routes are publisher-scoped fallback IDs used only after the primary route fails; they remain bound to the same publisher/independence group in the crawler registry.
 
 ```bash
 npm install

@@ -31,7 +31,15 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["observed_pct"],
-      "properties": { "observed_pct": { "type": ["number", "null"] } }
+      "properties": {
+        "observed_pct": { "type": ["number", "null"] },
+        "1d_observed_pct": { "type": ["number", "null"] },
+        "3d_observed_pct": { "type": ["number", "null"] },
+        "7d_observed_pct": { "type": ["number", "null"] },
+        "30d_observed_pct": { "type": ["number", "null"] },
+        "90d_observed_pct": { "type": ["number", "null"] },
+        "365d_observed_pct": { "type": ["number", "null"] }
+      }
     },
     "volatility_annualized_pct": { "type": ["number", "null"] },
     "max_drawdown_pct": { "type": ["number", "null"] },
@@ -44,7 +52,8 @@
       "properties": {
         "url": { "type": "string", "format": "uri" },
         "response_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "hash_kind": { "enum": ["provider_response", "normalized_points"] }
+        "hash_kind": { "enum": ["provider_response", "normalized_points"] },
+        "item_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     }
   }

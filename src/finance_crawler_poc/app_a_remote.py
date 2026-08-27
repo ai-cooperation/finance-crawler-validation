@@ -195,12 +195,20 @@ def run_remote_gate(
         })
         bundle = plan.get("source_bundle") if isinstance(plan, dict) else None
         source_count = bundle.get("source_count") if isinstance(bundle, dict) else None
+        expected_source_groups = bundle.get("expected_source_group_count") if isinstance(bundle, dict) else None
+        expected_endpoint_attempts = bundle.get("expected_endpoint_count") if isinstance(bundle, dict) else None
         sufficiency = bundle.get("sufficiency") if isinstance(bundle, dict) else None
         if (
             isinstance(bundle, dict)
             and isinstance(source_count, int)
             and (
-                (config.collection_scope == "full_catalog" and source_count == 135 and bundle.get("collection_scope") == "full_catalog")
+                (
+                    config.collection_scope == "full_catalog"
+                    and source_count == expected_source_groups
+                    and isinstance(expected_source_groups, int)
+                    and isinstance(expected_endpoint_attempts, int)
+                    and bundle.get("collection_scope") == "full_catalog"
+                )
                 or (config.collection_scope != "full_catalog" and 12 <= source_count <= 20)
             )
             and isinstance(sufficiency, dict)
@@ -216,6 +224,8 @@ def run_remote_gate(
             _mark(result, "planner_source_bundle", "passed")
             result["planner"] = {
                 "source_count": source_count,
+                "expected_source_group_count": expected_source_groups,
+                "expected_endpoint_count": expected_endpoint_attempts,
                 "strategy": bundle.get("strategy"),
                 "sufficiency_status": sufficiency.get("status"),
             }
@@ -299,8 +309,8 @@ def run_remote_gate(
             if config.collection_scope == "full_catalog":
                 if (
                     result["pack"]["collection_scope"] == "full_catalog"
-                    and result["pack"]["collection_source_group_count"] == 135
-                    and result["pack"]["endpoint_attempt_count"] == 181
+                    and result["pack"]["collection_source_group_count"] == result["planner"]["expected_source_group_count"]
+                    and result["pack"]["endpoint_attempt_count"] == result["planner"]["expected_endpoint_count"]
                     and isinstance(pack.get("signals"), dict)
                     and isinstance(pack.get("action_tasks"), list)
                     and isinstance(pack.get("action_receipts"), list)

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/canonical-evidence.schema.json",
+  "title": "Canonical evidence pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_id", "status", "item_count", "canonical_story_count", "duplicate_item_count", "source_group_count", "independent_publisher_count", "items", "canonical_items", "story_groups"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "pack_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["available", "insufficient_data", "blocked"] },
+    "item_count": { "type": "integer", "minimum": 0 },
+    "canonical_story_count": { "type": "integer", "minimum": 0 },
+    "duplicate_item_count": { "type": "integer", "minimum": 0 },
+    "source_group_count": { "type": "integer", "minimum": 0 },
+    "independent_publisher_count": { "type": "integer", "minimum": 0 },
+    "items": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "canonical_items": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "story_groups": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+  }
+}

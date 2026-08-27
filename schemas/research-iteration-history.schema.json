@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-iteration-history.schema.json",
+  "title": "Bounded research-loop iteration history",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "question_sha256", "generated_at", "status", "stop_reason", "final_coverage", "attempted_route_ids", "iterations"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "question_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["released", "stopped_partial", "blocked"]},
+    "stop_reason": {"type": "string", "minLength": 1},
+    "final_coverage": {"type": "object", "additionalProperties": true},
+    "attempted_route_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "iterations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["round", "state", "question_sha256", "coverage_before", "coverage_after", "coverage_delta", "planned_route_ids", "attempted_route_ids", "new_complete_requirement_ids", "critical_requirement_ids", "stop_reason"],
+        "properties": {
+          "round": {"type": "integer", "minimum": 0, "maximum": 4},
+          "state": {"enum": ["inventory_checked", "verified", "released", "stopped_partial", "blocked"]},
+          "question_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "coverage_before": {"type": "number", "minimum": 0, "maximum": 1},
+          "coverage_after": {"type": "number", "minimum": 0, "maximum": 1},
+          "coverage_delta": {"type": "number", "minimum": -1, "maximum": 1},
+          "planned_route_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "attempted_route_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "new_complete_requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "critical_requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "stop_reason": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

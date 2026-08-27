@@ -30,6 +30,10 @@ def assemble_h3_artifacts(
     items = _dedupe_items([*news.get("items", []), *radar.get("items", [])])
     checkpoints = _merge_checkpoints([*news.get("checkpoints", []), *radar.get("checkpoints", [])])
     failed_sources = [str(row["source_id"]) for row in checkpoints if row.get("status") != "success"]
+    successful_source_groups = sum(row.get("status") in {"success", "partial"} for row in checkpoints)
+    fully_successful_source_groups = sum(row.get("status") == "success" for row in checkpoints)
+    partial_source_groups = sum(row.get("status") == "partial" for row in checkpoints)
+    failed_source_groups = sum(row.get("status") == "failed" for row in checkpoints)
     target_items, target_scope = select_target_items(items, target=target, question=question)
     topic_snapshot = build_topic_snapshot(
         target_items,
@@ -56,7 +60,14 @@ def assemble_h3_artifacts(
         "items": items,
         "checkpoints": checkpoints,
         "collection_source_group_count": len(checkpoints),
-        "endpoint_attempt_count": int(news.get("endpoint_attempt_count", 0)) + len(radar.get("checkpoints", [])),
+        "successful_source_group_count": successful_source_groups,
+        "fully_successful_source_group_count": fully_successful_source_groups,
+        "partial_source_group_count": partial_source_groups,
+        "failed_source_group_count": failed_source_groups,
+        "incomplete_source_group_count": partial_source_groups + failed_source_groups,
+        "endpoint_attempt_count": int(news.get("endpoint_attempt_count", 0)) + int(
+            radar.get("endpoint_attempt_count", len(radar.get("checkpoints", [])))
+        ),
         "normalized_item_count": len(items),
         "normalization_error_count": int(news.get("normalization_error_count", 0)),
         "target_relevant_item_count": len(target_items),
@@ -78,6 +89,8 @@ def assemble_h3_artifacts(
     _write_json(output_directory / "full-catalog-report.json", {
         key: result[key] for key in (
             "collection_scope", "collection_source_group_count", "endpoint_attempt_count",
+            "successful_source_group_count", "fully_successful_source_group_count",
+            "partial_source_group_count", "failed_source_group_count", "incomplete_source_group_count",
             "normalized_item_count", "target_relevant_item_count", "model_context_item_count",
             "evidence_appendix_item_count", "normalization_error_count", "failed_sources", "run_id", "snapshot_id",
         )
@@ -98,13 +111,38 @@ def _dedupe_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _merge_checkpoints(checkpoints: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_source: dict[str, dict[str, Any]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for checkpoint in checkpoints:
         source_id = str(checkpoint["source_id"])
-        existing = by_source.get(source_id)
-        if existing is None or checkpoint.get("status") == "success":
-            by_source[source_id] = checkpoint
-    return list(by_source.values())
+        grouped.setdefault(source_id, []).append(checkpoint)
+    merged: list[dict[str, Any]] = []
+    for source_id, rows in grouped.items():
+        statuses = {str(row.get("status")) for row in rows}
+        if statuses == {"success"}:
+            status = "success"
+        elif statuses == {"failed"}:
+            status = "failed"
+        else:
+            status = "partial"
+        successful_rows = [row for row in rows if row.get("last_successful_crawl")]
+        last_successful = max(
+            (str(row["last_successful_crawl"]) for row in successful_rows),
+            default=None,
+        )
+        article_dates = [row for row in rows if row.get("last_article_date")]
+        last_article_date = max(
+            (str(row["last_article_date"]) for row in article_dates),
+            default=None,
+        )
+        cursors = [row for row in rows if row.get("cursor")]
+        merged.append({
+            "source_id": source_id,
+            "status": status,
+            "last_successful_crawl": last_successful,
+            "last_article_date": last_article_date,
+            "cursor": cursors[-1].get("cursor") if cursors else None,
+        })
+    return merged
 
 
 def _write_json(path: Path, payload: object) -> None:

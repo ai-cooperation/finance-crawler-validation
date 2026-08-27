@@ -14,7 +14,7 @@ test("health exposes only the fixed feed allowlist", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body.routes, Object.keys(TARGETS).sort());
-  assert.equal(body.routes.length, 13);
+  assert.equal(body.routes.length, 18);
   assert.equal(
     TARGETS.financial_wisdom_forum_feed.url,
     "https://www.financialwisdomforum.org/forum/app.php/feed",
@@ -38,6 +38,17 @@ test("health exposes only the fixed feed allowlist", async () => {
     "https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1",
   );
   assert.equal(TARGETS.etf_stream_html.url, "https://www.etfstream.com/");
+  assert.equal(
+    TARGETS.private_banker_international_feed_alt.url,
+    "https://www.privatebankerinternational.com/feed/",
+  );
+  assert.equal(TARGETS.financial_advisor_magazine_feed_alt.url, "https://www.fa-mag.com/feed/");
+  assert.equal(
+    TARGETS.the_trade_wp_api_alt.url,
+    "https://www.thetradenews.com/wp-json/wp/v2/posts?per_page=10",
+  );
+  assert.equal(TARGETS.etf_stream_feed_alt.url, "https://www.etfstream.com/feed/");
+  assert.equal(TARGETS.financial_express_feed_alt.url, "https://www.financialexpress.com/feed/");
 });
 
 

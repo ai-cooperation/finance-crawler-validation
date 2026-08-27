@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-context-coverage.schema.json",
+  "title": "Research context requirement coverage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "industry_family", "generated_at", "requirements", "summary", "status"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "industry_family": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "section", "required", "status", "evidence_ids", "source_groups", "independent_source_count", "missing_reasons"],
+        "properties": {
+          "requirement_id": {"type": "string"},
+          "section": {"type": "string"},
+          "required": {"type": "boolean"},
+          "status": {"enum": ["complete", "partial", "unresolved", "not_applicable"]},
+          "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "source_groups": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "evidence_roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "metric_coverage": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "missing_metrics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "missing_roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "geography_scopes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "required_geography_scopes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "independent_source_count": {"type": "integer", "minimum": 0},
+          "missing_reasons": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_count", "complete_count", "coverage_ratio", "l3_ready"],
+      "properties": {
+        "required_count": {"type": "integer", "minimum": 0},
+        "complete_count": {"type": "integer", "minimum": 0},
+        "coverage_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+        "l3_ready": {"type": "boolean"}
+      }
+    },
+    "status": {"enum": ["complete", "partial"]}
+  }
+}

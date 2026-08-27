@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/qualitative-context-result.schema.json",
+  "title": "Validated qualitative context result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "target_id", "as_of", "overall_status", "sections", "cross_section_synthesis", "quality", "validation"],
+  "properties": {
+    "schema_version": {"const": "qualitative-context.v1"},
+    "target_id": {"type": "string"},
+    "as_of": {"type": "string"},
+    "overall_status": {"enum": ["complete", "partial", "unresolved"]},
+    "sections": {
+      "type": "object",
+      "required": ["company", "industry", "governance", "esg"],
+      "additionalProperties": false,
+      "properties": {
+        "company": {"$ref": "#/$defs/section"},
+        "industry": {"$ref": "#/$defs/section"},
+        "governance": {"$ref": "#/$defs/section"},
+        "esg": {"$ref": "#/$defs/section"}
+      }
+    },
+    "cross_section_synthesis": {"type": "object", "additionalProperties": true},
+    "quality": {"type": "object", "additionalProperties": true},
+    "validation": {"type": "object", "additionalProperties": true}
+  },
+  "$defs": {
+    "section": {
+      "type": "object",
+      "required": ["status", "summary", "claims", "blind_spots", "missing_evidence"],
+      "additionalProperties": true,
+      "properties": {
+        "status": {"enum": ["complete", "partial", "unresolved"]},
+        "summary": {"type": "string"},
+        "claims": {"type": "array", "maxItems": 3, "items": {"$ref": "#/$defs/claim"}},
+        "blind_spots": {"type": "array", "maxItems": 3, "items": {"type": "string"}},
+        "missing_evidence": {"type": "array", "maxItems": 5, "items": {"type": "string"}}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "text", "type", "evidence_ids", "requirement_ids", "mechanism", "falsifier", "decision_link", "confidence", "evidence_quality"],
+      "additionalProperties": true,
+      "properties": {
+        "claim_id": {"type": "string"},
+        "text": {"type": "string"},
+        "type": {"enum": ["fact", "inference", "assumption", "unresolved"]},
+        "evidence_ids": {"type": "array", "items": {"type": "string"}},
+        "counterevidence_ids": {"type": "array", "items": {"type": "string"}},
+        "requirement_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "mechanism": {"type": "string"},
+        "falsifier": {"type": "string"},
+        "decision_link": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["driver", "target_exposure", "kpi", "financial_line", "scenario_implication"],
+          "properties": {
+            "driver": {"type": "string", "minLength": 1},
+            "target_exposure": {"type": "string", "minLength": 1},
+            "kpi": {"type": "string", "minLength": 1},
+            "financial_line": {"type": "string", "minLength": 1},
+            "scenario_implication": {"type": "string", "minLength": 1}
+          }
+        },
+        "confidence": {"enum": ["high", "medium", "low", "unresolved"]},
+        "evidence_quality": {"enum": ["direct", "corroborated", "indirect", "insufficient"]}
+      }
+    }
+  }
+}

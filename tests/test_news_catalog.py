@@ -234,6 +234,31 @@ def test_curated_rss_endpoints_use_the_current_official_news_feeds() -> None:
     assert brands["advisor_hub"].endpoints[0].url == "https://www.advisorhub.com/feed/"
 
 
+def test_known_blocked_brands_have_same_publisher_alternative_routes() -> None:
+    catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
+    brands = {brand.id: brand for brand in catalog.brands}
+    blocked = {
+        "private_banker_international": "privatebankerinternational.com",
+        "financial_advisor_magazine": "fa-mag.com",
+        "the_trade": "thetradenews.com",
+        "etf_stream": "etfstream.com",
+        "financial_express": "financialexpress.com",
+    }
+
+    for brand_id, hostname in blocked.items():
+        alternatives = brands[brand_id].alternative_endpoints
+        assert alternatives, brand_id
+        assert all(hostname in endpoint.url for endpoint in alternatives)
+        assert all(endpoint.fallback_rank == 2 for endpoint in alternatives)
+        assert all(endpoint.id not in {item.id for item in brands[brand_id].endpoints} for endpoint in alternatives)
+
+    # Alternatives are execution capability, not new publisher brands or a
+    # way to inflate the frozen 120-brand/primary-endpoint denominator.
+    assert catalog.brand_count == 120
+    assert catalog.endpoint_count == 166
+    assert catalog.alternative_endpoint_count == 5
+
+
 def test_blocked_news_pages_use_active_first_party_podcast_feeds() -> None:
     catalog = load_news_catalog(REPOSITORY_ROOT / "news-sources.yaml")
     brands = {brand.id: brand for brand in catalog.brands}

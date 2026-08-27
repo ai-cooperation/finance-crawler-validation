@@ -287,6 +287,8 @@ brands:
     endpoints:
       - {id: private_banker_international_rss, transport: rss, url: https://www.privatebankerinternational.com/news/feed/, relay_path: /v1/feed/private_banker_international_rss, required_capabilities: [http, rss]}
       - {id: private_banker_international_html, transport: static_html, url: https://www.privatebankerinternational.com/, required_capabilities: [http, static_html]}
+    alternative_endpoints:
+      - {id: private_banker_international_feed_alt, transport: rss, url: https://www.privatebankerinternational.com/feed/, relay_path: /v1/feed/private_banker_international_feed_alt, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: investment_week
     name: Investment Week
@@ -332,6 +334,8 @@ brands:
     endpoints:
       - {id: financial_advisor_magazine_rss, transport: rss, url: https://www.fa-mag.com/rss.php, relay_path: /v1/feed/financial_advisor_magazine_rss, required_capabilities: [http, rss]}
       - {id: financial_advisor_magazine_browser, transport: browser, url: https://www.fa-mag.com/, required_capabilities: [http, javascript, chromium]}
+    alternative_endpoints:
+      - {id: financial_advisor_magazine_feed_alt, transport: rss, url: https://www.fa-mag.com/feed/, relay_path: /v1/feed/financial_advisor_magazine_feed_alt, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: riabiz
     name: RIABiz
@@ -408,6 +412,8 @@ brands:
     endpoints:
       - {id: the_trade_rss, transport: rss, url: https://www.thetradenews.com/feed/, required_capabilities: [http, rss]}
       - {id: the_trade_html, transport: static_html, url: https://www.thetradenews.com/, required_capabilities: [http, static_html]}
+    alternative_endpoints:
+      - {id: the_trade_wp_api_alt, transport: json_api, url: 'https://www.thetradenews.com/wp-json/wp/v2/posts?per_page=10', required_capabilities: [http, json]}
   - <<: *finance_specialist_defaults
     id: investinglive
     name: investingLive
@@ -454,6 +460,8 @@ brands:
     endpoints:
       - {id: etf_stream_html, transport: static_html, url: https://www.etfstream.com/, relay_path: /v1/feed/etf_stream_html, required_capabilities: [http, static_html]}
       - {id: etf_stream_browser, transport: browser, url: https://www.etfstream.com/, required_capabilities: [http, javascript, chromium]}
+    alternative_endpoints:
+      - {id: etf_stream_feed_alt, transport: rss, url: https://www.etfstream.com/feed/, relay_path: /v1/feed/etf_stream_feed_alt, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: citywire
     name: Citywire
@@ -536,6 +544,8 @@ brands:
     region: India
     endpoints:
       - {id: financial_express_api, transport: json_api, url: 'https://www.financialexpress.com/wp-json/wp/v2/posts?per_page=1', relay_path: /v1/feed/financial_express_api, required_capabilities: [http, json]}
+    alternative_endpoints:
+      - {id: financial_express_feed_alt, transport: rss, url: https://www.financialexpress.com/feed/, relay_path: /v1/feed/financial_express_feed_alt, required_capabilities: [http, rss]}
   - <<: *finance_specialist_defaults
     id: businessline
     name: BusinessLine

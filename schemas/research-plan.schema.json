@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-plan.schema.json",
+  "title": "Frozen research question and required-data plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "target", "question", "question_sha256", "as_of", "horizon", "industry_family", "requirements"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "target": {"type": "object", "additionalProperties": true},
+    "question": {"type": "string", "minLength": 1},
+    "question_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "as_of": {"type": "string", "format": "date-time"},
+    "horizon": {"type": "string", "minLength": 1},
+    "industry_family": {"type": "string", "minLength": 1},
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "parent_question_id", "research_question", "section", "industry_family", "required", "decision_materiality", "minimum_independent_groups", "required_roles", "required_metrics", "period_policy", "geography_policy", "freshness_policy", "recommended_routes", "decision_link"],
+        "properties": {
+          "requirement_id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,127}$"},
+          "parent_question_id": {"type": "string", "minLength": 1},
+          "research_question": {"type": "string", "minLength": 1},
+          "section": {"type": "string", "minLength": 1},
+          "industry_family": {"type": "string", "minLength": 1},
+          "required": {"type": "boolean"},
+          "decision_materiality": {"enum": ["high", "medium", "low"]},
+          "minimum_independent_groups": {"type": "integer", "minimum": 0},
+          "required_roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "required_metrics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "period_policy": {"type": "string", "minLength": 1},
+          "geography_policy": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+          "freshness_policy": {"type": "string", "minLength": 1},
+          "recommended_routes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "not_applicable_rule": {"type": "string"},
+          "decision_link": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hypothesis", "financial_lines"],
+            "properties": {
+              "hypothesis": {"type": "string", "minLength": 1},
+              "financial_lines": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -192,3 +192,31 @@ def test_user_request_overrides_rank_reason_but_not_budget() -> None:
     assert by_id["equities_earnings"]["reason"] == "user_requested"
     assert by_id["equities_earnings"]["decision"] == "run"
     assert sum(topic["decision"] == "run" for topic in plan["topics"]) == 1
+
+
+def test_plan_skips_when_target_scope_has_no_evidence() -> None:
+    snapshot = topic_snapshot()
+    snapshot["target_scope"] = {
+        "policy": "exact_identity_or_crypto_asset_family_v2",
+        "input_item_count": 3,
+        "relevant_source_group_count": 0,
+        "input_item_ids": ["a" * 64, "b" * 64, "c" * 64],
+        "target": {"kind": "equity", "symbol": "2330.TW"},
+        "relevant_item_count": 0,
+        "identity_match_item_count": 0,
+    }
+    plan = build_tradingagents_run_plan(
+        snapshot,
+        alignment(),
+        plan_id="plan_20260820t040000z",
+        created_at="2026-08-20T04:00:00Z",
+        max_topics=3,
+        max_claims_per_topic=6,
+        max_tokens=12000,
+        max_usd=0.5,
+        model="tradingagents-deferred",
+        target={"kind": "equity", "symbol": "2330.TW"},
+    )
+
+    assert plan["decision"] == "skipped"
+    assert plan["skip_reason"] == "target_evidence_insufficient"

@@ -23,7 +23,7 @@
     "created_at": { "type": "string", "format": "date-time" },
     "decision": { "enum": ["eligible", "skipped"] },
     "skip_reason": {
-      "enum": ["none", "no_topics", "missing_market_alignment", "no_budget"]
+      "enum": ["none", "no_topics", "missing_market_alignment", "no_budget", "target_evidence_insufficient"]
     },
     "budget": {
       "type": "object",

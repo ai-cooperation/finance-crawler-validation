@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/context-pack.schema.json",
+  "title": "Research context pack summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_type", "target_id", "status", "requirement_ids", "evidence_ids", "evidence_count", "source_groups", "independent_source_count", "missing_reasons"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "pack_type": {"type": "string", "minLength": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["available", "partial", "unresolved", "not_applicable"]},
+    "requirement_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "evidence_count": {"type": "integer", "minimum": 0},
+    "source_groups": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "independent_source_count": {"type": "integer", "minimum": 0},
+    "missing_reasons": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "peer_count": {"type": "integer", "minimum": 0},
+    "metric_count": {"type": "integer", "minimum": 0}
+    ,"metric_coverage": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+    ,"requirement_metric_coverage": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+    }
+    ,"geography_scopes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+  }
+}

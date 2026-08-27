@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/forecast-model.schema.json",
+  "title": "Driver-based three-year equity forecast",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "base_year", "currency", "forecast_periods", "assumptions", "validation", "missing_reasons"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["available", "insufficient_data", "unavailable"]},
+    "base_year": {"type": ["integer", "null"]},
+    "currency": {"type": "string"},
+    "forecast_periods": {"type": "array", "items": {"type": "object", "additionalProperties": true, "required": ["year", "scenarios"]}},
+    "assumptions": {"type": "object", "additionalProperties": true, "required": ["revenue_growth", "operating_margin", "cash_conversion", "capital_intensity"]},
+    "validation": {"type": "object", "additionalProperties": true, "required": ["formula_replay", "scenario_ordering"]},
+    "missing_reasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/reward-hacking-audit.schema.json",
+  "title": "Deterministic reward-hacking resistance audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "report_id", "audited_at", "status", "violations", "invariants"],
+  "properties": {
+    "schema_version": {"const": "reward-hacking-audit.v1"},
+    "target_id": {"type": "string", "minLength": 1},
+    "report_id": {"type": "string", "minLength": 1},
+    "audited_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["pass", "fail"]},
+    "violations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "severity": {"enum": ["high", "medium", "low"]},
+          "message": {"type": "string", "minLength": 1},
+          "path": {"type": "string"}
+        }
+      }
+    },
+    "invariants": {"type": "object", "additionalProperties": {"type": "boolean"}}
+  }
+}

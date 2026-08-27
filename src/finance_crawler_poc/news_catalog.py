@@ -36,6 +36,10 @@ class NewsEndpoint:
     url: str
     required_capabilities: frozenset[str]
     relay_path: str = ""
+    # Alternative routes are attempted only after all primary routes fail.
+    # They remain attached to the same publisher brand, so brand-level
+    # success is still counted once and the route used is auditable.
+    fallback_rank: int = 1
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,11 @@ class NewsBrand:
     region: str
     languages: tuple[str, ...]
     endpoints: tuple[NewsEndpoint, ...]
+    alternative_endpoints: tuple[NewsEndpoint, ...] = ()
+
+    @property
+    def all_endpoints(self) -> tuple[NewsEndpoint, ...]:
+        return self.endpoints + self.alternative_endpoints
 
 
 @dataclass(frozen=True)
@@ -64,7 +73,12 @@ class NewsCatalog:
 
     @property
     def endpoint_count(self) -> int:
+        # Primary catalog size is frozen for historical P2 comparisons.
         return sum(len(brand.endpoints) for brand in self.brands)
+
+    @property
+    def alternative_endpoint_count(self) -> int:
+        return sum(len(brand.alternative_endpoints) for brand in self.brands)
 
     @property
     def is_complete(self) -> bool:
@@ -101,12 +115,12 @@ def load_news_catalog(path: Path) -> NewsCatalog:
             raise NewsCatalogError(
                 f"duplicate canonical domain: {brand.canonical_domain}"
             )
-        duplicates = endpoint_ids.intersection(endpoint.id for endpoint in brand.endpoints)
+        duplicates = endpoint_ids.intersection(endpoint.id for endpoint in brand.all_endpoints)
         if duplicates:
             raise NewsCatalogError(f"duplicate endpoint id: {sorted(duplicates)[0]}")
         brand_ids.add(brand.id)
         domains.add(brand.canonical_domain)
-        endpoint_ids.update(endpoint.id for endpoint in brand.endpoints)
+        endpoint_ids.update(endpoint.id for endpoint in brand.all_endpoints)
         brands.append(brand)
 
     catalog = NewsCatalog(version=1, status=status, target=target, brands=tuple(brands))
@@ -165,11 +179,22 @@ def _parse_brand(raw: Any, index: int) -> NewsBrand:
     if not isinstance(endpoint_items, list) or not endpoint_items:
         raise NewsCatalogError(f"brand {brand_id} endpoints must be non-empty")
     endpoints = tuple(
-        _parse_endpoint(item, brand_id, endpoint_index)
+        _parse_endpoint(item, brand_id, endpoint_index, fallback_rank=1)
         for endpoint_index, item in enumerate(endpoint_items)
     )
     local_ids = [endpoint.id for endpoint in endpoints]
     if len(local_ids) != len(set(local_ids)):
+        raise NewsCatalogError(f"duplicate endpoint id in brand {brand_id}")
+
+    alternatives_raw = raw.get("alternative_endpoints", [])
+    if not isinstance(alternatives_raw, list):
+        raise NewsCatalogError(f"brand {brand_id} alternative_endpoints must be a list")
+    alternatives = tuple(
+        _parse_endpoint(item, brand_id, endpoint_index, fallback_rank=2)
+        for endpoint_index, item in enumerate(alternatives_raw)
+    )
+    local_all_ids = [endpoint.id for endpoint in (*endpoints, *alternatives)]
+    if len(local_all_ids) != len(set(local_all_ids)):
         raise NewsCatalogError(f"duplicate endpoint id in brand {brand_id}")
 
     return NewsBrand(
@@ -180,10 +205,11 @@ def _parse_brand(raw: Any, index: int) -> NewsBrand:
         region=region,
         languages=tuple(languages_raw),
         endpoints=endpoints,
+        alternative_endpoints=alternatives,
     )
 
 
-def _parse_endpoint(raw: Any, brand_id: str, index: int) -> NewsEndpoint:
+def _parse_endpoint(raw: Any, brand_id: str, index: int, *, fallback_rank: int = 1) -> NewsEndpoint:
     if not isinstance(raw, dict):
         raise NewsCatalogError(f"brand {brand_id} endpoint {index} must be a mapping")
     endpoint_id = _required_string(raw, "id", f"brand {brand_id} endpoint {index}")
@@ -224,6 +250,7 @@ def _parse_endpoint(raw: Any, brand_id: str, index: int) -> NewsEndpoint:
         url=url,
         required_capabilities=frozenset(capabilities_raw),
         relay_path=relay_path,
+        fallback_rank=fallback_rank,
     )
 
 

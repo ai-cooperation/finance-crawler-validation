@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/valuation-model.schema.json",
+  "title": "Two-method equity valuation with sensitivity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "rating", "currency", "market_price", "methods", "assumptions", "sensitivity", "target_range", "upside_downside_pct", "missing_reasons"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["available", "insufficient_data", "unavailable"]},
+    "rating": {"enum": ["Positive", "Neutral", "Cautious", "Not Rated"]},
+    "currency": {"type": "string"},
+    "market_price": {"type": ["number", "null"]},
+    "methods": {"type": "array", "items": {"type": "object", "additionalProperties": true, "required": ["method", "status"]}},
+    "assumptions": {"type": "object", "additionalProperties": true},
+    "sensitivity": {"type": "object", "additionalProperties": true},
+    "target_range": {"type": ["object", "null"], "additionalProperties": true},
+    "upside_downside_pct": {"type": ["number", "null"]},
+    "missing_reasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

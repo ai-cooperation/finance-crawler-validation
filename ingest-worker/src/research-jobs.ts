@@ -868,7 +868,8 @@ async function buildResearchPack(
       target_relevant_source_group_count: targetSourceIds.size,
     },
     target_scope: topicSnapshot.target_scope ?? {
-      policy: "worker_target_identity_or_asset_family_v1",
+      policy: "exact_identity_or_crypto_asset_family_v3",
+      matcher_version: "target_identity_v3",
       target: request.target,
       input_item_count: rawItems.length,
       relevant_item_count: targetRelevantItems.length,

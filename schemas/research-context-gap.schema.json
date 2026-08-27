@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finance-crawler.example/schemas/research-context-gap.schema.json",
+  "title": "Research context gap report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "target_id", "industry_family", "generated_at", "status", "round", "missing_requirements", "next_action"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "target_id": {"type": "string", "minLength": 1},
+    "industry_family": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["complete", "refresh_required", "stopped_partial"]},
+    "round": {"type": "integer", "minimum": 0, "maximum": 4},
+    "missing_requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "parent_question_id", "section", "status", "decision_materiality", "reason", "recommended_routes", "required_roles", "required_metrics", "missing_roles", "missing_metrics", "missing_geographies"],
+        "properties": {
+          "requirement_id": {"type": "string"},
+          "parent_question_id": {"type": "string"},
+          "section": {"type": "string"},
+          "status": {"enum": ["partial", "unresolved"]},
+          "decision_materiality": {"enum": ["high", "medium", "low"]},
+          "reason": {"type": "string"},
+          "recommended_routes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "required_roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "required_metrics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "missing_roles": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "missing_metrics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "missing_geographies": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    },
+    "next_action": {"enum": ["collect_missing_context", "publish_l3", "stop_partial"]},
+    "stop_reason": {"type": "string", "minLength": 1}
+  }
+}

@@ -676,6 +676,20 @@ jobs:
             --header "Content-Type: application/json" \
             --data-binary @"$RUNNER_TEMP/research-job-complete.json" \
             "$INGEST_WORKER_URL/v1/research/jobs/complete")"
+          # Preserve only bounded callback metadata.  The previous version
+          # discarded this response and the following failure callback then
+          # replaced the original server error with the generic
+          # `actions_workflow_failed`, making a failed production run
+          # impossible to diagnose from Actions artifacts.
+          response_summary="$(jq -c '{status,error_code,request_id,job_id,stage,progress,retryable,next_action}' <<<"$response")"
+          callback_dir="$artifact_root/callbacks"
+          mkdir -p "$callback_dir"
+          printf '%s\n' "$response_summary" >"$callback_dir/research-job-complete-response.json"
+          {
+            echo "### Research completion callback"
+            echo
+            echo "\`$response_summary\`"
+          } >>"$GITHUB_STEP_SUMMARY"
           jq -e '.status | IN("completed", "partial")' <<<"$response"
 
       # Any admitted Actions failure, including a failed completion callback,

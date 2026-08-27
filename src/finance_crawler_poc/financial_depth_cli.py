@@ -26,6 +26,7 @@ def build_depth_artifact(
     fundamentals: dict[str, Any] | None = None,
     generated_at: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    peer_valuation: dict[str, Any] | None = None
     try:
         market_snapshot = json.loads(market_snapshot_path.read_text(encoding="utf-8"))
         raw_items = json.loads(raw_items_path.read_text(encoding="utf-8"))
@@ -54,6 +55,8 @@ def build_depth_artifact(
             history_response_sha256 = bundle["history_response_sha256"]
             if fundamentals is None and isinstance(bundle.get("fundamentals"), dict):
                 fundamentals = bundle["fundamentals"]
+            if isinstance(bundle.get("peer_valuation"), dict):
+                peer_valuation = bundle["peer_valuation"]
             provider_data = bundle.get("provider_data") if isinstance(bundle.get("provider_data"), dict) else None
     except (RuntimeError, ValueError) as exc:
         points, provider, history_response_sha256 = [], "unavailable", None
@@ -71,6 +74,7 @@ def build_depth_artifact(
         as_of=as_of,
         evidence=raw_items,
         fundamentals=fundamentals,
+        peer_valuation=peer_valuation,
         history_response_sha256=history_response_sha256,
         provider_data=provider_data,
     )

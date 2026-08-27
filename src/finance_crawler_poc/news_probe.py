@@ -71,6 +71,7 @@ class NewsEndpointAttempt:
     content_type: str = ""
     delivery_attempts: tuple[dict[str, object], ...] = ()
     content: str = ""
+    fallback_rank: int = 1
 
     def to_dict(self, *, include_content: bool = False) -> dict[str, object]:
         payload = asdict(self)
@@ -113,7 +114,10 @@ async def probe_news_brand(
 ) -> NewsBrandResult:
     attempts: list[NewsEndpointAttempt] = []
     successful_endpoint_id = ""
-    for endpoint in brand.endpoints:
+    # Primary routes are exhausted before alternatives.  This prevents a
+    # transient primary success from consuming a fallback and keeps every
+    # fallback attempt visible in the brand's audit trail.
+    for endpoint in brand.all_endpoints:
         try:
             executor = select_executor(
                 resource_demand_for_endpoint(endpoint), executors, states
@@ -194,6 +198,7 @@ def _endpoint_attempt(
             delivery.to_dict() for delivery in result.delivery_attempts
         ),
         content=result.content,
+        fallback_rank=endpoint.fallback_rank,
     )
 
 
@@ -212,6 +217,7 @@ def _routing_blocked_attempt(
         content_sha256="",
         preview="",
         error=error,
+        fallback_rank=endpoint.fallback_rank,
     )
 
 
