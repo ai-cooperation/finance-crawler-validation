@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-08-27T08:45:00Z",
+  "purpose": "full_catalog_admission_100_per_day_validation",
+  "workflow": {
+    "repository": "ai-cooperation/finance-crawler-validation",
+    "run_id": "33054559169",
+    "run_url": "https://github.com/ai-cooperation/finance-crawler-validation/actions/runs/33054559169",
+    "head_sha": "09f20fd79afc27b6912480365fd1adb098eff976",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "target": {
+    "kind": "crypto",
+    "symbol": "BTC",
+    "name": "Bitcoin"
+  },
+  "collection": {
+    "scope": "full_catalog",
+    "news_brands": 120,
+    "successful_news_brands": 114,
+    "failed_news_brands": 6,
+    "brand_success_rate": 0.95,
+    "news_endpoint_attempts": 171,
+    "source_groups": 135,
+    "endpoint_attempts": 186,
+    "normalized_items": 2194,
+    "target_relevant_items": 187,
+    "model_context_items": 187,
+    "evidence_appendix_items": 187,
+    "normalization_errors": 2,
+    "raw_payloads_written": 165,
+    "raw_payloads_missing": 6
+  },
+  "transport_results": {
+    "browser": {"success": 18, "total": 26},
+    "json_api": {"success": 2, "total": 7},
+    "rss": {"success": 50, "total": 58},
+    "static_html": {"success": 53, "total": 80}
+  },
+  "publish_results": {
+    "items": {"status": "staging", "received_items": 187, "replayed": false},
+    "topics": {"status": "published", "topic_count": 3, "replayed": false},
+    "market_alignment": {"status": "published", "instrument_count": 1, "topic_count": 3, "replayed": false},
+    "tradingagents_plan": {"status": "published", "decision": "eligible", "topic_count": 3, "replayed": false}
+  },
+  "artifacts": [
+    "finance-h3-full-catalog-33054559169",
+    "finance-h3-raw-boundary-33054559169",
+    "finance-topic-radar-33054559169"
+  ],
+  "production_health": {"url": "https://finance-crawler-validation-ingest.smallgreen-sandbox.workers.dev/health", "http_status": 200},
+  "admission_restore": {
+    "requested_source_policy": {"RUN_DAILY_LIMIT": "2", "RUN_MIN_INTERVAL_SECONDS": "21600"},
+    "source_config_verified": true,
+    "live_deploy": "blocked",
+    "blocker": "Wrangler OAuth is aicooperation.tw@gmail.com/account c2af2e438013f0cdf66ebafdf40cf08f; target production account ca985c195ab218488fc0744692dbde21 is unauthorized (Cloudflare API 10000).",
+    "temporary_live_policy_not_replaced": true
+  },
+  "interpretation": "Full-catalog collection and all four OIDC publish paths passed. Six news brands and two normalization errors remain explicitly recorded; this is not a 100-percent source-success claim. The live admission policy still needs deployment from the authorized target Cloudflare account."
+}
