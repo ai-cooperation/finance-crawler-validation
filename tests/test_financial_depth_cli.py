@@ -107,3 +107,4 @@ def test_write_depth_artifact_splits_large_depth_from_alignment_envelope(tmp_pat
     assert depth_envelope["operation"] == "upsert_financial_depth"
     assert depth_envelope["market_snapshot_id"] == "market_20260101t000000z"
     assert depth_envelope["financial_depth"]["time_series"]["point_count"] == 2
+    assert depth_envelope["financial_depth"]["evidence_pack"]["items"] == []

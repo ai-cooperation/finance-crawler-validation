@@ -140,7 +140,13 @@ def write_depth_artifact(
             "workflow_run_id": str(envelope.get("workflow_run_id") or os.environ.get("GITHUB_RUN_ID", "0")),
             "commit_sha": str(envelope.get("commit_sha") or os.environ.get("GITHUB_SHA", "0" * 40)),
             "market_snapshot_id": str(enriched["snapshot_id"]),
-            "financial_depth": depth,
+            # Raw/canonical evidence is already persisted by the preceding
+            # ingest-items request. Do not send it a second time inside the
+            # depth envelope: that duplication was the direct cause of the
+            # 413 response on full-catalog runs. Preserve the evidence-pack
+            # identity and counts so the Worker can audit the same bundle via
+            # the run's raw objects and Research Pack evidence list.
+            "financial_depth": _compact_depth_for_ingest(depth),
         }
         _write_json(envelope_path.parent / "financial-depth-envelope.json", depth_envelope)
     _write_json(output_directory / "financial-depth.json", depth)
@@ -154,6 +160,26 @@ def write_depth_artifact(
     }
     _write_json(output_directory / "financial-depth-report.json", summary)
     return summary
+
+
+def _compact_depth_for_ingest(depth: dict[str, Any]) -> dict[str, Any]:
+    evidence_pack = depth.get("evidence_pack")
+    if not isinstance(evidence_pack, dict):
+        return dict(depth)
+    compact_pack = {
+        key: evidence_pack[key]
+        for key in (
+            "pack_id", "schema_version", "status", "item_count",
+            "canonical_story_count", "duplicate_item_count", "source_group_count",
+            "independent_publisher_count",
+        )
+        if key in evidence_pack
+    }
+    # Keep the canonical-evidence contract valid while avoiding duplicate
+    # article bodies. The canonical rows remain available through raw R2 and
+    # are re-linked when the Research Pack is assembled.
+    compact_pack.update(items=[], canonical_items=[], story_groups=[])
+    return {**depth, "evidence_pack": compact_pack}
 
 
 def build_parser() -> argparse.ArgumentParser:
