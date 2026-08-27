@@ -599,11 +599,6 @@ jobs:
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer $oidc_token" \
             --header "Content-Type: application/json" \
-            --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/financial-depth-envelope.json \
-            "$INGEST_WORKER_URL/v1/ingest/financial-depth"
-          curl --fail-with-body --silent --show-error \
-            --header "Authorization: Bearer $oidc_token" \
-            --header "Content-Type: application/json" \
             --data-binary @artifacts/${{ inputs.research_collection_scope == 'full_catalog' && 'h3' || 'topic-radar' }}/tradingagents/tradingagents-plan-envelope.json \
             "$INGEST_WORKER_URL/v1/ingest/tradingagents-plan"
 

@@ -130,7 +130,18 @@ def write_depth_artifact(
         compact_market_snapshot = {
             key: value for key, value in enriched.items() if key != "financial_depth"
         }
-        updated_envelope = {**envelope, "market_snapshot": compact_market_snapshot}
+        # The compact depth metadata is small enough to travel with the
+        # alignment envelope. This fallback keeps the existing Worker/D1
+        # deployment compatible when the optional financial_depths table has
+        # not yet been migrated, while the full depth artifact remains on the
+        # Actions side for later private archival.
+        updated_envelope = {
+            **envelope,
+            "market_snapshot": {
+                **compact_market_snapshot,
+                "financial_depth": _compact_depth_for_ingest(depth),
+            },
+        }
         validate_contract("market-alignment-envelope", updated_envelope)
         _write_json(envelope_path, updated_envelope)
         depth_envelope = {
