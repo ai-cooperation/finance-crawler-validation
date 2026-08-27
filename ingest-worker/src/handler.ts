@@ -8,6 +8,7 @@ import {
 import {
   HttpError,
   ingestItems,
+  ingestFinancialDepth,
   ingestMarketAlignment,
   ingestResearchReport,
   ingestTradingAgentsPlan,
@@ -219,6 +220,7 @@ export function createHandler(
         "/v1/ingest/items",
         "/v1/ingest/publish",
         "/v1/ingest/market-alignment",
+        "/v1/ingest/financial-depth",
         "/v1/ingest/tradingagents-plan",
         "/v1/ingest/research-report",
         "/v1/agent/research-reports",
@@ -319,6 +321,20 @@ export function createHandler(
             throw new HttpError(403, "commit_sha_mismatch");
           }
           const result = await ingestMarketAlignment(env, payload, dependencies.now());
+          return jsonResponse(
+            { ...result, request_id: requestId },
+            result.replayed ? 200 : 201,
+          );
+        }
+
+        if (url.pathname === "/v1/ingest/financial-depth") {
+          if (stringField(payload, "workflow_run_id") !== auth.workflowRunId) {
+            throw new HttpError(403, "workflow_run_mismatch");
+          }
+          if (stringField(payload, "commit_sha") !== auth.commitSha) {
+            throw new HttpError(403, "commit_sha_mismatch");
+          }
+          const result = await ingestFinancialDepth(env, payload, dependencies.now());
           return jsonResponse(
             { ...result, request_id: requestId },
             result.replayed ? 200 : 201,

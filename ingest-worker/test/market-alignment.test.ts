@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createHandler } from "../src/handler";
-import { ingestItems, publishSnapshot } from "../src/storage";
+import { ingestFinancialDepth, ingestItems, ingestMarketAlignment, publishSnapshot } from "../src/storage";
 
 
 const ITEM_ID = "a".repeat(64);
@@ -134,9 +134,34 @@ function ingestPayload() {
   };
 }
 
+function depthEnvelope() {
+  return {
+    schema_version: 1,
+    operation: "upsert_financial_depth",
+    run_id: RUN_ID,
+    workflow_run_id: "32330093877",
+    commit_sha: COMMIT_SHA,
+    market_snapshot_id: "market_20260820t035900z",
+    financial_depth: {
+      schema_version: 1,
+      status: "professional_partial",
+      time_series: {
+        schema_version: 1, status: "available", series_id: "BTC", provider: "coingecko",
+        currency: "USD", as_of: "2026-08-20T03:59:00Z", point_count: 2,
+        points: [], returns: { observed_pct: 4 }, source_item_ids: [ITEM_ID], missing_reason: null,
+      },
+      fundamentals: { status: "not_applicable" },
+      valuation: { status: "not_applicable" },
+      scenarios: { status: "available" },
+      source_conflicts: [],
+    },
+  };
+}
+
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM research_reports"),
+    env.DB.prepare("DELETE FROM financial_depths"),
     env.DB.prepare("DELETE FROM topic_market_alignments"),
     env.DB.prepare("DELETE FROM market_snapshots"),
     env.DB.prepare("DELETE FROM current_snapshot"),
@@ -194,6 +219,23 @@ describe("market alignment ingest", () => {
     expect(rows).toEqual({ markets: 1, alignments: 1 });
     expect(await env.RAW_OBJECTS.get("market/market_20260820t035900z.json")).not.toBeNull();
     expect(await env.RAW_OBJECTS.get("alignments/align_20260820t035900z.json")).not.toBeNull();
+  });
+
+  it("persists large financial depth separately and replays it idempotently", async () => {
+    await arrangePublishedRun();
+    await ingestMarketAlignment(env, ingestPayload(), new Date("2026-08-20T04:00:00Z"));
+    const first = await ingestFinancialDepth(env, depthEnvelope(), new Date("2026-08-20T04:00:05Z"));
+    expect(first).toMatchObject({
+      run_id: RUN_ID,
+      market_snapshot_id: "market_20260820t035900z",
+      status: "published",
+      replayed: false,
+    });
+    expect(await env.RAW_OBJECTS.get("market-depth/market_20260820t035900z.json")).not.toBeNull();
+    expect(await env.DB.prepare("SELECT status FROM financial_depths WHERE market_snapshot_id = ?")
+      .bind("market_20260820t035900z").first()).toEqual({ status: "professional_partial" });
+    const replay = await ingestFinancialDepth(env, depthEnvelope(), new Date("2026-08-20T04:00:06Z"));
+    expect(replay.replayed).toBe(true);
   });
 
   it("persists an explicit not_requested empty market snapshot", async () => {

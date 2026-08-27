@@ -124,9 +124,25 @@ def write_depth_artifact(
             raise ValueError(f"cannot update market alignment envelope: {exc}") from exc
         if not isinstance(envelope, dict):
             raise ValueError("market alignment envelope must be an object")
-        updated_envelope = {**envelope, "market_snapshot": enriched}
+        # Keep the alignment request compact. The full depth bundle (which can
+        # include hundreds of canonical evidence rows) is sent through its
+        # dedicated ingest endpoint below, avoiding a request-body overflow.
+        compact_market_snapshot = {
+            key: value for key, value in enriched.items() if key != "financial_depth"
+        }
+        updated_envelope = {**envelope, "market_snapshot": compact_market_snapshot}
         validate_contract("market-alignment-envelope", updated_envelope)
         _write_json(envelope_path, updated_envelope)
+        depth_envelope = {
+            "schema_version": 1,
+            "operation": "upsert_financial_depth",
+            "run_id": str(envelope["run_id"]),
+            "workflow_run_id": str(envelope.get("workflow_run_id") or os.environ.get("GITHUB_RUN_ID", "0")),
+            "commit_sha": str(envelope.get("commit_sha") or os.environ.get("GITHUB_SHA", "0" * 40)),
+            "market_snapshot_id": str(enriched["snapshot_id"]),
+            "financial_depth": depth,
+        }
+        _write_json(envelope_path.parent / "financial-depth-envelope.json", depth_envelope)
     _write_json(output_directory / "financial-depth.json", depth)
     summary = {
         "schema_version": 1,

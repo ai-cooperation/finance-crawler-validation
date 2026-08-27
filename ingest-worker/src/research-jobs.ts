@@ -14,6 +14,7 @@ import {
   validateResearchJobStatus,
   validateResearchReportEnvelope,
   validateMarketAlignmentEnvelope,
+  validateFinancialDepth,
   validateTopicSnapshot,
   PayloadValidationError,
 } from "./contracts";
@@ -721,6 +722,12 @@ async function buildResearchPack(
     market_snapshot: marketPayload,
     alignment: alignmentPayload,
   });
+  const depthRow = await env.DB.prepare(
+    "SELECT object_key FROM financial_depths WHERE market_snapshot_id = ? AND run_id = ?",
+  ).bind(alignment.market_snapshot_id, run.run_id).first<{ object_key: string }>();
+  const persistedFinancialDepth = depthRow === null
+    ? validatedAlignment.market_snapshot.financial_depth ?? null
+    : validateFinancialDepth(await readPrivateJson(env.RAW_OBJECTS, depthRow.object_key, "financial_depth"));
   const currentRawItems = await env.DB.prepare(
     `SELECT raw_items.item_id, raw_items.source_id, raw_items.canonical_url,
             raw_items.title, raw_items.summary, raw_items.published_at,
@@ -819,7 +826,7 @@ async function buildResearchPack(
   });
   const evidenceGraph = buildEvidenceGraph(reports);
   const financialDepth = enrichFinancialDepth(
-    validatedAlignment.market_snapshot.financial_depth ?? null,
+    persistedFinancialDepth,
     request.target,
     limitedItems,
   );

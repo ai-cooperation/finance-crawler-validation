@@ -2,6 +2,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 
 import ingestEnvelopeSchema from "../../schemas/ingest-envelope.schema.json";
 import financialDepthSchema from "../../schemas/financial-depth.schema.json";
+import financialDepthEnvelopeSchema from "../../schemas/financial-depth-envelope.schema.json";
 import marketAlignmentEnvelopeSchema from "../../schemas/market-alignment-envelope.schema.json";
 import marketSnapshotSchema from "../../schemas/market-snapshot.schema.json";
 import marketTopicAlignmentSchema from "../../schemas/market-topic-alignment.schema.json";
@@ -176,6 +177,16 @@ export interface MarketAlignmentEnvelope {
   commit_sha: string;
   market_snapshot: MarketSnapshot;
   alignment: MarketTopicAlignment;
+}
+
+export interface FinancialDepthEnvelope {
+  schema_version: 1;
+  operation: "upsert_financial_depth";
+  run_id: string;
+  workflow_run_id: string;
+  commit_sha: string;
+  market_snapshot_id: string;
+  financial_depth: FinancialDepth;
 }
 
 export interface TradingAgentsTopicPlan {
@@ -462,6 +473,7 @@ export interface ResearchPack {
 
 const ingestValidator = new Validator(ingestEnvelopeSchema as Schema, "2020-12", false);
 const financialDepthValidator = new Validator(financialDepthSchema as Schema, "2020-12", false);
+const financialDepthEnvelopeValidator = new Validator(financialDepthEnvelopeSchema as Schema, "2020-12", false);
 const marketSnapshotValidator = new Validator(marketSnapshotSchema as Schema, "2020-12", false);
 const marketTopicAlignmentValidator = new Validator(
   marketTopicAlignmentSchema as Schema,
@@ -590,6 +602,17 @@ export function validateMarketAlignmentEnvelope(payload: unknown): MarketAlignme
       "$.alignment.market_snapshot_id: must match market_snapshot.snapshot_id",
     ]);
   }
+  return payload;
+}
+
+export function validateFinancialDepthEnvelope(payload: unknown): FinancialDepthEnvelope {
+  assertValid<FinancialDepthEnvelope>("financial-depth-envelope", financialDepthEnvelopeValidator, payload);
+  assertValid<FinancialDepth>("financial-depth", financialDepthValidator, payload.financial_depth);
+  return payload;
+}
+
+export function validateFinancialDepth(payload: unknown): FinancialDepth {
+  assertValid<FinancialDepth>("financial-depth", financialDepthValidator, payload);
   return payload;
 }
 

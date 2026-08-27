@@ -113,6 +113,7 @@ function topicSnapshot() {
 beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM research_reports"),
+    env.DB.prepare("DELETE FROM financial_depths"),
     env.DB.prepare("DELETE FROM topic_market_alignments"),
     env.DB.prepare("DELETE FROM market_snapshots"),
     env.DB.prepare("DELETE FROM current_snapshot"),

@@ -209,6 +209,7 @@ beforeEach(async () => {
     env.DB.prepare("DELETE FROM research_packs"),
     env.DB.prepare("DELETE FROM research_jobs"),
     env.DB.prepare("DELETE FROM research_reports"),
+    env.DB.prepare("DELETE FROM financial_depths"),
     env.DB.prepare("DELETE FROM tradingagents_plans"),
     env.DB.prepare("DELETE FROM topic_market_alignments"),
     env.DB.prepare("DELETE FROM market_snapshots"),

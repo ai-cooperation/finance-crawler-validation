@@ -1,5 +1,6 @@
 import {
   type IngestEnvelope,
+  type FinancialDepthEnvelope,
   type MarketAlignmentEnvelope,
   type ResearchReportEnvelope,
   type TradingAgentsPlanEnvelope,
@@ -8,6 +9,7 @@ import {
   type SourceCheckpoint,
   type TopicSnapshot,
   validateIngestEnvelope,
+  validateFinancialDepthEnvelope,
   validateMarketAlignmentEnvelope,
   validateResearchReportEnvelope,
   validateTradingAgentsRunPlan,
@@ -53,6 +55,13 @@ export interface MarketAlignmentResult {
   alignment_id: string;
   instrument_count: number;
   topic_count: number;
+  status: "published";
+  replayed: boolean;
+}
+
+export interface FinancialDepthResult {
+  run_id: string;
+  market_snapshot_id: string;
   status: "published";
   replayed: boolean;
 }
@@ -383,6 +392,89 @@ export async function ingestMarketAlignment(
     alignment_id: envelope.alignment.alignment_id,
     instrument_count: envelope.market_snapshot.instruments.length,
     topic_count: envelope.alignment.topics.length,
+    status: "published",
+    replayed: false,
+  };
+}
+
+/**
+ * Persist the potentially large professional-analysis bundle separately from
+ * the compact market alignment envelope.  The split keeps the public request
+ * under Cloudflare's request-body limit while preserving the complete depth
+ * object and its hash for Research Pack replay/audit.
+ */
+export async function ingestFinancialDepth(
+  env: Env,
+  payload: unknown,
+  now: Date,
+): Promise<FinancialDepthResult> {
+  const envelope = validateOrHttp(() => validateFinancialDepthEnvelope(payload));
+  const run = await env.DB.prepare(
+    "SELECT snapshot_id, status FROM runs WHERE run_id = ?",
+  ).bind(envelope.run_id).first<{ snapshot_id: string; status: string }>();
+  if (!run) throw new HttpError(409, "run_not_found");
+  if (run.status !== "published") throw new HttpError(409, "run_not_published");
+  const market = await env.DB.prepare(
+    "SELECT run_id FROM market_snapshots WHERE snapshot_id = ?",
+  ).bind(envelope.market_snapshot_id).first<{ run_id: string }>();
+  if (!market || market.run_id !== envelope.run_id) {
+    throw new HttpError(409, "market_snapshot_run_conflict");
+  }
+  const serialized = canonicalJson(envelope.financial_depth);
+  const contentHash = await sha256Hex(serialized);
+  const existing = await env.DB.prepare(
+    "SELECT run_id, content_sha256 FROM financial_depths WHERE market_snapshot_id = ?",
+  ).bind(envelope.market_snapshot_id).first<{ run_id: string; content_sha256: string }>();
+  if (existing !== null) {
+    if (existing.run_id !== envelope.run_id || existing.content_sha256 !== contentHash) {
+      throw new HttpError(409, "financial_depth_payload_conflict");
+    }
+    return {
+      run_id: envelope.run_id,
+      market_snapshot_id: envelope.market_snapshot_id,
+      status: "published",
+      replayed: true,
+    };
+  }
+  const objectKey = `market-depth/${envelope.market_snapshot_id}.json`;
+  try {
+    await env.RAW_OBJECTS.put(objectKey, serialized, {
+      httpMetadata: { contentType: "application/json" },
+      customMetadata: {
+        content_sha256: contentHash,
+        run_id: envelope.run_id,
+        market_snapshot_id: envelope.market_snapshot_id,
+      },
+    });
+  } catch (error) {
+    logStorageFailure("r2_financial_depth_write_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  const happenedAt = now.toISOString();
+  const audit = await buildAuditStatement(env.DB, envelope.run_id, "financial_depth", contentHash, happenedAt);
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO financial_depths (
+          market_snapshot_id, run_id, object_key, content_sha256, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        envelope.market_snapshot_id,
+        envelope.run_id,
+        objectKey,
+        contentHash,
+        envelope.financial_depth.status,
+        happenedAt,
+      ),
+      audit,
+    ]);
+  } catch (error) {
+    logStorageFailure("d1_financial_depth_failed", envelope.run_id, error);
+    throw new HttpError(503, "storage_write_failed");
+  }
+  return {
+    run_id: envelope.run_id,
+    market_snapshot_id: envelope.market_snapshot_id,
     status: "published",
     replayed: false,
   };
