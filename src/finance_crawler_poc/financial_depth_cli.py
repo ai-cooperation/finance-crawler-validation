@@ -174,27 +174,17 @@ def write_depth_artifact(
 
 
 def _compact_depth_for_ingest(depth: dict[str, Any]) -> dict[str, Any]:
-    evidence_pack = depth.get("evidence_pack")
-    if not isinstance(evidence_pack, dict):
-        return dict(depth)
-    compact_pack = {
-        key: evidence_pack[key]
-        for key in (
-            "pack_id", "schema_version", "status", "item_count",
-            "canonical_story_count", "duplicate_item_count", "source_group_count",
-            "independent_publisher_count",
-        )
-        if key in evidence_pack
+    # The Worker financial-depth schema is intentionally strict. Whitelist
+    # only its transport fields: evidence_pack and quality_gate are local
+    # audit artefacts (and the former references another schema) and must not
+    # cross this compact alignment boundary. Raw evidence is already persisted
+    # by ingest-items and is re-linked when the Research Pack is assembled.
+    allowed = {
+        "schema_version", "status", "time_series", "benchmark_time_series",
+        "fundamentals", "valuation", "scenarios", "source_conflicts",
+        "market_drivers", "event_alignment",
     }
-    # Keep the depth contract free of the canonical-evidence `$ref`: the
-    # deployed Worker validator does not register that large schema. The
-    # complete canonical rows remain available through raw R2 and are
-    # re-linked when the Research Pack is assembled; the summary is retained
-    # in the local full-depth artifact for audit, not duplicated in this
-    # compact compatibility envelope.
-    _ = compact_pack
-    _ = evidence_pack
-    return {key: value for key, value in depth.items() if key != "evidence_pack"}
+    return {key: value for key, value in depth.items() if key in allowed}
 
 
 def build_parser() -> argparse.ArgumentParser:
